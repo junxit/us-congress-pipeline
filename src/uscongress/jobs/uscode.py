@@ -432,8 +432,13 @@ async def seed(
     if attribute:
         from . import table3
 
-        index = table3.build_index(await table3.fetch_archive(client))
-        print(f"Table III: {table3.summarise(index)}")
+        cached = table3.load_index()
+        if cached is None:
+            index = table3.build_index(await table3.fetch_archive(client))
+            table3.cache_index(index)
+        else:
+            index = cached
+        print(f"Table III: {table3.summarise(index)}", flush=True)
 
     repo = GitRepo(repo_path or config.REPOS_DIR / REPO_NAME)
     repo.init()

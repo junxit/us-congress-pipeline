@@ -54,11 +54,21 @@ Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync
-cp .env.example .env              # then add your govinfo key
-uv run uscongress comps           # snapshot Statute Compilations
-uv run uscongress comps --fresh   # ignore today's manifest, refetch everything
-uv run pytest                     # tests
+cp .env.example .env                  # then add your govinfo key
+
+uv run uscongress comps               # snapshot Statute Compilations (do this first)
+uv run uscongress comps --fresh       # ignore today's manifest, refetch everything
+uv run uscongress releasepoints       # list all 386 OLRC release points, oldest first
+uv run uscongress seed-code           # build us-congress-code from every release point
+uv run uscongress seed-code --limit 5 # build only the oldest 5
+uv run uscongress index               # regenerate REPOSITORIES.md
+
+uv run pytest                         # tests
 ```
+
+Every job is resumable and idempotent: `comps` skips packages already recorded, `seed-code`
+skips release points whose tag exists, and both cache their downloads. Re-running a completed
+job fetches nothing.
 
 ### Why `comps` runs first
 

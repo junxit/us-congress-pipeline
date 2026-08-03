@@ -172,6 +172,32 @@ def summarise(index: dict[str, list[Classification]]) -> str:
     )
 
 
+def load_index(path: Path | None = None) -> dict[str, list[Classification]] | None:
+    """Load a previously cached index.
+
+    Parsing the 48,857-file bundle takes long enough that repeating it on every
+    build is wasteful, and the bundle only changes when OLRC republishes it.
+
+    Args:
+        path: Source; defaults to ``data/raw/table3/index.json``.
+
+    Returns:
+        The index, or None if no cache exists.
+    """
+    import json
+
+    target = path or config.RAW_DIR / "table3" / "index.json"
+    if not target.is_file():
+        return None
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    return {
+        law: [
+            Classification(e["act_section"], e["title"], e["section"]) for e in entries
+        ]
+        for law, entries in payload.items()
+    }
+
+
 def cache_index(index: dict[str, list[Classification]], path: Path | None = None) -> Path:
     """Persist the index as JSON for reuse by the build.
 
