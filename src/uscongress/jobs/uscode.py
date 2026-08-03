@@ -274,31 +274,53 @@ async def fetch_archive(client: GovInfoClient, point: ReleasePoint) -> bytes:
     return payload
 
 
-def render_archive(archive: bytes) -> tuple[list[Section], dict[str, str]]:
-    """Render every title in a release point archive.
+def title_number_of(filename: str) -> str:
+    """Extract the US Code title from an archive member name.
 
-    Some official archives are not well formed -- ``usc16.xml`` in
-    ``xml_uscAll@113-46`` carries closing tags for elements never opened. Those
-    are repaired so the document parses, and the repair is reported so the
-    caller can decide whether to trust the snapshot.
+    Args:
+        filename: Archive member, e.g. ``xml/usc31.xml`` or ``xml/usc11A.xml``.
+
+    Returns:
+        The title as OLRC writes it (``31``, ``11A``), or an empty string.
+    """
+    match = re.search(r"usc(\w+)\.xml$", filename)
+    return match.group(1).lstrip("0") if match else ""
+
+
+def render_archive(archive: bytes) -> tuple[list[Section], dict[str, str]]:
+    """Render every title in a release point archive, tolerating bad files.
+
+    OLRC archives are unreliable often enough that a single bad file must not
+    abort the build. Two distinct defects have been observed:
+
+    * **Unbalanced tags** -- ``usc16.xml`` at 113-46 closes elements it never
+      opened. Repairable; see :mod:`uscongress.xmlrepair`.
+    * **Corrupt bytes** -- ``usc31.xml`` at 113-65 contains binary garbage
+      across six lines, including control characters, in the middle of a UUID.
+      The ZIP's CRC passes, so OLRC published it that way. Not repairable.
 
     Args:
         archive: Raw zip bytes of ``xml_uscAll@...``.
 
     Returns:
-        A ``(sections, damage)`` pair, where ``damage`` maps a file name to a
-        description of the repair it needed.
+        A ``(sections, damage)`` pair, where ``damage`` maps the US Code title
+        number to a description of what went wrong with it.
     """
     sections: list[Section] = []
     damage: dict[str, str] = {}
     with zipfile.ZipFile(io.BytesIO(archive)) as bundle:
         names = sorted(n for n in bundle.namelist() if n.endswith(".xml"))
         for name in names:
+            title = title_number_of(name) or name
             raw = bundle.read(name)
             fixed, report = repair(raw)
+            try:
+                sections.extend(render_title(fixed))
+            except Exception as exc:  # noqa: BLE001 - one bad title must not kill the build
+                damage[title] = f"unparseable ({type(exc).__name__}: {exc})"
+                continue
             if report.changed:
-                damage[name] = report.describe()
-            sections.extend(render_title(fixed))
+                damage[title] = report.describe()
     return sections, damage
 
 
@@ -533,6 +555,7 @@ async def seed(
     repo.init()
     skipped: list[tuple[ReleasePoint, dict[str, str]]] = []
     truncations: list[tuple[ReleasePoint, list[str]]] = []
+    damaged_titles: list[tuple[ReleasePoint, dict[str, str]]] = []
     previous_files: dict[str, str] = {}
 
     for idx, point in enumerate(points):
@@ -541,25 +564,41 @@ async def seed(
         archive = await fetch_archive(client, point)
         sections, damage = render_archive(archive)
 
-        if damage:
-            # OLRC published a structurally broken archive. usc16.xml at 113-46
-            # is 2.09 MB smaller than at 113-45 and short ~527 sections, on top
-            # of the stray tags. Committing it would invent a mass deletion and
-            # then "restore" it at the next release point -- a history that
-            # never happened. Record the gap and move on rather than fabricate.
-            skipped.append((point, damage))
+        declared = {str(t) for t in point.titles}
+        unrecoverable = {t for t in damage if t in declared}
+        if unrecoverable:
+            # OLRC says these titles changed, and the archive for them is
+            # unusable, so their new text is genuinely unknown. Carrying the old
+            # text forward would assert they did not change, which is false.
+            skipped.append((point, {t: damage[t] for t in unrecoverable}))
             print(
-                f"  [{point.order:>3}] {point.tag:<26} SKIPPED - upstream archive damaged: "
-                + "; ".join(f"{k}: {v}" for k, v in damage.items()),
+                f"  [{point.order:>3}] {point.tag:<26} SKIPPED - declared titles damaged: "
+                + "; ".join(f"t{t}: {damage[t]}" for t in sorted(unrecoverable)),
                 flush=True,
             )
             continue
+        if damage:
+            # Damaged titles that OLRC does not claim changed: the previous
+            # text still stands, so carry it forward rather than lose them.
+            damaged_titles.append((point, dict(damage)))
+            print(
+                f"       damaged but undeclared, carrying forward: "
+                + ", ".join(f"t{t}" for t in sorted(damage)),
+                flush=True,
+            )
 
         files = (
             to_file_map(sections)
             if granularity == "section"
             else _group_by_chapter(sections)
         )
+
+        for bad_title in damage:
+            folder = f"title-{bad_title.zfill(2)}"
+            files = {k: v for k, v in files.items() if _title_of(k) != folder}
+            files.update(
+                {k: v for k, v in previous_files.items() if _title_of(k) == folder}
+            )
 
         files, repaired_titles = repair_truncated_titles(
             files, previous_files, point.titles
@@ -592,8 +631,8 @@ async def seed(
             flush=True,
         )
 
-    if skipped or truncations:
-        _write_gaps(repo, skipped, truncations)
+    if skipped or truncations or damaged_titles:
+        _write_gaps(repo, skipped, truncations, damaged_titles)
         repo.commit(
             "Record release points skipped for upstream archive damage\n\n"
             "See GAPS.md. These snapshots are omitted rather than committed with\n"
@@ -609,6 +648,7 @@ def _write_gaps(
     repo: GitRepo,
     skipped: list[tuple[ReleasePoint, dict[str, str]]],
     truncations: list[tuple[ReleasePoint, list[str]]] | None = None,
+    damaged_titles: list[tuple[ReleasePoint, dict[str, str]]] | None = None,
 ) -> None:
     """Record archive defects in the generated repository.
 
@@ -652,6 +692,23 @@ def _write_gaps(
         for point, titles in truncations:
             when = point.published.isoformat() if point.published else "unknown"
             lines.append(f"| `{point.tag}` | {when} | {', '.join(titles)} |")
+
+    if damaged_titles:
+        lines += [
+            "",
+            "## Damaged titles carried forward",
+            "",
+            "The archive for these titles was unusable, but OLRC did not list them as",
+            "affected by the release point, so the previous snapshot's text still",
+            "stands and was carried forward.",
+            "",
+            "| Release point | Published | Titles |",
+            "|---|---|---|",
+        ]
+        for point, dmg in damaged_titles:
+            when = point.published.isoformat() if point.published else "unknown"
+            detail = "; ".join(f"t{k}: {v}" for k, v in sorted(dmg.items()))
+            lines.append(f"| `{point.tag}` | {when} | {detail} |")
 
     lines.append("")
     repo.write("GAPS.md", "\n".join(lines))
