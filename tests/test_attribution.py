@@ -64,9 +64,13 @@ def test_new_congress_starts_from_one() -> None:
     ]
 
 
-def test_first_release_point() -> None:
-    """With no predecessor, everything up to the law number is covered."""
-    assert laws_covered(_point(113, "3", 3), None) == ["113-1", "113-2", "113-3"]
+def test_baseline_release_point_claims_no_laws() -> None:
+    """The first release point is a baseline, not the effect of any law.
+
+    Its tree is the whole US Code as accumulated since 1926. Attributing it to
+    the handful of laws in that Congress would badly misstate the commit.
+    """
+    assert laws_covered(_point(113, "21", 21), None) == []
 
 
 def test_trailers_report_missing_attribution_explicitly() -> None:

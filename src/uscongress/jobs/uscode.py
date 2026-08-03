@@ -328,8 +328,14 @@ def laws_covered(
     """
     excluded_now = set(point.excludes)
 
-    if previous is None or previous.congress != point.congress:
-        # First point, or a new Congress: everything up to this law.
+    if previous is None:
+        # The first release point is a baseline: its tree is the whole Code as
+        # accumulated since 1926, not the effect of the laws in this Congress.
+        # Attributing it to those laws would badly misstate what the commit is.
+        return []
+
+    if previous.congress != point.congress:
+        # A new Congress restarts numbering at 1.
         candidates = set(range(1, point.law_number + 1))
     else:
         candidates = set(range(previous.law_number + 1, point.law_number + 1))
