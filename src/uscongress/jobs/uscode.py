@@ -33,6 +33,7 @@ from .. import config
 from ..gitbuild import GitRepo
 from ..govinfo import GovInfoClient
 from ..render import Section, render_title
+from .table3 import trailers as table3_trailers
 
 PRIOR_URL = "https://uscode.house.gov/download/priorreleasepoints.htm"
 CURRENT_URL = "https://uscode.house.gov/download/download.shtml"
@@ -308,12 +309,52 @@ def _group_by_chapter(sections: list[Section]) -> dict[str, str]:
     return {path: "\n\n---\n\n".join(parts) for path, parts in grouped.items()}
 
 
-def commit_message(point: ReleasePoint, section_count: int) -> str:
+def laws_covered(
+    point: ReleasePoint, previous: ReleasePoint | None
+) -> list[str]:
+    """Work out which public laws a release point newly incorporates.
+
+    A release point is "current through PL N, except M". The laws a commit adds
+    are therefore those newly in range, *plus* any previously excluded law that
+    this point has since picked up -- the out-of-sequence codifications the
+    ``not`` suffix records.
+
+    Args:
+        point: The release point being committed.
+        previous: The preceding release point, or None for the first.
+
+    Returns:
+        Law identifiers such as ``["119-4", "119-5"]``, ascending.
+    """
+    excluded_now = set(point.excludes)
+
+    if previous is None or previous.congress != point.congress:
+        # First point, or a new Congress: everything up to this law.
+        candidates = set(range(1, point.law_number + 1))
+    else:
+        candidates = set(range(previous.law_number + 1, point.law_number + 1))
+        # Laws the previous point deliberately skipped that are now included.
+        candidates |= set(previous.excludes)
+
+    return [
+        f"{point.congress}-{n}" for n in sorted(candidates - excluded_now)
+    ]
+
+
+def commit_message(
+    point: ReleasePoint,
+    section_count: int,
+    law_ids: list[str] | None = None,
+    attribution: list[str] | None = None,
+) -> str:
     """Build the commit message for a release point.
 
     Args:
         point: The release point.
         section_count: Number of sections in the snapshot.
+        law_ids: Public laws this point newly incorporates.
+        attribution: Table III trailers naming the US Code sections each law
+            touched.
 
     Returns:
         The full commit message.
@@ -344,13 +385,19 @@ def commit_message(point: ReleasePoint, section_count: int) -> str:
             "codified them out of sequence. Ordering follows publication order, not",
             "law number.",
         ]
+    if law_ids:
+        lines.append(f"Public laws:   {', '.join(law_ids)}")
+
     lines += [
         "",
         "A release point closes over several public laws at once, so this commit is",
-        "not the effect of a single law. Per-law attribution comes from Table III.",
+        "not the effect of a single law. The trailers below attribute changed US Code",
+        "sections to individual laws using OLRC Table III.",
         "",
         f"Source: {point.xml_url}",
     ]
+    if attribution:
+        lines += ["", *attribution]
     return "\n".join(lines)
 
 
@@ -359,6 +406,7 @@ async def seed(
     limit: int | None = None,
     granularity: str = "section",
     repo_path: Path | None = None,
+    attribute: bool = True,
 ) -> GitRepo:
     """Build the US Code repository from OLRC release points.
 
@@ -371,6 +419,7 @@ async def seed(
         granularity: ``section`` for one file per section, ``chapter`` to
             concatenate sections into one file per chapter.
         repo_path: Override the repository location.
+        attribute: Attach Table III per-law attribution trailers.
 
     Returns:
         The repository that was built.
@@ -379,10 +428,17 @@ async def seed(
     if limit is not None:
         points = points[:limit]
 
+    index: dict[str, list] = {}
+    if attribute:
+        from . import table3
+
+        index = table3.build_index(await table3.fetch_archive(client))
+        print(f"Table III: {table3.summarise(index)}")
+
     repo = GitRepo(repo_path or config.REPOS_DIR / REPO_NAME)
     repo.init()
 
-    for point in points:
+    for idx, point in enumerate(points):
         if repo.has_tag(point.tag):
             continue
         archive = await fetch_archive(client, point)
@@ -398,7 +454,13 @@ async def seed(
         # surface as deletions.
         change = repo.sync_tree(files, manifest_path=repo.path.parent / f".{repo.path.name}.manifest.json")
 
-        repo.commit(commit_message(point, len(sections)), when=point.published)
+        previous = points[idx - 1] if idx else None
+        law_ids = laws_covered(point, previous)
+        trailers = table3_trailers(index, law_ids) if index else None
+        repo.commit(
+            commit_message(point, len(sections), law_ids, trailers),
+            when=point.published,
+        )
         repo.tag(point.tag)
         print(
             f"  [{point.order:>3}] {point.tag:<26} "
