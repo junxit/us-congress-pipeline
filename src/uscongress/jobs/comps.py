@@ -119,9 +119,27 @@ async def snapshot(resume: bool = True) -> Path:
         print(f"resuming: {len(manifest)} packages already recorded")
 
     async with GovInfoClient() as client:
-        entries = [e for e in await client.list_bulkdata("COMPS") if not e.is_folder]
+        listing = await client.list_bulkdata("COMPS")
+        # The listing also carries COMPS.zip, an 85 MB bundle of every
+        # compilation. It is not a package, and storing it duplicates the whole
+        # collection, so keep only the per-package XML.
+        entries = [
+            e for e in listing if not e.is_folder and e.name.startswith("COMPS-")
+        ]
+        skipped = len(listing) - len(entries)
+
+        # Drop anything the manifest remembers that upstream no longer lists,
+        # so a resumed run cannot preserve a stale or mis-filtered entry.
+        live_ids = {e.name.removesuffix(".xml") for e in entries}
+        for stale in [k for k in manifest if k not in live_ids]:
+            del manifest[stale]
+            print(f"pruned stale manifest entry: {stale}")
+
         todo = [e for e in entries if e.name.removesuffix(".xml") not in manifest]
-        print(f"COMPS: {len(entries)} packages listed, {len(todo)} to fetch")
+        print(
+            f"COMPS: {len(entries)} packages listed "
+            f"({skipped} non-package entries skipped), {len(todo)} to fetch"
+        )
 
         counters = {"fetched": 0, "new": 0, "failed": 0, "bytes": 0}
         lock = asyncio.Lock()
