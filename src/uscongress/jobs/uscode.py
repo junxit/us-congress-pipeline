@@ -22,11 +22,17 @@ Three traps in the source data, all verified against the live page:
 
 from __future__ import annotations
 
+import io
 import re
+import zipfile
 from dataclasses import dataclass
 from datetime import date, datetime
+from pathlib import Path
 
+from .. import config
+from ..gitbuild import GitRepo
 from ..govinfo import GovInfoClient
+from ..render import Section, render_title
 
 PRIOR_URL = "https://uscode.house.gov/download/priorreleasepoints.htm"
 CURRENT_URL = "https://uscode.house.gov/download/download.shtml"
@@ -225,3 +231,180 @@ async def discover(client: GovInfoClient) -> list[ReleasePoint]:
         )
         for index, entry in enumerate(oldest_first)
     ]
+
+
+REPO_NAME = "us-congress-code"
+
+
+def _cache_path(point: ReleasePoint) -> Path:
+    """Local cache path for a release point's XML archive.
+
+    Args:
+        point: The release point.
+
+    Returns:
+        Path under ``data/raw/uscode/``.
+    """
+    return config.RAW_DIR / "uscode" / f"xml_uscAll@{point.congress}-{point.law_spec}.zip"
+
+
+async def fetch_archive(client: GovInfoClient, point: ReleasePoint) -> bytes:
+    """Fetch a release point's all-titles XML archive, caching it on disk.
+
+    Each archive is ~108 MB and immutable once published, so re-running the
+    build never refetches.
+
+    Args:
+        client: HTTP client.
+        point: Release point to fetch.
+
+    Returns:
+        The raw zip bytes.
+    """
+    cached = _cache_path(point)
+    if cached.is_file() and cached.stat().st_size > 0:
+        return cached.read_bytes()
+    payload = await client.get_bytes(point.xml_url)
+    cached.parent.mkdir(parents=True, exist_ok=True)
+    tmp = cached.with_suffix(".tmp")
+    tmp.write_bytes(payload)
+    tmp.rename(cached)
+    return payload
+
+
+def render_archive(archive: bytes) -> list[Section]:
+    """Render every title in a release point archive.
+
+    Args:
+        archive: Raw zip bytes of ``xml_uscAll@...``.
+
+    Returns:
+        Every rendered section across all titles.
+    """
+    sections: list[Section] = []
+    with zipfile.ZipFile(io.BytesIO(archive)) as bundle:
+        names = sorted(n for n in bundle.namelist() if n.endswith(".xml"))
+        for name in names:
+            sections.extend(render_title(bundle.read(name)))
+    return sections
+
+
+def _group_by_chapter(sections: list[Section]) -> dict[str, str]:
+    """Concatenate sections into one file per chapter.
+
+    The per-section layout gives the most readable diffs but multiplies tree
+    objects; this is the fallback if repository size demands it.
+
+    Args:
+        sections: Rendered sections.
+
+    Returns:
+        Mapping of file path to contents.
+    """
+    grouped: dict[str, list[str]] = {}
+    for section in sections:
+        folder = section.path.rpartition("/")[0]
+        grouped.setdefault(f"{folder}.md", []).append(section.markdown)
+    return {path: "\n\n---\n\n".join(parts) for path, parts in grouped.items()}
+
+
+def commit_message(point: ReleasePoint, section_count: int) -> str:
+    """Build the commit message for a release point.
+
+    Args:
+        point: The release point.
+        section_count: Number of sections in the snapshot.
+
+    Returns:
+        The full commit message.
+    """
+    excludes = (
+        ", excluding "
+        + ", ".join(f"{point.congress}-{n}" for n in point.excludes)
+        if point.excludes
+        else ""
+    )
+    when = point.published.isoformat() if point.published else "date not published"
+    lines = [
+        f"US Code through Public Law {point.congress}-{point.law_number}{excludes}",
+        "",
+        f"Release point: {point.congress}-{point.law_spec}",
+        f"Published:     {when}",
+        f"Sections:      {section_count:,}",
+    ]
+    if point.titles:
+        lines.append(
+            "Titles:        "
+            + ", ".join(str(t) for t in sorted(set(point.titles)))
+        )
+    if point.excludes:
+        lines += [
+            "",
+            "This snapshot deliberately omits the public laws listed above; OLRC",
+            "codified them out of sequence. Ordering follows publication order, not",
+            "law number.",
+        ]
+    lines += [
+        "",
+        "A release point closes over several public laws at once, so this commit is",
+        "not the effect of a single law. Per-law attribution comes from Table III.",
+        "",
+        f"Source: {point.xml_url}",
+    ]
+    return "\n".join(lines)
+
+
+async def seed(
+    client: GovInfoClient,
+    limit: int | None = None,
+    granularity: str = "section",
+    repo_path: Path | None = None,
+) -> GitRepo:
+    """Build the US Code repository from OLRC release points.
+
+    Resumable: a release point whose tag already exists is skipped, so an
+    interrupted build restarts cheaply.
+
+    Args:
+        client: HTTP client.
+        limit: Build only the oldest N release points. None builds all.
+        granularity: ``section`` for one file per section, ``chapter`` to
+            concatenate sections into one file per chapter.
+        repo_path: Override the repository location.
+
+    Returns:
+        The repository that was built.
+    """
+    points = await discover(client)
+    if limit is not None:
+        points = points[:limit]
+
+    repo = GitRepo(repo_path or config.REPOS_DIR / REPO_NAME)
+    repo.init()
+
+    for point in points:
+        if repo.has_tag(point.tag):
+            continue
+        archive = await fetch_archive(client, point)
+        sections = render_archive(archive)
+
+        files = (
+            {s.path: s.markdown for s in sections}
+            if granularity == "section"
+            else _group_by_chapter(sections)
+        )
+        # A release point is a full snapshot; clear the tree so repealed
+        # sections are recorded as deletions rather than silently persisting.
+        repo.replace_tree(sorted({p.split("/")[0] for p in files}))
+        for path, content in files.items():
+            repo.write(path, content)
+
+        repo.commit(commit_message(point, len(sections)), when=point.published)
+        repo.tag(point.tag)
+        print(
+            f"  [{point.order:>3}] {point.tag:<26} "
+            f"{len(sections):>6,} sections  {len(files):>6,} files",
+            flush=True,
+        )
+
+    return repo

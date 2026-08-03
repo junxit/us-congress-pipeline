@@ -38,6 +38,16 @@ def main(argv: list[str] | None = None) -> int:
         "releasepoints", help="list OLRC release points, oldest first"
     )
 
+    seed = subparsers.add_parser("seed-code", help="build the us-congress-code repo")
+    seed.add_argument("--limit", type=int, help="build only the oldest N release points")
+    seed.add_argument(
+        "--granularity",
+        choices=("section", "chapter"),
+        default="section",
+        help="one file per section (default) or per chapter",
+    )
+    seed.add_argument("--repo-path", help="override the repository location")
+
     args = parser.parse_args(argv)
 
     if args.command == "comps":
@@ -66,6 +76,30 @@ def main(argv: list[str] | None = None) -> int:
             print(f"\n{len(points)} release points")
 
         asyncio.run(_list())
+        return 0
+
+    if args.command == "seed-code":
+        from pathlib import Path
+
+        from .govinfo import GovInfoClient
+        from .jobs import uscode
+
+        async def _seed() -> None:
+            async with GovInfoClient() as client:
+                repo = await uscode.seed(
+                    client,
+                    limit=args.limit,
+                    granularity=args.granularity,
+                    repo_path=Path(args.repo_path) if args.repo_path else None,
+                )
+            commits = repo.commit_count()
+            size = repo.size_bytes()
+            print(
+                f"\n{commits} commits, {size / 1e6:.0f} MB packed "
+                f"({size / max(commits, 1) / 1e6:.1f} MB per commit)"
+            )
+
+        asyncio.run(_seed())
         return 0
 
     parser.error(f"unknown command: {args.command}")
