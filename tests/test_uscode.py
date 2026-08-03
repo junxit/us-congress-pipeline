@@ -121,3 +121,48 @@ def test_release_point_urls() -> None:
     assert point.tag == "pl-119-102not101"
     assert point.xml_url.endswith("/119/102not101/xml_uscAll@119-102not101.zip")
     assert point.title_xml_url("26").endswith("xml_usc26@119-102not101.zip")
+
+
+def test_update_release_points_try_both_archive_names() -> None:
+    """Archive naming is almost consistent, but not quite.
+
+    16 of the 17 update release points name the archive with their ``u``
+    suffix; ``114-219u1`` alone names it without. Both are tried rather than
+    special-casing one release point.
+
+    The fallback keeps the *directory* fixed and varies only the filename: the
+    archive in the plain ``/219/`` directory is a different, smaller file
+    (90,810,781 vs 91,038,779 bytes), so falling back to it would silently
+    substitute the wrong snapshot.
+    """
+    point = ReleasePoint(
+        congress=114,
+        law_spec="219u1",
+        law_number=219,
+        excludes=(),
+        published=date(2016, 7, 29),
+        titles=(5,),
+        order=78,
+        is_current=False,
+    )
+    candidates = point.xml_url_candidates
+    assert len(candidates) == 2
+    assert candidates[0].endswith("/219u1/xml_uscAll@114-219u1.zip")
+    assert candidates[1].endswith("/219u1/xml_uscAll@114-219.zip")
+    # Both must live in the u1 directory.
+    assert all("/114/219u1/" in url for url in candidates)
+
+
+def test_ordinary_release_points_have_a_single_candidate() -> None:
+    """Only update release points need a fallback."""
+    point = ReleasePoint(
+        congress=119,
+        law_spec="102not101",
+        law_number=102,
+        excludes=(101,),
+        published=date(2026, 7, 12),
+        titles=(5,),
+        order=385,
+        is_current=False,
+    )
+    assert len(point.xml_url_candidates) == 1

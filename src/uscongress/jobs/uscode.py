@@ -81,8 +81,31 @@ class ReleasePoint:
     @property
     def xml_url(self) -> str:
         """URL of the all-titles USLM XML archive."""
-        spec = f"{self.congress}-{self.law_spec}"
-        return f"{_BASE}/{self.congress}/{self.law_spec}/xml_uscAll@{spec}.zip"
+        return self.xml_url_candidates[0]
+
+    @property
+    def xml_url_candidates(self) -> tuple[str, ...]:
+        """Archive URLs to try, most likely first.
+
+        Naming is almost consistent. For update release points the directory
+        keeps its ``u`` suffix and so does the archive -- verified for 16 of the
+        17 that exist. **`114-219u1` is the lone exception**: its directory is
+        ``219u1`` but the archive inside is named ``xml_uscAll@114-219.zip``.
+
+        Rather than special-case one release point, both names are tried. Note
+        the fallback is *not* the archive from the ``/219/`` directory: that is a
+        different, smaller file (90,810,781 vs 91,038,779 bytes), so the
+        directory must stay fixed while only the filename varies.
+
+        Returns:
+            Candidate URLs in priority order.
+        """
+        directory = f"{_BASE}/{self.congress}/{self.law_spec}"
+        names = [f"{self.congress}-{self.law_spec}"]
+        stripped = re.sub(r"u\d+$", "", self.law_spec)
+        if stripped != self.law_spec:
+            names.append(f"{self.congress}-{stripped}")
+        return tuple(f"{directory}/xml_uscAll@{name}.zip" for name in names)
 
     def title_xml_url(self, title: str) -> str:
         """URL of a single title's USLM XML archive.
@@ -250,11 +273,21 @@ def _cache_path(point: ReleasePoint) -> Path:
     return config.RAW_DIR / "uscode" / f"xml_uscAll@{point.congress}-{point.law_spec}.zip"
 
 
+class ArchiveUnavailable(Exception):
+    """A release point's archive could not be downloaded."""
+
+
 async def fetch_archive(client: GovInfoClient, point: ReleasePoint) -> bytes:
     """Fetch a release point's all-titles XML archive, caching it on disk.
 
-    Each archive is ~108 MB and immutable once published, so re-running the
+    Each archive is ~90 MB and immutable once published, so re-running the
     build never refetches.
+
+    **The response must be validated before it is cached.** uscode.house.gov
+    answers a missing file with ``302 -> /docnotfound.xhtml``, which then
+    returns **200 OK** with an HTML error page. Trusting the status code caches
+    a 3,766-byte "Document not Found" page as if it were an archive, and because
+    the cache is keyed only on the path, every later run reuses the poison.
 
     Args:
         client: HTTP client.
@@ -262,11 +295,30 @@ async def fetch_archive(client: GovInfoClient, point: ReleasePoint) -> bytes:
 
     Returns:
         The raw zip bytes.
+
+    Raises:
+        ArchiveUnavailable: If the server served something that is not a zip.
     """
     cached = _cache_path(point)
     if cached.is_file() and cached.stat().st_size > 0:
-        return cached.read_bytes()
-    payload = await client.get_bytes(point.xml_url)
+        payload = cached.read_bytes()
+        if payload.startswith(b"PK"):
+            return payload
+        # A poisoned cache entry from before this check existed.
+        cached.unlink()
+
+    payload = b""
+    for url in point.xml_url_candidates:
+        payload = await client.get_bytes(url)
+        if payload.startswith(b"PK"):
+            break
+    if not payload.startswith(b"PK"):
+        raise ArchiveUnavailable(
+            f"no archive at any of {point.xml_url_candidates}; served "
+            f"{len(payload):,} bytes that are not a zip (uscode.house.gov "
+            "redirects missing files to an HTML error page that answers 200)"
+        )
+
     cached.parent.mkdir(parents=True, exist_ok=True)
     tmp = cached.with_suffix(".tmp")
     tmp.write_bytes(payload)
@@ -556,12 +608,21 @@ async def seed(
     skipped: list[tuple[ReleasePoint, dict[str, str]]] = []
     truncations: list[tuple[ReleasePoint, list[str]]] = []
     damaged_titles: list[tuple[ReleasePoint, dict[str, str]]] = []
+    unavailable: list[tuple[ReleasePoint, str]] = []
     previous_files: dict[str, str] = {}
 
     for idx, point in enumerate(points):
         if repo.has_tag(point.tag):
             continue
-        archive = await fetch_archive(client, point)
+        try:
+            archive = await fetch_archive(client, point)
+        except ArchiveUnavailable as exc:
+            unavailable.append((point, str(exc)))
+            print(
+                f"  [{point.order:>3}] {point.tag:<26} SKIPPED - archive unavailable",
+                flush=True,
+            )
+            continue
         sections, damage = render_archive(archive)
 
         declared = {str(t) for t in point.titles}
@@ -631,8 +692,8 @@ async def seed(
             flush=True,
         )
 
-    if skipped or truncations or damaged_titles:
-        _write_gaps(repo, skipped, truncations, damaged_titles)
+    if skipped or truncations or damaged_titles or unavailable:
+        _write_gaps(repo, skipped, truncations, damaged_titles, unavailable)
         repo.commit(
             "Record release points skipped for upstream archive damage\n\n"
             "See GAPS.md. These snapshots are omitted rather than committed with\n"
@@ -649,6 +710,7 @@ def _write_gaps(
     skipped: list[tuple[ReleasePoint, dict[str, str]]],
     truncations: list[tuple[ReleasePoint, list[str]]] | None = None,
     damaged_titles: list[tuple[ReleasePoint, dict[str, str]]] | None = None,
+    unavailable: list[tuple[ReleasePoint, str]] | None = None,
 ) -> None:
     """Record archive defects in the generated repository.
 
@@ -709,6 +771,20 @@ def _write_gaps(
             when = point.published.isoformat() if point.published else "unknown"
             detail = "; ".join(f"t{k}: {v}" for k, v in sorted(dmg.items()))
             lines.append(f"| `{point.tag}` | {when} | {detail} |")
+
+    if unavailable:
+        lines += [
+            "",
+            "## Release points with no downloadable archive",
+            "",
+            "uscode.house.gov serves no archive at the expected URL for these.",
+            "",
+            "| Release point | Published |",
+            "|---|---|",
+        ]
+        for point, _ in unavailable:
+            when = point.published.isoformat() if point.published else "unknown"
+            lines.append(f"| `{point.tag}` | {when} |")
 
     lines.append("")
     repo.write("GAPS.md", "\n".join(lines))
