@@ -196,14 +196,23 @@ class GitRepo:
         out = self._run("tag", "--list", name)
         return bool(out.strip())
 
-    def size_bytes(self) -> int:
-        """Return the repository's on-disk size after packing.
+    def size_bytes(self, repack: bool = False) -> int:
+        """Return the repository's on-disk size.
+
+        Args:
+            repack: Run a normal ``git gc`` first so loose objects are packed.
+                Off by default -- an aggressive repack of a repository this size
+                takes many minutes and recomputes every delta, which is far too
+                slow to run at the end of an ordinary build.
 
         Returns:
             Size of the ``.git`` directory in bytes.
         """
-        self._run("gc", "--quiet", "--aggressive")
-        return sum(f.stat().st_size for f in (self.path / ".git").rglob("*") if f.is_file())
+        if repack:
+            self._run("gc", "--quiet")
+        return sum(
+            f.stat().st_size for f in (self.path / ".git").rglob("*") if f.is_file()
+        )
 
     def commit_count(self) -> int:
         """Return the number of commits on the current branch."""

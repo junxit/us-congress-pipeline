@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
                     repo_path=Path(args.repo_path) if args.repo_path else None,
                 )
             commits = repo.commit_count()
-            size = repo.size_bytes()
+            size = repo.size_bytes(repack=True)
             print(
                 f"\n{commits} commits, {size / 1e6:.0f} MB packed "
                 f"({size / max(commits, 1) / 1e6:.1f} MB per commit)"
