@@ -88,10 +88,10 @@ class Section:
     @property
     def path(self) -> str:
         """Repository-relative file path for this section."""
-        title = _slug(self.title) or "0"
+        title = _pad_title(_slug(self.title) or "0")
         chapter = _slug(self.chapter)
         stem = _slug(self.num) or _slug(self.identifier.rpartition("/")[2])
-        folder = f"title-{title.zfill(2)}"
+        folder = f"title-{title}"
         if chapter:
             folder = f"{folder}/chapter-{chapter}"
         return f"{folder}/sec-{stem}.md"
@@ -112,6 +112,39 @@ def _slug(value: str) -> str:
     cleaned = value.strip().lstrip("§").strip().rstrip(".")
     cleaned = cleaned.replace("—", "-").replace("–", "-")
     return re.sub(r"[^A-Za-z0-9.-]+", "-", cleaned).strip("-").lower()
+
+
+def _pad_title(title: str) -> str:
+    """Zero-pad a title number, preserving any appendix letter.
+
+    Appendix titles are written ``5a``/``11a``/``50a``. Padding only the numeric
+    part keeps ``title-05a`` sorting beside ``title-05`` instead of drifting to
+    the end of the listing.
+
+    Args:
+        title: Title token, e.g. ``5``, ``26``, ``5a``.
+
+    Returns:
+        The padded token, e.g. ``05``, ``26``, ``05a``.
+    """
+    match = re.fullmatch(r"(\d+)([a-z]*)", title)
+    if not match:
+        return title
+    number, suffix = match.groups()
+    return f"{number.zfill(2)}{suffix}"
+
+
+def _title_from_identifier(identifier: str) -> str:
+    """Extract a title token from a USLM identifier.
+
+    Args:
+        identifier: e.g. ``/us/usc/t18a/pl/96/456/s12`` or ``/us/usc/t5a``.
+
+    Returns:
+        The title token (``18a``, ``5a``), or an empty string.
+    """
+    match = re.match(r"/us/usc/t(\w+)", identifier or "")
+    return match.group(1).lower() if match else ""
 
 
 def _num_of(element: ET.Element) -> str:
@@ -273,7 +306,7 @@ def to_file_map(sections: list[Section]) -> dict[str, str]:
     return files
 
 
-def render_title(xml_bytes: bytes) -> list[Section]:
+def render_title(xml_bytes: bytes, default_title: str = "") -> list[Section]:
     """Render every section in one title's USLM document.
 
     Args:
@@ -284,6 +317,21 @@ def render_title(xml_bytes: bytes) -> list[Section]:
     """
     root = _safe_fromstring(xml_bytes)
     parents = {child: parent for parent in root.iter() for child in parent}
+
+    # Each document *is* exactly one title, so the document-level answer is
+    # authoritative and must win over the ancestor walk. Walking upwards finds
+    # nested <title> elements that are divisions of a compiled act ("TITLE IV")
+    # rather than Code titles, which is how sections end up in title-iv/.
+    #
+    # Appendix documents (usc05A, usc11a, usc18a, usc28a, usc50A) have no
+    # <title> element at all -- they hold <appendix> under <uscDoc> -- and their
+    # sections carry empty identifiers, so without this they landed in a
+    # "title-00" bucket that the truncation guard then froze, since OLRC never
+    # declares title 0 as affected.
+    #
+    # 57 of 58 documents carry a root identifier; usc50A.xml does not, which is
+    # what default_title (taken from the archive member name) covers.
+    doc_title = _title_from_identifier(root.get("identifier", "")) or default_title
 
     sections: list[Section] = []
     for element in root.iter(f"{_NS}section"):
@@ -308,11 +356,18 @@ def render_title(xml_bytes: bytes) -> list[Section]:
                 break
             if tag == "chapter" and not chapter_num:
                 chapter_num = _num_of(node)
-            elif tag == "title" and not title_num:
+            elif tag in ("title", "appendix") and not title_num:
                 title_num = _num_of(node)
             node = parents.get(node)
         if quoted:
             continue
+
+        # Document-level wins; ancestry is only a fallback.
+        title_num = (
+            doc_title
+            or _title_from_identifier(element.get("identifier", ""))
+            or title_num
+        )
 
         # Sections inside appendices may legitimately lack a chapter.
         sections.append(render_section(element, title_num, chapter_num))

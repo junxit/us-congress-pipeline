@@ -367,7 +367,9 @@ def render_archive(archive: bytes) -> tuple[list[Section], dict[str, str]]:
             raw = bundle.read(name)
             fixed, report = repair(raw)
             try:
-                sections.extend(render_title(fixed))
+                # The member name encodes the title; usc50A.xml is the one
+                # document whose root carries no identifier.
+                sections.extend(render_title(fixed, default_title=title.lower()))
             except Exception as exc:  # noqa: BLE001 - one bad title must not kill the build
                 damage[title] = f"unparseable ({type(exc).__name__}: {exc})"
                 continue

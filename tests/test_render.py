@@ -155,3 +155,68 @@ def test_duplicate_section_numbers_both_survive() -> None:
     assert "title-05/chapter-35/sec-3598-2.md" in files
     assert "First" in files["title-05/chapter-35/sec-3598.md"]
     assert "Second" in files["title-05/chapter-35/sec-3598-2.md"]
+
+
+def test_appendix_documents_resolve_their_title() -> None:
+    """Appendix documents have no <title> element at all.
+
+    usc05A/usc11a/usc18a/usc28a/usc50A hold <appendix> under <uscDoc>, and their
+    sections carry empty identifiers. Without a document-level fallback, 69
+    sections of real law landed in a title-00 bucket -- which the truncation
+    guard then froze from December 2022 onward, because OLRC never declares
+    title 0 as affected.
+    """
+    doc = f"""<?xml version="1.0" encoding="UTF-8"?>
+<uscDoc xmlns="{USLM_1_0}" identifier="/us/usc/t5a">
+  <main><appendix><num value="5a">Appendix</num>
+    <compiledAct>
+      <section><num value="16">SEC. 16.</num><heading>Effective date</heading></section>
+    </compiledAct>
+  </appendix></main>
+</uscDoc>"""
+    (section,) = render_title(doc.encode())
+    assert section.title == "5a"
+    assert section.path == "title-05a/sec-16.md"
+
+
+def test_document_title_beats_nested_act_divisions() -> None:
+    """A compiled act's "TITLE IV" is not a US Code title.
+
+    Walking ancestors finds it first and files real law under title-iv/. Each
+    document is exactly one title, so the document-level answer must win.
+    """
+    doc = f"""<?xml version="1.0" encoding="UTF-8"?>
+<uscDoc xmlns="{USLM_1_0}" identifier="/us/usc/t18a">
+  <main><appendix><num value="18a">Appendix</num>
+    <compiledAct>
+      <title><num value="IV">TITLE IV</num>
+        <section><num value="401">SEC. 401.</num><heading>Rules</heading></section>
+      </title>
+    </compiledAct>
+  </appendix></main>
+</uscDoc>"""
+    (section,) = render_title(doc.encode())
+    assert section.title == "18a"
+    assert section.path.startswith("title-18a/")
+
+
+def test_default_title_covers_documents_without_a_root_identifier() -> None:
+    """usc50A.xml is the one document whose root carries no identifier."""
+    doc = f"""<?xml version="1.0" encoding="UTF-8"?>
+<uscDoc xmlns="{USLM_1_0}" identifier="">
+  <main><appendix>
+    <section><num value="7">SEC. 7.</num><heading>Scope</heading></section>
+  </appendix></main>
+</uscDoc>"""
+    (section,) = render_title(doc.encode(), default_title="50a")
+    assert section.path == "title-50a/sec-7.md"
+
+
+def test_appendix_titles_sort_beside_their_base_title() -> None:
+    """title-05a must pad like title-05, not sort to the end as title-5a."""
+    from uscongress.render import _pad_title
+
+    assert _pad_title("5") == "05"
+    assert _pad_title("5a") == "05a"
+    assert _pad_title("26") == "26"
+    assert _pad_title("18a") == "18a"
