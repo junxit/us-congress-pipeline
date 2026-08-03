@@ -5,6 +5,10 @@ description = "ETL pipeline that mirrors the US Congress as git repositories"
 requires-python = ">=3.13"
 dependencies = [
     "httpx>=0.28",
+    # Hardened XML parsing. The stdlib parser is vulnerable to entity-expansion
+    # and external-entity attacks, and this pipeline parses tens of gigabytes of
+    # third-party XML.
+    "defusedxml>=0.7",
 ]
 
 [project.scripts]
