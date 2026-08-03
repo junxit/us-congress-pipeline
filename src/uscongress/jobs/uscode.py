@@ -32,7 +32,7 @@ from pathlib import Path
 from .. import config
 from ..gitbuild import GitRepo
 from ..govinfo import GovInfoClient
-from ..render import Section, render_title
+from ..render import Section, render_title, to_file_map
 from .table3 import trailers as table3_trailers
 
 PRIOR_URL = "https://uscode.house.gov/download/priorreleasepoints.htm"
@@ -456,7 +456,7 @@ async def seed(
         sections = render_archive(archive)
 
         files = (
-            {s.path: s.markdown for s in sections}
+            to_file_map(sections)
             if granularity == "section"
             else _group_by_chapter(sections)
         )

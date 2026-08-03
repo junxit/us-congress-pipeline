@@ -87,3 +87,71 @@ def test_non_numeric_section_numbers_are_slugged() -> None:
     (section,) = render_title(doc.encode())
     assert section.path.endswith("sec-2000e-2.md")
     assert "/" not in section.path.rpartition("/")[2]
+
+
+def test_quoted_sections_in_notes_are_not_emitted() -> None:
+    """Notes reproduce other statutes; that text is not US Code sections.
+
+    Emitting them invents files, and walking their ancestry picks up the quoted
+    act's "TITLE I" as if it were a Code title.
+    """
+    doc = f"""<?xml version="1.0" encoding="UTF-8"?>
+<uscDoc xmlns="{USLM_1_0}">
+  <main><title><num value="5">Title 5</num><chapter><num value="35">CHAPTER 35</num>
+    <section identifier="/us/usc/t5/s3591"><num value="3591">&#167; 3591.</num>
+      <heading>Real section</heading>
+      <notes><note><p><quotedContent>
+        <title><num value="I">TITLE I</num>
+          <section><num value="1">SEC. 1.</num><heading>SHORT TITLE.</heading></section>
+        </title>
+      </quotedContent></p></note></notes>
+    </section>
+  </chapter></title></main>
+</uscDoc>"""
+    sections = render_title(doc.encode())
+    assert len(sections) == 1
+    assert sections[0].identifier == "/us/usc/t5/s3591"
+    assert all(not s.path.startswith("title-i") for s in sections)
+
+
+def test_sections_without_identifiers_are_kept() -> None:
+    """OLRC omits @identifier on plenty of genuine sections.
+
+    Title 42 at release point 113-44 has 747 such sections sitting directly
+    under subchapter/chapter/title. Filtering on the identifier drops real law.
+    """
+    doc = f"""<?xml version="1.0" encoding="UTF-8"?>
+<uscDoc xmlns="{USLM_1_0}">
+  <main><title><num value="42">Title 42</num><chapter><num value="7">CHAPTER 7</num>
+    <section><num value="1305">&#167; 1305.</num><heading>No identifier here</heading></section>
+  </chapter></title></main>
+</uscDoc>"""
+    (section,) = render_title(doc.encode())
+    assert section.identifier == ""
+    assert section.path == "title-42/chapter-7/sec-1305.md"
+
+
+def test_duplicate_section_numbers_both_survive() -> None:
+    """The Code really does contain two sections sharing a number.
+
+    Congress enacted two 5 U.S.C. 3598, and the Code says "Another section 3598
+    is set out after this one". They share an identifier too, so nothing
+    distinguishes them but document order. Both are law; neither may be lost.
+    """
+    from uscongress.render import to_file_map
+
+    doc = f"""<?xml version="1.0" encoding="UTF-8"?>
+<uscDoc xmlns="{USLM_1_0}">
+  <main><title><num value="5">Title 5</num><chapter><num value="35">CHAPTER 35</num>
+    <section identifier="/us/usc/t5/s3598"><num value="3598">&#167; 3598.</num>
+      <heading>First</heading></section>
+    <section identifier="/us/usc/t5/s3598"><num value="3598">&#167; 3598.</num>
+      <heading>Second</heading></section>
+  </chapter></title></main>
+</uscDoc>"""
+    files = to_file_map(render_title(doc.encode()))
+    assert len(files) == 2
+    assert "title-05/chapter-35/sec-3598.md" in files
+    assert "title-05/chapter-35/sec-3598-2.md" in files
+    assert "First" in files["title-05/chapter-35/sec-3598.md"]
+    assert "Second" in files["title-05/chapter-35/sec-3598-2.md"]

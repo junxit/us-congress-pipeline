@@ -241,6 +241,38 @@ def render_section(element: ET.Element, title: str, chapter: str) -> Section:
     )
 
 
+def to_file_map(sections: list[Section]) -> dict[str, str]:
+    """Lay sections out as files, disambiguating genuine duplicate numbers.
+
+    The US Code really does contain several sections that share a number --
+    Congress enacted two different ``5 U.S.C. 3598``, and the Code itself says
+    "Another section 3598 is set out after this one". They carry the same
+    ``identifier`` too, so nothing in the source distinguishes them.
+
+    Both are real law, so neither may be dropped. Later duplicates get an
+    ordinal suffix (``sec-3598-2.md``). Document order is the printed order and
+    is stable across release points, so the assignment does not churn.
+
+    Args:
+        sections: Rendered sections, in document order.
+
+    Returns:
+        Mapping of file path to contents.
+    """
+    files: dict[str, str] = {}
+    used: dict[str, int] = {}
+    for section in sections:
+        path = section.path
+        if path in used:
+            used[path] += 1
+            stem, _, suffix = path.rpartition(".")
+            path = f"{stem}-{used[path]}.{suffix}"
+        else:
+            used[path] = 1
+        files[path] = section.markdown
+    return files
+
+
 def render_title(xml_bytes: bytes) -> list[Section]:
     """Render every section in one title's USLM document.
 
@@ -255,16 +287,33 @@ def render_title(xml_bytes: bytes) -> list[Section]:
 
     sections: list[Section] = []
     for element in root.iter(f"{_NS}section"):
+        # Notes routinely reproduce the text of *other* statutes inside
+        # <quotedContent>, and that quoted text carries its own <section> and
+        # <title> elements. Those are not US Code sections: emitting them
+        # invents files, and walking their ancestry picks up the quoted act's
+        # "TITLE I" as a Code title, producing title-ii/ style directories.
+        #
+        # Note the test is ancestry, *not* presence of an identifier. OLRC omits
+        # @identifier on plenty of genuine sections -- 747 of them in Title 42 at
+        # release point 113-44, sitting directly under subchapter/chapter/title.
+        # Filtering on the identifier would silently drop real law.
         title_num = ""
         chapter_num = ""
+        quoted = False
         node = parents.get(element)
         while node is not None:
             tag = _tag(node)
+            if tag in ("quotedContent", "note"):
+                quoted = True
+                break
             if tag == "chapter" and not chapter_num:
                 chapter_num = _num_of(node)
             elif tag == "title" and not title_num:
                 title_num = _num_of(node)
             node = parents.get(node)
-        # Sections inside appendices or notes may lack a chapter; that is fine.
+        if quoted:
+            continue
+
+        # Sections inside appendices may legitimately lack a chapter.
         sections.append(render_section(element, title_num, chapter_num))
     return sections
