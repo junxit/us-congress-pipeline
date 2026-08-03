@@ -96,3 +96,31 @@ def test_trailers_deduplicate_citations() -> None:
     }
     (line,) = trailers(index, ["118-2"])
     assert line == "Classified-By-PL-118-2: 12 USC 1454, 50 USC 3161 nt"
+
+
+def test_commit_message_records_exclusions_and_attribution() -> None:
+    """An out-of-sequence release point must say what it omits, and why."""
+    from uscongress.jobs.uscode import commit_message
+
+    point = _point(119, "102not101", 102, (101,))
+    message = commit_message(
+        point,
+        section_count=58_327,
+        law_ids=["119-102"],
+        attribution=["Classified-By-PL-119-102: 5 USC 101"],
+    )
+    assert "excluding 119-101" in message
+    assert "Public laws:   119-102" in message
+    assert "Classified-By-PL-119-102: 5 USC 101" in message
+    assert "codified them out of sequence" in message
+    # The reader must not mistake a release point for a single law's effect.
+    assert "not the effect of a single law" in message
+
+
+def test_commit_message_baseline_has_no_law_list() -> None:
+    """The baseline snapshot lists no laws, since it claims none."""
+    from uscongress.jobs.uscode import commit_message
+
+    message = commit_message(_point(113, "21", 21), 56_900, law_ids=[], attribution=None)
+    assert "Public laws:" not in message
+    assert "Classified-By" not in message
