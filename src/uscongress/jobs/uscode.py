@@ -409,8 +409,14 @@ def commit_message(
     lines += [
         "",
         "A release point closes over several public laws at once, so this commit is",
-        "not the effect of a single law. The trailers below attribute changed US Code",
-        "sections to individual laws using OLRC Table III.",
+        "not the effect of a single law.",
+        "",
+        "The trailers below name where each law's provisions are classified in the US",
+        "Code according to OLRC Table III. Note this is PRESENT-DAY classification, not",
+        "classification as of this snapshot: PL 113-40 (2013) is listed under Title 54,",
+        "which did not exist until PL 113-287 created it in December 2014. The trailers",
+        "therefore answer \"where does this law live now\", not \"what did this commit",
+        "change\". For the latter, read the diff.",
         "",
         f"Source: {point.xml_url}",
     ]

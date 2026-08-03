@@ -104,7 +104,10 @@ All federal, all public domain under 17 U.S.C. § 105.
 - **US Code** — OLRC release points, USLM 1.0 XML (`uscode.house.gov/download/`)
 - **Statutes at Large / PLAW / COMPS** — govinfo bulk data, USLM 2.0 XML
 - **Bills** — govinfo `BILLS` (text) and `BILLSTATUS` (metadata, back to the 108th Congress)
-- **Attribution** — OLRC Table III, mapping public-law sections to US Code sections
+- **Attribution** — OLRC Table III, mapping public-law sections to US Code sections.
+  Note it records **present-day** classification: PL 113-40 (2013) is listed under Title 54,
+  which did not exist until December 2014. Trailers answer "where does this law live now",
+  not "what did this commit change" — for that, read the diff.
 - **Members** — `unitedstates/congress-legislators` (CC0), the bioguide↔LIS crosswalk
 
 Two mutually incompatible USLM schemas are in production: OLRC emits v1.0.15, GPO emits

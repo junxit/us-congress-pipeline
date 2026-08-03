@@ -14,6 +14,13 @@ The archive is ~38 MB holding ~48,857 per-act XML files, laid out as
 ``119-102``, roughly a year ahead. Attribution is therefore unavailable for the
 most recent laws; the HTML Classification Tables are current and can fill the
 gap later.
+
+**Table III records present-day classification, not classification as of any
+past snapshot.** PL 113-40 (2013) is listed under Title 54, which did not exist
+until PL 113-287 created it in December 2014. A trailer therefore answers "where
+do this law's provisions live now", not "what did this release point change".
+Do not cross-check the two as though they measured the same thing; for what a
+commit changed, read its diff.
 """
 
 from __future__ import annotations
