@@ -33,6 +33,7 @@ from .. import config
 from ..gitbuild import GitRepo
 from ..govinfo import GovInfoClient
 from ..render import Section, render_title, to_file_map
+from ..xmlrepair import repair
 from .table3 import trailers as table3_trailers
 
 PRIOR_URL = "https://uscode.house.gov/download/priorreleasepoints.htm"
@@ -273,21 +274,32 @@ async def fetch_archive(client: GovInfoClient, point: ReleasePoint) -> bytes:
     return payload
 
 
-def render_archive(archive: bytes) -> list[Section]:
+def render_archive(archive: bytes) -> tuple[list[Section], dict[str, str]]:
     """Render every title in a release point archive.
+
+    Some official archives are not well formed -- ``usc16.xml`` in
+    ``xml_uscAll@113-46`` carries closing tags for elements never opened. Those
+    are repaired so the document parses, and the repair is reported so the
+    caller can decide whether to trust the snapshot.
 
     Args:
         archive: Raw zip bytes of ``xml_uscAll@...``.
 
     Returns:
-        Every rendered section across all titles.
+        A ``(sections, damage)`` pair, where ``damage`` maps a file name to a
+        description of the repair it needed.
     """
     sections: list[Section] = []
+    damage: dict[str, str] = {}
     with zipfile.ZipFile(io.BytesIO(archive)) as bundle:
         names = sorted(n for n in bundle.namelist() if n.endswith(".xml"))
         for name in names:
-            sections.extend(render_title(bundle.read(name)))
-    return sections
+            raw = bundle.read(name)
+            fixed, report = repair(raw)
+            if report.changed:
+                damage[name] = report.describe()
+            sections.extend(render_title(fixed))
+    return sections, damage
 
 
 def _group_by_chapter(sections: list[Section]) -> dict[str, str]:
@@ -448,12 +460,27 @@ async def seed(
 
     repo = GitRepo(repo_path or config.REPOS_DIR / REPO_NAME)
     repo.init()
+    skipped: list[tuple[ReleasePoint, dict[str, str]]] = []
 
     for idx, point in enumerate(points):
         if repo.has_tag(point.tag):
             continue
         archive = await fetch_archive(client, point)
-        sections = render_archive(archive)
+        sections, damage = render_archive(archive)
+
+        if damage:
+            # OLRC published a structurally broken archive. usc16.xml at 113-46
+            # is 2.09 MB smaller than at 113-45 and short ~527 sections, on top
+            # of the stray tags. Committing it would invent a mass deletion and
+            # then "restore" it at the next release point -- a history that
+            # never happened. Record the gap and move on rather than fabricate.
+            skipped.append((point, damage))
+            print(
+                f"  [{point.order:>3}] {point.tag:<26} SKIPPED - upstream archive damaged: "
+                + "; ".join(f"{k}: {v}" for k, v in damage.items()),
+                flush=True,
+            )
+            continue
 
         files = (
             to_file_map(sections)
@@ -480,4 +507,42 @@ async def seed(
             flush=True,
         )
 
+    if skipped:
+        _write_gaps(repo, skipped)
+        repo.commit(
+            "Record release points skipped for upstream archive damage\n\n"
+            "See GAPS.md. These snapshots are omitted rather than committed with\n"
+            "fabricated deletions.",
+            when=None,
+        )
+        print(f"\n{len(skipped)} release point(s) skipped; see GAPS.md")
+
     return repo
+
+
+def _write_gaps(
+    repo: GitRepo, skipped: list[tuple[ReleasePoint, dict[str, str]]]
+) -> None:
+    """Record skipped release points in the generated repository.
+
+    Args:
+        repo: The repository being built.
+        skipped: Release points omitted, with the damage found.
+    """
+    lines = [
+        "# Gaps in this history",
+        "",
+        "Release points omitted because the official OLRC archive was",
+        "structurally damaged. They are skipped rather than committed, because",
+        "committing a truncated snapshot would invent a mass deletion followed",
+        "by a restoration -- a history that never happened.",
+        "",
+        "| Release point | Published | Damage |",
+        "|---|---|---|",
+    ]
+    for point, damage in skipped:
+        when = point.published.isoformat() if point.published else "unknown"
+        detail = "; ".join(f"`{k}` {v}" for k, v in damage.items())
+        lines.append(f"| `{point.tag}` | {when} | {detail} |")
+    lines.append("")
+    repo.write("GAPS.md", "\n".join(lines))

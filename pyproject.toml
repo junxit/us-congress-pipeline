@@ -9,6 +9,7 @@ dependencies = [
     # and external-entity attacks, and this pipeline parses tens of gigabytes of
     # third-party XML.
     "defusedxml>=0.7",
+    "lxml>=6.1.1",
 ]
 
 [project.scripts]
