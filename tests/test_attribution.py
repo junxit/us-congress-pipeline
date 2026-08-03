@@ -124,3 +124,47 @@ def test_commit_message_baseline_has_no_law_list() -> None:
     message = commit_message(_point(113, "21", 21), 56_900, law_ids=[], attribution=None)
     assert "Public laws:" not in message
     assert "Classified-By" not in message
+
+
+def test_undeclared_truncated_title_is_carried_forward() -> None:
+    """A title that vanishes without OLRC declaring it changed is defective.
+
+    usc46.xml drops from 912 sections to 576 across release points 113-44 and
+    113-45, then returns to 912 at 113-46, while parsing cleanly throughout.
+    Committing it verbatim records 336 repeals and then reverses them.
+    """
+    from uscongress.jobs.uscode import repair_truncated_titles
+
+    previous = {f"title-46/sec-{i}.md": f"body {i}" for i in range(100)}
+    previous["title-05/sec-1.md"] = "unrelated"
+    # Title 46 collapses; the release point declares only title 5.
+    files = {f"title-46/sec-{i}.md": f"body {i}" for i in range(30)}
+    files["title-05/sec-1.md"] = "changed"
+
+    fixed, repaired = repair_truncated_titles(files, previous, declared=(5,))
+    assert len(repaired) == 1 and "title-46" in repaired[0]
+    assert len([k for k in fixed if k.startswith("title-46/")]) == 100
+    # The genuinely-changed title must not be reverted.
+    assert fixed["title-05/sec-1.md"] == "changed"
+
+
+def test_declared_title_loss_is_believed() -> None:
+    """If OLRC says the title changed, a large drop is real law, not damage."""
+    from uscongress.jobs.uscode import repair_truncated_titles
+
+    previous = {f"title-46/sec-{i}.md": "x" for i in range(100)}
+    files = {f"title-46/sec-{i}.md": "x" for i in range(30)}
+    fixed, repaired = repair_truncated_titles(files, previous, declared=(46,))
+    assert repaired == []
+    assert len(fixed) == 30
+
+
+def test_small_losses_do_not_trip_the_guard() -> None:
+    """Ordinary repeals must pass through untouched."""
+    from uscongress.jobs.uscode import repair_truncated_titles
+
+    previous = {f"title-46/sec-{i}.md": "x" for i in range(100)}
+    files = {f"title-46/sec-{i}.md": "x" for i in range(95)}
+    fixed, repaired = repair_truncated_titles(files, previous, declared=())
+    assert repaired == []
+    assert len(fixed) == 95

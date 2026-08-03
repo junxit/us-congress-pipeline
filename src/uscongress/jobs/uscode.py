@@ -302,6 +302,71 @@ def render_archive(archive: bytes) -> tuple[list[Section], dict[str, str]]:
     return sections, damage
 
 
+def _title_of(path: str) -> str:
+    """Return the top-level title directory of a repository path."""
+    return path.split("/", 1)[0]
+
+
+def repair_truncated_titles(
+    files: dict[str, str],
+    previous: dict[str, str],
+    declared: tuple[int, ...],
+    min_drop: float = 0.10,
+    min_sections: int = 25,
+) -> tuple[dict[str, str], list[str]]:
+    """Carry forward titles that an archive dropped without explanation.
+
+    Some archives are truncated without being malformed. ``usc46.xml`` shrinks
+    from 7,326,729 to 4,705,104 bytes across release points 113-44 and 113-45 --
+    912 sections down to 576 -- then returns to 912 at 113-46. The XML parses
+    perfectly, so a structural check cannot catch it.
+
+    Committing that verbatim would record 336 repeals and then un-repeal them
+    two commits later: a history that never happened.
+
+    The signal is that OLRC *declares* which titles a release point affects. If
+    a title loses a large share of its sections and is not on that list, the
+    archive is defective rather than the law having changed, so the previous
+    snapshot's files for that title are carried forward.
+
+    Args:
+        files: Freshly rendered files for this release point.
+        previous: Files as committed for the preceding release point.
+        declared: Title numbers this release point claims to affect.
+        min_drop: Fractional loss required before a title is suspect.
+        min_sections: Absolute loss required, so tiny titles do not trip it.
+
+    Returns:
+        A ``(files, repaired_titles)`` pair.
+    """
+    if not previous:
+        return files, []
+
+    def counts(mapping: dict[str, str]) -> dict[str, int]:
+        out: dict[str, int] = {}
+        for path in mapping:
+            out[_title_of(path)] = out.get(_title_of(path), 0) + 1
+        return out
+
+    now, before = counts(files), counts(previous)
+    declared_dirs = {f"title-{n:02d}" for n in declared}
+
+    repaired: list[str] = []
+    for title, old_count in before.items():
+        new_count = now.get(title, 0)
+        lost = old_count - new_count
+        if lost < min_sections or lost / old_count < min_drop:
+            continue
+        if title in declared_dirs:
+            # OLRC says this title changed, so believe the archive.
+            continue
+        repaired.append(f"{title} ({old_count} -> {new_count} sections)")
+        files = {k: v for k, v in files.items() if _title_of(k) != title}
+        files.update({k: v for k, v in previous.items() if _title_of(k) == title})
+
+    return files, repaired
+
+
 def _group_by_chapter(sections: list[Section]) -> dict[str, str]:
     """Concatenate sections into one file per chapter.
 
@@ -467,6 +532,8 @@ async def seed(
     repo = GitRepo(repo_path or config.REPOS_DIR / REPO_NAME)
     repo.init()
     skipped: list[tuple[ReleasePoint, dict[str, str]]] = []
+    truncations: list[tuple[ReleasePoint, list[str]]] = []
+    previous_files: dict[str, str] = {}
 
     for idx, point in enumerate(points):
         if repo.has_tag(point.tag):
@@ -493,6 +560,18 @@ async def seed(
             if granularity == "section"
             else _group_by_chapter(sections)
         )
+
+        files, repaired_titles = repair_truncated_titles(
+            files, previous_files, point.titles
+        )
+        if repaired_titles:
+            truncations.append((point, repaired_titles))
+            print(
+                f"       carried forward undeclared truncated titles: "
+                + ", ".join(repaired_titles),
+                flush=True,
+            )
+        previous_files = files
         # A release point is a full snapshot, but only a few hundred sections
         # move between consecutive points, so sync incrementally. Repeals still
         # surface as deletions.
@@ -513,8 +592,8 @@ async def seed(
             flush=True,
         )
 
-    if skipped:
-        _write_gaps(repo, skipped)
+    if skipped or truncations:
+        _write_gaps(repo, skipped, truncations)
         repo.commit(
             "Record release points skipped for upstream archive damage\n\n"
             "See GAPS.md. These snapshots are omitted rather than committed with\n"
@@ -527,13 +606,17 @@ async def seed(
 
 
 def _write_gaps(
-    repo: GitRepo, skipped: list[tuple[ReleasePoint, dict[str, str]]]
+    repo: GitRepo,
+    skipped: list[tuple[ReleasePoint, dict[str, str]]],
+    truncations: list[tuple[ReleasePoint, list[str]]] | None = None,
 ) -> None:
-    """Record skipped release points in the generated repository.
+    """Record archive defects in the generated repository.
 
     Args:
         repo: The repository being built.
         skipped: Release points omitted, with the damage found.
+        truncations: Release points where an undeclared title was truncated and
+            carried forward from the previous snapshot.
     """
     lines = [
         "# Gaps in this history",
@@ -550,5 +633,25 @@ def _write_gaps(
         when = point.published.isoformat() if point.published else "unknown"
         detail = "; ".join(f"`{k}` {v}" for k, v in damage.items())
         lines.append(f"| `{point.tag}` | {when} | {detail} |")
+    if truncations:
+        lines += [
+            "",
+            "## Titles carried forward",
+            "",
+            "These archives parse cleanly but are truncated: a title loses a large",
+            "share of its sections while OLRC does not list it as affected, and the",
+            "content returns in a later release point. `usc46.xml` drops from 912",
+            "sections to 576 across 113-44 and 113-45, then returns to 912.",
+            "",
+            "Committing that verbatim would record hundreds of repeals and then",
+            "reverse them, so the previous snapshot's text is carried forward instead.",
+            "",
+            "| Release point | Published | Titles carried forward |",
+            "|---|---|---|",
+        ]
+        for point, titles in truncations:
+            when = point.published.isoformat() if point.published else "unknown"
+            lines.append(f"| `{point.tag}` | {when} | {', '.join(titles)} |")
+
     lines.append("")
     repo.write("GAPS.md", "\n".join(lines))
