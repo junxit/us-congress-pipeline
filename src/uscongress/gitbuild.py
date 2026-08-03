@@ -8,13 +8,30 @@ commits to Congress or to a person would misrepresent what they are.
 
 from __future__ import annotations
 
-import shutil
+import hashlib
+import json
 import subprocess
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
 AUTHOR_NAME = "us-congress-pipeline"
 AUTHOR_EMAIL = "pipeline@junxit.invalid"
+
+
+@dataclass(frozen=True)
+class TreeChange:
+    """Result of syncing a working tree.
+
+    Attributes:
+        written: Files created or modified.
+        removed: Files deleted, e.g. repealed sections.
+        total: Files in the resulting tree.
+    """
+
+    written: int
+    removed: int
+    total: int
 
 
 class GitRepo:
@@ -68,22 +85,6 @@ class GitRepo:
         self._run("config", "core.fsmonitor", "false")
         self._run("config", "gc.auto", "0")
 
-    def replace_tree(self, subdirs: list[str]) -> None:
-        """Delete the given top-level subdirectories before rewriting them.
-
-        A release point is a full snapshot, so stale files -- sections that were
-        repealed -- must disappear rather than linger. Removing the directories
-        and letting ``git add -A`` observe the deletions is the honest way to
-        represent a repeal.
-
-        Args:
-            subdirs: Top-level directory names to clear.
-        """
-        for name in subdirs:
-            target = self.path / name
-            if target.exists():
-                shutil.rmtree(target)
-
     def write(self, relative_path: str, content: str) -> None:
         """Write one file, creating parent directories.
 
@@ -94,6 +95,65 @@ class GitRepo:
         target = self.path / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
+
+    def sync_tree(self, files: dict[str, str], manifest_path: Path) -> TreeChange:
+        """Make the working tree match ``files``, touching only what changed.
+
+        A release point is a full snapshot, so the naive implementation rewrites
+        every file. That is correct but ruinously slow: the US Code is ~56,000
+        sections, and consecutive release points differ by a few hundred at
+        most. Rewriting everything made a single commit take minutes, which
+        across 386 release points is over a day of pure filesystem churn.
+
+        Instead a manifest of ``path -> content hash`` is kept *outside* the
+        repository, so each commit writes only genuinely changed files and
+        deletes only genuinely removed ones. Repeals still surface as deletions.
+
+        Args:
+            files: Desired tree, mapping repo-relative path to contents.
+            manifest_path: Where to persist the hash manifest between runs.
+
+        Returns:
+            What changed.
+        """
+        previous: dict[str, str] = {}
+        if manifest_path.is_file():
+            previous = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+        current = {
+            path: hashlib.sha256(content.encode("utf-8")).hexdigest()
+            for path, content in files.items()
+        }
+
+        written = 0
+        for path, digest in current.items():
+            if previous.get(path) != digest:
+                self.write(path, files[path])
+                written += 1
+
+        removed = 0
+        for path in previous:
+            if path not in current:
+                target = self.path / path
+                if target.exists():
+                    target.unlink()
+                    removed += 1
+
+        self._prune_empty_dirs()
+
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_text(json.dumps(current, sort_keys=True), encoding="utf-8")
+        return TreeChange(written=written, removed=removed, total=len(files))
+
+    def _prune_empty_dirs(self) -> None:
+        """Remove directories left empty after deletions, ignoring ``.git``."""
+        for directory in sorted(
+            (d for d in self.path.rglob("*") if d.is_dir() and ".git" not in d.parts),
+            key=lambda d: len(d.parts),
+            reverse=True,
+        ):
+            if not any(directory.iterdir()):
+                directory.rmdir()
 
     def commit(self, message: str, when: date | None = None) -> bool:
         """Stage everything and commit.

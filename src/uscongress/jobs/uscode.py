@@ -393,17 +393,17 @@ async def seed(
             if granularity == "section"
             else _group_by_chapter(sections)
         )
-        # A release point is a full snapshot; clear the tree so repealed
-        # sections are recorded as deletions rather than silently persisting.
-        repo.replace_tree(sorted({p.split("/")[0] for p in files}))
-        for path, content in files.items():
-            repo.write(path, content)
+        # A release point is a full snapshot, but only a few hundred sections
+        # move between consecutive points, so sync incrementally. Repeals still
+        # surface as deletions.
+        change = repo.sync_tree(files, manifest_path=repo.path.parent / f".{repo.path.name}.manifest.json")
 
         repo.commit(commit_message(point, len(sections)), when=point.published)
         repo.tag(point.tag)
         print(
             f"  [{point.order:>3}] {point.tag:<26} "
-            f"{len(sections):>6,} sections  {len(files):>6,} files",
+            f"{len(sections):>6,} sections  "
+            f"+{change.written:<5} -{change.removed:<4} of {change.total:,}",
             flush=True,
         )
 
