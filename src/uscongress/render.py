@@ -88,10 +88,9 @@ class Section:
     @property
     def path(self) -> str:
         """Repository-relative file path for this section."""
-        title = _pad_title(_slug(self.title) or "0")
         chapter = _slug(self.chapter)
         stem = _slug(self.num) or _slug(self.identifier.rpartition("/")[2])
-        folder = f"title-{title}"
+        folder = title_folder(self.title)
         if chapter:
             folder = f"{folder}/chapter-{chapter}"
         return f"{folder}/sec-{stem}.md"
@@ -132,6 +131,21 @@ def _pad_title(title: str) -> str:
         return title
     number, suffix = match.groups()
     return f"{number.zfill(2)}{suffix}"
+
+
+def title_folder(title: str) -> str:
+    """Repository directory holding one title, e.g. ``title-05a``.
+
+    Exposed because a title whose sections have all been retired renders no
+    sections at all, so its directory name cannot be recovered from them.
+
+    Args:
+        title: Title token as OLRC writes it, e.g. ``5``, ``26``, ``50A``.
+
+    Returns:
+        The directory name.
+    """
+    return f"title-{_pad_title(_slug(title) or '0')}"
 
 
 def _title_from_identifier(identifier: str) -> str:

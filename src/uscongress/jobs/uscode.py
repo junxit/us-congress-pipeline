@@ -29,10 +29,12 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 
+from defusedxml.ElementTree import fromstring as _safe_fromstring
+
 from .. import config
 from ..gitbuild import GitRepo
 from ..govinfo import GovInfoClient
-from ..render import Section, render_title, to_file_map
+from ..render import Section, render_title, title_folder, to_file_map
 from ..xmlrepair import repair
 from .table3 import trailers as table3_trailers
 
@@ -339,7 +341,58 @@ def title_number_of(filename: str) -> str:
     return match.group(1).lstrip("0") if match else ""
 
 
-def render_archive(archive: bytes) -> tuple[list[Section], dict[str, str]]:
+_RETIRED_HEADING = re.compile(r"\[\s*(?:ELIMINATED|REPEALED|OMITTED)\s*\]", re.IGNORECASE)
+
+
+def is_editorially_retired(xml_bytes: bytes) -> bool:
+    """Report whether OLRC has torn a title down rather than truncated it.
+
+    :func:`repair_truncated_titles` exists because a shrinking title usually
+    means a defective archive. Twice it has meant the opposite, and the archive
+    says so explicitly:
+
+    * **Title 50 Appendix** -- eliminated outright in 2015. ``usc50A.xml`` is a
+      1,633-byte stub whose heading reads ``WAR AND NATIONAL DEFENSE
+      [ELIMINATED]``, with a note directing readers to Table II.
+    * **Title 5 Appendix** -- gutted by Pub. L. 117-286 in December 2022, which
+      enacted Title 5 anew. 68 sections drop to 19, and every one that remains
+      carries ``status="repealed"``, ``"transferred"`` or ``"omitted"``.
+
+    USLM gives operative text no ``status`` attribute, so a title in which every
+    surviving section carries one has no operative text left. That separates the
+    two cases from genuine truncation by a wide margin: at 113-44 ``usc46.xml``
+    loses a third of its sections with 9 of 576 marked, and Title 50 Appendix
+    just before elimination sits at 238 of 570.
+
+    Args:
+        xml_bytes: Raw contents of one ``uscNN.xml`` document.
+
+    Returns:
+        True if the archive accounts for the loss, so it should be committed as
+        a real change rather than carried forward.
+    """
+    try:
+        root = _safe_fromstring(xml_bytes)
+    except Exception:  # noqa: BLE001 - unreadable means "no explicit signal"
+        return False
+
+    sections = [el for el in root.iter() if el.tag.rpartition("}")[2] == "section"]
+    if sections:
+        return all(el.get("status") for el in sections)
+
+    # No sections at all is only meaningful when the title says it was retired;
+    # an empty document otherwise looks exactly like a truncated one.
+    for el in root.iter():
+        if el.tag.rpartition("}")[2] == "heading" and _RETIRED_HEADING.search(
+            "".join(el.itertext())
+        ):
+            return True
+    return False
+
+
+def render_archive(
+    archive: bytes,
+) -> tuple[list[Section], dict[str, str], set[str]]:
     """Render every title in a release point archive, tolerating bad files.
 
     OLRC archives are unreliable often enough that a single bad file must not
@@ -355,17 +408,22 @@ def render_archive(archive: bytes) -> tuple[list[Section], dict[str, str]]:
         archive: Raw zip bytes of ``xml_uscAll@...``.
 
     Returns:
-        A ``(sections, damage)`` pair, where ``damage`` maps the US Code title
-        number to a description of what went wrong with it.
+        A ``(sections, damage, retired)`` triple, where ``damage`` maps the US
+        Code title number to a description of what went wrong with it, and
+        ``retired`` holds the repository directories of titles the archive
+        declares torn down; see :func:`is_editorially_retired`.
     """
     sections: list[Section] = []
     damage: dict[str, str] = {}
+    retired: set[str] = set()
     with zipfile.ZipFile(io.BytesIO(archive)) as bundle:
         names = sorted(n for n in bundle.namelist() if n.endswith(".xml"))
         for name in names:
             title = title_number_of(name) or name
             raw = bundle.read(name)
             fixed, report = repair(raw)
+            if is_editorially_retired(fixed):
+                retired.add(title_folder(title.lower()))
             try:
                 # The member name encodes the title; usc50A.xml is the one
                 # document whose root carries no identifier.
@@ -375,7 +433,7 @@ def render_archive(archive: bytes) -> tuple[list[Section], dict[str, str]]:
                 continue
             if report.changed:
                 damage[title] = report.describe()
-    return sections, damage
+    return sections, damage, retired
 
 
 def _title_of(path: str) -> str:
@@ -387,6 +445,7 @@ def repair_truncated_titles(
     files: dict[str, str],
     previous: dict[str, str],
     declared: tuple[int, ...],
+    retired: set[str] | None = None,
     min_drop: float = 0.10,
     min_sections: int = 25,
 ) -> tuple[dict[str, str], list[str]]:
@@ -405,10 +464,16 @@ def repair_truncated_titles(
     archive is defective rather than the law having changed, so the previous
     snapshot's files for that title are carried forward.
 
+    A title the archive itself declares torn down is exempt: OLRC eliminated
+    Title 50 Appendix in 2015 and gutted Title 5 Appendix in 2022, and freezing
+    either would assert text that no longer exists. See
+    :func:`is_editorially_retired`.
+
     Args:
         files: Freshly rendered files for this release point.
         previous: Files as committed for the preceding release point.
         declared: Title numbers this release point claims to affect.
+        retired: Directories of titles the archive declares torn down.
         min_drop: Fractional loss required before a title is suspect.
         min_sections: Absolute loss required, so tiny titles do not trip it.
 
@@ -435,6 +500,9 @@ def repair_truncated_titles(
             continue
         if title in declared_dirs:
             # OLRC says this title changed, so believe the archive.
+            continue
+        if title in (retired or set()):
+            # The archive accounts for the loss, so it is not truncation.
             continue
         repaired.append(f"{title} ({old_count} -> {new_count} sections)")
         files = {k: v for k, v in files.items() if _title_of(k) != title}
@@ -625,7 +693,7 @@ async def seed(
                 flush=True,
             )
             continue
-        sections, damage = render_archive(archive)
+        sections, damage, retired = render_archive(archive)
 
         declared = {str(t) for t in point.titles}
         unrecoverable = {t for t in damage if t in declared}
@@ -664,7 +732,7 @@ async def seed(
             )
 
         files, repaired_titles = repair_truncated_titles(
-            files, previous_files, point.titles
+            files, previous_files, point.titles, retired
         )
         if repaired_titles:
             truncations.append((point, repaired_titles))
@@ -749,6 +817,12 @@ def _write_gaps(
             "",
             "Committing that verbatim would record hundreds of repeals and then",
             "reverse them, so the previous snapshot's text is carried forward instead.",
+            "",
+            "A title the archive declares torn down is exempt and its loss is",
+            "committed as the real change it is: OLRC eliminated Title 50 Appendix",
+            "in 2015, and Pub. L. 117-286 gutted Title 5 Appendix in 2022. Both",
+            "state it -- the first in its heading, the second by marking every",
+            "surviving section repealed, transferred or omitted.",
             "",
             "| Release point | Published | Titles carried forward |",
             "|---|---|---|",
