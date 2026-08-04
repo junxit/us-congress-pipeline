@@ -70,6 +70,11 @@ Every job is resumable and idempotent: `comps` skips packages already recorded, 
 skips release points whose tag exists, and both cache their downloads. Re-running a completed
 job fetches nothing.
 
+OLRC lists 386 release points but only **383 are distinct** — `pl-113-165`, `pl-115-95not91`
+and `pl-115-117not91not96not97` each appear twice at adjacent positions on
+`priorreleasepoints.htm`. The tag check that makes `seed-code` resumable also absorbs the
+duplicates, so a complete `us-congress-code` has 383 commits and 383 tags, not 386.
+
 ### Why `comps` runs first
 
 govinfo replaces Statute Compilations **in place and keeps no version archive**. Once a
