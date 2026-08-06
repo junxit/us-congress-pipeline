@@ -1,0 +1,641 @@
+"""Build ``us-congress-bills-{congress}`` -- one branch per measure.
+
+Everything is driven from BILLSTATUS rather than the BILLS directory tree.
+Each measure's ``<textVersions>`` block names its versions, dates them, and
+links directly to the XML, which settles three problems at once:
+
+* **Ordering.** The bill documents cannot order themselves. ``action-date`` is
+  absent from engrossed, enrolled and received versions, and a reported version
+  repeats the introduction date, so H.R. 588's seven versions cannot be
+  sequenced from the files. Sorting ``textVersions`` by date reproduces the real
+  progression: introduced, reported, engrossed, received, amended, enrolled.
+* **Reach.** The BILLS bulk directories only start at the 113th Congress, but
+  ``textVersions`` links resolve much further back -- sampled across House
+  bills, 100% of versions from the 111th on and 88-92% for the 109th and 110th
+  carry a working URL. Only the 108th is largely text-poor.
+* **Labelling.** ``<type>`` gives the version its human name, so a commit can
+  say "Engrossed Amendment Senate" rather than ``eas``.
+
+Bills do not descend from a common trunk, so each branch is its own root and
+there is no ``main`` for them to diverge from. Commits are written through
+``git fast-import``; see :class:`uscongress.gitbuild.FastImport` for why a
+working-tree build is not viable at this branch count.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import re
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+from datetime import date
+from pathlib import Path
+
+from defusedxml.ElementTree import fromstring as _safe_fromstring
+
+from .. import config
+from ..billtext import render_bill
+from ..gitbuild import GitRepo
+from ..govinfo import GovInfoClient
+from ..xmlrepair import repair
+
+#: Measure types, in the order a listing walks them.
+TYPES = ("hr", "s", "hjres", "sjres", "hconres", "sconres", "hres", "sres")
+
+#: How many measures to fetch concurrently before streaming them into git.
+#: The stream is sequential, so this overlaps network waiting with commit
+#: writing without holding a whole Congress in memory.
+BATCH = 40
+
+REPO_PREFIX = "us-congress-bills"
+
+
+@dataclass(frozen=True)
+class TextVersion:
+    """One text version of a measure.
+
+    Attributes:
+        label: Human name, e.g. ``Engrossed Amendment Senate``.
+        when: Publication date, or None if BILLSTATUS omits it.
+        url: Direct link to the version's XML.
+        code: Version abbreviation parsed from the filename, e.g. ``eas``.
+    """
+
+    label: str
+    when: date | None
+    url: str
+    code: str
+
+
+@dataclass(frozen=True)
+class Measure:
+    """One measure and the metadata BILLSTATUS records for it.
+
+    Attributes:
+        congress: Congress number.
+        kind: Measure type, e.g. ``hr``.
+        number: Measure number.
+        title: Display title.
+        introduced: Date introduced.
+        sponsor: Sponsor's full name as recorded.
+        sponsor_id: Sponsor's bioguide identifier.
+        cosponsors: ``(name, bioguide id, date)`` for each cosponsor.
+        committees: Committee names.
+        actions: ``(date, text)`` for each recorded action.
+        law: Public law number, if the measure was enacted.
+        versions: Text versions, oldest first.
+    """
+
+    congress: str
+    kind: str
+    number: str
+    title: str
+    introduced: date | None
+    sponsor: str
+    sponsor_id: str
+    cosponsors: tuple[tuple[str, str, date | None], ...]
+    committees: tuple[str, ...]
+    actions: tuple[tuple[date | None, str], ...]
+    law: str
+    versions: tuple[TextVersion, ...]
+
+    @property
+    def branch(self) -> str:
+        """Branch name, predictable from a citation, e.g. ``hr-588``."""
+        return f"{self.kind}-{self.number}"
+
+    @property
+    def citation(self) -> str:
+        """Measure as commonly written, e.g. ``H.R. 588``."""
+        return _CITATIONS.get(self.kind, self.kind.upper()) + f" {self.number}"
+
+
+#: How each measure type is written in a citation.
+_CITATIONS = {
+    "hr": "H.R.",
+    "s": "S.",
+    "hjres": "H.J.Res.",
+    "sjres": "S.J.Res.",
+    "hconres": "H.Con.Res.",
+    "sconres": "S.Con.Res.",
+    "hres": "H.Res.",
+    "sres": "S.Res.",
+}
+
+
+def _text(element: ET.Element | None, path: str, default: str = "") -> str:
+    """Return a child element's stripped text.
+
+    Args:
+        element: Parent element, or None.
+        path: ElementTree path to the child.
+        default: Value when absent.
+
+    Returns:
+        The text, or ``default``.
+    """
+    if element is None:
+        return default
+    found = element.findtext(path)
+    return found.strip() if found and found.strip() else default
+
+
+def _date(value: str) -> date | None:
+    """Parse a BILLSTATUS date, which may carry a time and zone.
+
+    Args:
+        value: Date text, e.g. ``2013-02-06`` or ``2013-06-03T04:00:00Z``.
+
+    Returns:
+        The date, or None if unparseable or absent.
+    """
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value[:10])
+    except ValueError:
+        return None
+
+
+def _version_code(url: str) -> str:
+    """Extract the version abbreviation from a BILLS filename.
+
+    Args:
+        url: Link to the version XML.
+
+    Returns:
+        The code, e.g. ``eas``, or an empty string.
+    """
+    stem = url.rsplit("/", 1)[-1].removeprefix("BILLS-").removesuffix(".xml")
+    trailing = ""
+    for char in reversed(stem):
+        if char.isalpha():
+            trailing = char + trailing
+        else:
+            break
+    return trailing
+
+
+def parse_status(xml_bytes: bytes) -> Measure:
+    """Parse one BILLSTATUS document.
+
+    Args:
+        xml_bytes: Raw BILLSTATUS XML.
+
+    Returns:
+        The measure and its versions, oldest first.
+
+    Raises:
+        ValueError: If the document holds no ``<bill>`` element.
+    """
+    repaired, _ = repair(xml_bytes)
+    root = _safe_fromstring(repaired)
+    bill = root.find("bill") if root.find("bill") is not None else root
+
+    # govinfo emits two BILLSTATUS spellings. Most measures use <number> and
+    # <type>; a minority -- H.R. 4200 of the 113th among them -- use
+    # <billNumber> and <billType>. Recognising only the first silently drops
+    # them, which is worse than failing, because the branch simply never
+    # appears and nothing says why.
+    number = _text(bill, "number") or _text(bill, "billNumber")
+    kind = _text(bill, "type") or _text(bill, "billType")
+    if bill is None or not number:
+        raise ValueError("not a BILLSTATUS document")
+
+    versions: list[TextVersion] = []
+    for item in bill.findall(".//textVersions/item"):
+        url = _text(item, ".//url")
+        # A "Public Law" entry points at the PLAW collection, which is enacted
+        # law rather than a version of the bill, and belongs to a later phase.
+        if not url or "BILLS-" not in url:
+            continue
+        versions.append(
+            TextVersion(
+                label=_text(item, "type", "Unknown version"),
+                when=_date(_text(item, "date")),
+                url=url,
+                code=_version_code(url),
+            )
+        )
+
+    # Undated versions sort last rather than to the front: an entry with no date
+    # is usually the enrolled bill, which is the end of the process, and letting
+    # it sort first would invert the whole branch.
+    versions.sort(key=lambda v: (v.when is None, v.when or date.min, v.code))
+
+    cosponsors = tuple(
+        (
+            _text(item, "fullName"),
+            _text(item, "bioguideId"),
+            _date(_text(item, "sponsorshipDate")),
+        )
+        for item in bill.findall(".//cosponsors/item")
+    )
+    actions = tuple(
+        (_date(_text(item, "actionDate")), _text(item, "text"))
+        for item in bill.findall(".//actions/item")
+    )
+    law_item = bill.find(".//laws/item")
+    law = (
+        f"{_text(law_item, 'type')} {_text(law_item, 'number')}".strip()
+        if law_item is not None
+        else ""
+    )
+
+    return Measure(
+        congress=_text(bill, "congress"),
+        kind=kind.lower(),
+        number=number,
+        title=_text(bill, "title"),
+        introduced=_date(_text(bill, "introducedDate")),
+        sponsor=_text(bill, ".//sponsors/item/fullName"),
+        sponsor_id=_text(bill, ".//sponsors/item/bioguideId"),
+        cosponsors=cosponsors,
+        committees=tuple(
+            name
+            for name in (
+                _text(c, "name") for c in bill.findall(".//committees/committee")
+            )
+            if name
+        ),
+        actions=actions,
+        law=law,
+        versions=tuple(versions),
+    )
+
+
+def metadata_markdown(measure: Measure, version: TextVersion) -> str:
+    """Render the measure's record as it stood at one version.
+
+    Cosponsors and actions are filtered to the version's date. BILLSTATUS is a
+    single present-day snapshot, so writing it unfiltered onto every commit
+    would have the introduced text already reporting that the bill became law --
+    the same trap as Table III's present-day classification in the US Code
+    repository, and equally misleading.
+
+    Args:
+        measure: The measure.
+        version: The version being committed.
+
+    Returns:
+        Markdown for ``metadata.md``.
+    """
+    cutoff = version.when
+    cosponsors = [
+        (name, bid)
+        for name, bid, signed in measure.cosponsors
+        if cutoff is None or signed is None or signed <= cutoff
+    ]
+    actions = [
+        (when, text)
+        for when, text in measure.actions
+        if when is not None and (cutoff is None or when <= cutoff)
+    ]
+
+    lines = [
+        "---",
+        f"measure: {measure.citation}",
+        f"congress: {measure.congress}",
+        f"version: {version.label}",
+        "---",
+        "",
+        f"# {measure.citation}",
+        "",
+        measure.title or "(untitled)",
+        "",
+        "> Recorded as of this version. Later cosponsors and actions are",
+        "> omitted, so this file is the state of the measure at this point in",
+        "> its progress, not its final record.",
+        "",
+        "## Sponsor",
+        "",
+        f"- {measure.sponsor or '(none recorded)'}"
+        + (f" ({measure.sponsor_id})" if measure.sponsor_id else ""),
+        "",
+    ]
+    if cosponsors:
+        lines += [f"## Cosponsors ({len(cosponsors)})", ""]
+        lines += [f"- {name} ({bid})" for name, bid in cosponsors]
+        lines.append("")
+    if measure.committees:
+        lines += ["## Committees", ""]
+        lines += [f"- {name}" for name in measure.committees]
+        lines.append("")
+    if actions:
+        lines += ["## Actions", ""]
+        lines += [
+            f"- {when.isoformat()} — {text}" for when, text in sorted(actions)
+        ]
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def commit_message(measure: Measure, version: TextVersion) -> str:
+    """Build the commit message for one text version.
+
+    Args:
+        measure: The measure.
+        version: The version being committed.
+
+    Returns:
+        The full message.
+    """
+    when = (
+        version.when.isoformat()
+        if version.when
+        else "not recorded upstream; dated from the preceding version"
+    )
+    lines = [
+        f"{measure.citation} {version.label}",
+        "",
+        measure.title or "(untitled measure)",
+        "",
+        f"Version:  {version.label}"
+        + (f" ({version.code})" if version.code else ""),
+        f"Date:     {when}",
+        f"Congress: {measure.congress}",
+        "",
+        f"Source: {version.url}",
+        "",
+    ]
+    if measure.sponsor_id:
+        lines.append(f"Sponsored-By: {measure.sponsor_id}")
+    signed = [
+        bid
+        for _, bid, on in measure.cosponsors
+        if bid and (version.when is None or on is None or on <= version.when)
+    ]
+    if signed:
+        lines.append(f"Cosponsor-Count: {len(signed)}")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def branch_of(name: str) -> str:
+    """Derive a measure's branch from its BILLSTATUS filename.
+
+    Resumption depends on this being cheap. Parsing the document to learn the
+    branch name would mean re-reading and re-rendering every measure already
+    built, which turns a resume of one missing measure into a rebuild of the
+    whole Congress.
+
+    Args:
+        name: BILLSTATUS filename, e.g. ``BILLSTATUS-113hr588.xml``.
+
+    Returns:
+        The branch name, e.g. ``hr-588``, or an empty string if unparseable.
+    """
+    match = re.fullmatch(r"BILLSTATUS-\d+([a-z]+)(\d+)\.xml", name)
+    return f"{match.group(1)}-{match.group(2)}" if match else ""
+
+
+def _cache_path(congress: str, name: str) -> Path:
+    """Local cache path for one fetched document.
+
+    Args:
+        congress: Congress number.
+        name: File name.
+
+    Returns:
+        Path under ``data/raw/bills/``.
+    """
+    return config.RAW_DIR / "bills" / congress / name
+
+
+async def _fetch_cached(client: GovInfoClient, url: str, target: Path) -> bytes:
+    """Fetch a URL, reusing a cached copy when present.
+
+    Args:
+        client: HTTP client.
+        url: Absolute URL.
+        target: Where to cache the body.
+
+    Returns:
+        The document bytes.
+
+    Raises:
+        ValueError: If the response is not XML. govinfo answers a missing
+            document with its ordinary web page and HTTP 200 rather than a 404,
+            so an unchecked fetch caches 44 KB of HTML under an ``.xml`` name and
+            the version is dropped later, for a reason nothing records.
+    """
+    if target.is_file():
+        return target.read_bytes()
+    payload = await client.get_bytes(url)
+    if not payload.lstrip()[:512].startswith(b"<?xml"):
+        raise ValueError(f"not XML ({len(payload)} bytes): {url}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(payload)
+    return payload
+
+
+async def discover(client: GovInfoClient, congress: str) -> list[tuple[str, str]]:
+    """List every measure in a Congress.
+
+    Args:
+        client: HTTP client.
+        congress: Congress number.
+
+    Returns:
+        ``(filename, url)`` for each BILLSTATUS document, grouped by type.
+    """
+    found: list[tuple[str, str]] = []
+    for kind in TYPES:
+        try:
+            entries = await client.list_bulkdata(f"BILLSTATUS/{congress}/{kind}")
+        except Exception:  # noqa: BLE001 - a missing type is not fatal
+            continue
+        found += [(e.name, e.url) for e in entries if e.name.endswith(".xml")]
+    return found
+
+
+async def _build_measure(
+    client: GovInfoClient, congress: str, name: str, url: str
+) -> tuple[Measure, list[tuple[TextVersion, dict[str, str]]]] | None:
+    """Fetch and render every version of one measure.
+
+    Args:
+        client: HTTP client.
+        congress: Congress number.
+        name: BILLSTATUS filename.
+        url: BILLSTATUS URL.
+
+    Returns:
+        The measure and its rendered versions, or None if it has no usable text.
+    """
+    try:
+        measure = parse_status(await _fetch_cached(client, url, _cache_path(congress, name)))
+    except Exception as exc:  # noqa: BLE001 - one bad measure must not kill the build
+        print(f"       {name}: unreadable BILLSTATUS - {type(exc).__name__}: {exc}", flush=True)
+        return None
+
+    rendered: list[tuple[TextVersion, date | None, dict[str, str]]] = []
+    carried: date | None = measure.introduced
+    for version in measure.versions:
+        # BILLSTATUS leaves some versions undated -- the enrolled bill most
+        # often, which is the last one. Committing those at the epoch would date
+        # the final commit of every enacted measure to 1970 and break the
+        # branch's chronology, so the preceding version's date is carried
+        # forward. The message still reports the date as unrecorded.
+        stamp = version.when or carried
+        carried = stamp
+        target = _cache_path(congress, f"text/{version.url.rsplit('/', 1)[-1]}")
+        try:
+            body = await _fetch_cached(client, version.url, target)
+            doc = render_bill(body, legis_num=measure.citation)
+        except Exception:  # noqa: BLE001 - a missing or odd version is recorded as absent
+            continue
+        rendered.append(
+            (
+                version,
+                stamp,
+                {
+                    "bill.md": doc.markdown,
+                    "metadata.md": metadata_markdown(measure, version),
+                },
+            )
+        )
+    return measure, rendered
+
+
+async def seed(
+    client: GovInfoClient,
+    congress: str,
+    limit: int | None = None,
+    repo_path: Path | None = None,
+) -> GitRepo:
+    """Build one Congress's bills repository.
+
+    Resumable: a measure whose branch already exists is skipped, so an
+    interrupted build restarts cheaply.
+
+    Args:
+        client: HTTP client.
+        congress: Congress number, e.g. ``113``.
+        limit: Build only the first N measures. None builds all.
+        repo_path: Override the repository location.
+
+    Returns:
+        The repository that was built.
+    """
+    measures = await discover(client, congress)
+    if limit is not None:
+        measures = measures[:limit]
+
+    repo = GitRepo(repo_path or config.REPOS_DIR / f"{REPO_PREFIX}-{congress}")
+    repo.init()
+    existing = repo.branches()
+
+    print(f"BILLS {congress}: {len(measures)} measures listed", flush=True)
+
+    built = skipped = textless = unreadable = 0
+    gaps: list[tuple[str, str, str]] = []
+
+    # Drop measures already on disk before any fetching or rendering, so a
+    # resume costs a listing rather than a rebuild.
+    pending: list[tuple[str, str]] = []
+    for name, url in measures:
+        branch = branch_of(name)
+        if branch and branch in existing:
+            skipped += 1
+        else:
+            pending.append((name, url))
+    if skipped:
+        print(f"  {skipped} branches already present, {len(pending)} to build", flush=True)
+
+    for start in range(0, len(pending), BATCH):
+        batch = pending[start : start + BATCH]
+        results = await asyncio.gather(
+            *(_build_measure(client, congress, name, url) for name, url in batch)
+        )
+        with repo.fast_import() as stream:
+            for result in results:
+                if result is None:
+                    unreadable += 1
+                    continue
+                measure, rendered = result
+                if not rendered:
+                    textless += 1
+                    gaps.append((measure.branch, measure.citation, measure.title))
+                    continue
+                for version, stamp, files in rendered:
+                    stream.commit(
+                        measure.branch,
+                        files,
+                        commit_message(measure, version),
+                        stamp,
+                    )
+                existing.add(measure.branch)
+                built += 1
+        print(
+            f"  {min(start + BATCH, len(pending)):>6}/{len(pending)}  "
+            f"branches={built}  skipped={skipped}  no-text={textless}  "
+            f"unreadable={unreadable}",
+            flush=True,
+        )
+
+    if gaps:
+        _write_gaps(repo, congress, gaps)
+
+    accounted = built + skipped + textless + unreadable
+    print(
+        f"{repo.path.name}: {built} branches built, {skipped} already present, "
+        f"{textless} with no usable text, {unreadable} unreadable",
+        flush=True,
+    )
+    if accounted != len(measures):
+        # Every listed measure must land in exactly one bucket. A mismatch means
+        # something was dropped without being counted, which is the one failure
+        # mode that looks like success.
+        print(
+            f"WARNING: {len(measures) - accounted} measures unaccounted for",
+            flush=True,
+        )
+    return repo
+
+
+def _write_gaps(repo: GitRepo, congress: str, gaps: list[tuple[str, str, str]]) -> None:
+    """Record measures left out of the repository, on a ``main`` branch.
+
+    A measure with no usable text gets no branch, so without this it is absent
+    from the repository with nothing to say it ever existed. In the 108th
+    Congress that is 8,755 of 10,667 measures -- govinfo holds their BILLSTATUS
+    record but links no bill text -- and an unexplained absence at that scale
+    reads as a build that quietly failed.
+
+    This follows the same principle as ``GAPS.md`` in the US Code repository:
+    what is missing is stated rather than left to be inferred.
+
+    Args:
+        repo: Repository to write into.
+        congress: Congress number.
+        gaps: ``(branch, citation, title)`` for each omitted measure.
+    """
+    lines = [
+        f"# Measures without text — {congress}th Congress",
+        "",
+        f"{len(gaps):,} measures are recorded in BILLSTATUS but have no bill text",
+        "linked in any of their `textVersions` entries, so they have no branch in",
+        "this repository.",
+        "",
+        "This is an upstream gap, not a build failure. It is heavily",
+        "concentrated in the older Congresses: govinfo's coverage of bill text",
+        "thins out before the 111th, and House organising resolutions -- electing",
+        "officers, adopting rules -- generally carry no published text in any",
+        "Congress.",
+        "",
+        "| Measure | Title |",
+        "|---|---|",
+    ]
+    for _, citation, title in sorted(gaps, key=lambda g: g[0]):
+        clean = (title or "(untitled)").replace("|", "\\|")
+        lines.append(f"| `{citation}` | {clean} |")
+
+    with repo.fast_import() as stream:
+        stream.commit(
+            "main",
+            {"GAPS.md": "\n".join(lines) + "\n"},
+            f"Record {len(gaps):,} measures with no text in the {congress}th Congress\n"
+            "\n"
+            "BILLSTATUS lists them but links no bill text, so they have no\n"
+            "branch here. Stated rather than left as an unexplained absence.\n",
+        )

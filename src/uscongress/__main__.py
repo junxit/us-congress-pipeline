@@ -48,6 +48,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     seed.add_argument("--repo-path", help="override the repository location")
 
+    bills = subparsers.add_parser(
+        "seed-bills", help="build a us-congress-bills-{congress} repo"
+    )
+    bills.add_argument("--congress", required=True, help="Congress number, e.g. 113")
+    bills.add_argument("--limit", type=int, help="build only the first N measures")
+    bills.add_argument("--repo-path", help="override the repository location")
+
     args = parser.parse_args(argv)
 
     if args.command == "comps":
@@ -100,6 +107,30 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         asyncio.run(_seed())
+        return 0
+
+    if args.command == "seed-bills":
+        from pathlib import Path
+
+        from .govinfo import GovInfoClient
+        from .jobs import bills as bills_job
+
+        async def _seed_bills() -> None:
+            async with GovInfoClient() as client:
+                repo = await bills_job.seed(
+                    client,
+                    congress=args.congress,
+                    limit=args.limit,
+                    repo_path=Path(args.repo_path) if args.repo_path else None,
+                )
+            branches = len(repo.branches())
+            size = repo.size_bytes(repack=True)
+            print(
+                f"\n{branches} branches, {size / 1e6:.0f} MB packed "
+                f"({size / max(branches, 1) / 1e3:.0f} KB per branch)"
+            )
+
+        asyncio.run(_seed_bills())
         return 0
 
     parser.error(f"unknown command: {args.command}")
