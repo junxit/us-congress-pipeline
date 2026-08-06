@@ -8,12 +8,32 @@ as *not created* instead of being quietly implied to exist.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
 
 from .. import config
-from ..registry import PREFIX, REPOSITORIES, fetch_status
+from ..registry import OWNER, PREFIX, REPOSITORIES, Repository, RepoStatus
+from ..registry import fetch_status as _fetch_status
 
 INDEX_PATH = config.REPO_ROOT / "REPOSITORIES.md"
+
+
+@lru_cache(maxsize=None)
+def fetch_status(name: str) -> RepoStatus:
+    """Look a repository up on GitHub, once per run.
+
+    Rendering asks about each repository several times -- to decide whether to
+    link it, to describe its state, and again for every shard of a family. Each
+    call shells out to ``gh``, so without memoising, generating this file makes
+    dozens of round trips to answer the same handful of questions.
+
+    Args:
+        name: Repository name without the owner.
+
+    Returns:
+        The live status.
+    """
+    return _fetch_status(name)
 
 
 def _status_cell(name: str) -> str:
@@ -53,6 +73,31 @@ def _status_cell(name: str) -> str:
     return f"live, {visibility}, pushed {when}"
 
 
+def _shards_of(repo: Repository) -> list[str]:
+    """Return the built shard names of a repository family, in order.
+
+    Args:
+        repo: A sharded repository entry.
+
+    Returns:
+        Directory names, sorted by their trailing number rather than as text so
+        the 109th does not sort after the 110th.
+    """
+    if "{" not in repo.name:
+        return []
+    found = [
+        p.name
+        for p in config.REPOS_DIR.glob(repo.name.replace("{congress}", "*"))
+        if (p / ".git").is_dir() and not p.name.endswith(".pre-fix")
+    ]
+
+    def key(name: str) -> tuple[int, str]:
+        tail = name.rsplit("-", 1)[-1]
+        return (int(tail), name) if tail.isdigit() else (0, name)
+
+    return sorted(found, key=key)
+
+
 def render() -> str:
     """Build the Markdown index.
 
@@ -76,12 +121,40 @@ def render() -> str:
     ]
 
     for repo in sorted(REPOSITORIES, key=lambda r: (r.phase, r.name)):
-        label = f"[`{repo.name}`]({repo.url})" if "{" not in repo.name else f"`{repo.name}`"
+        # Only link a repository that exists. A link to a repository that has
+        # not been created yet is a 404 -- harmless while this is private, and
+        # the first thing a reader hits once it is not.
+        if "{" in repo.name:
+            label = f"`{repo.name}`"
+        elif fetch_status(repo.name).exists:
+            label = f"[`{repo.name}`]({repo.url})"
+        else:
+            label = f"`{repo.name}`"
         if repo.is_pipeline:
             label += " ← you are here"
         lines.append(
             f"| {label} | {repo.phase} | {repo.summary} | {_status_cell(repo.name)} |"
         )
+
+    families = [(r, _shards_of(r)) for r in REPOSITORIES if "{" in r.name]
+    families = [(r, s) for r, s in families if s]
+    if families:
+        lines += [
+            "",
+            "### The sharded repositories",
+            "",
+            "A family row above names a template, not a repository. These are the",
+            "repositories it actually stands for.",
+            "",
+        ]
+        for repo, shards in families:
+            links = ", ".join(
+                f"[`{name.rsplit('-', 1)[-1]}`](https://github.com/{OWNER}/{name})"
+                if fetch_status(name).exists
+                else f"`{name.rsplit('-', 1)[-1]}`"
+                for name in shards
+            )
+            lines += [f"**`{repo.name}`** — {links}", ""]
 
     lines += ["", "## Sources", "", "| Repository | Built from |", "|---|---|"]
     for repo in sorted(REPOSITORIES, key=lambda r: (r.phase, r.name)):

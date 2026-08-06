@@ -22,12 +22,17 @@ publishing daily.
 > `src/uscongress/registry.py`, so it reports what actually exists rather than what is
 > planned — repositories not yet created are shown as such.
 
-| Repository | Contents |
-|---|---|
-| [`us-congress-code`](https://github.com/junxit/us-congress-code) | the codified US Code; one commit per OLRC release point, tagged |
-| [`us-congress-statutes`](https://github.com/junxit/us-congress-statutes) | Statutes at Large, volumes 1–137 (1789–2023) |
-| `us-congress-bills-{congress}` | one repo per Congress; one branch per bill |
-| `us-congress-record-{congress}` | Congressional Record, sharded by Congress |
+| Repository | Phase | Contents | State |
+|---|---|---|---|
+| [`us-congress-code`](https://github.com/junxit/us-congress-code) | 1 | the codified US Code; one commit per OLRC release point, tagged | built |
+| `us-congress-bills-{congress}` | 2 | one repo per Congress; one branch per measure | 12 built, [108](https://github.com/junxit/us-congress-bills-108)–[119](https://github.com/junxit/us-congress-bills-119) |
+| `us-congress-statutes` | 5 | Statutes at Large, volumes 1–137 (1789–2023) | planned |
+| `us-congress-record-{congress}` | 6 | Congressional Record, sharded by Congress | planned |
+
+Only repositories that exist are linked here; the rest are named but not linked, because a
+link to a repository that has not been created yet is a 404. [`REPOSITORIES.md`](REPOSITORIES.md)
+is generated from live GitHub state and carries the full list, including a direct link to
+every shard.
 
 Every repository is prefixed `us-congress-`. Sharding by Congress is a deliberate choice, not
 a capacity limit: measured against govinfo, the twelve Congresses from the 108th hold 171,881

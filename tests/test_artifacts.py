@@ -143,3 +143,41 @@ def test_write_repo_creates_main_when_there_are_no_gaps(tmp_path: Path) -> None:
 
     assert write_repo(repo.path, "us-congress-bills-116", BUILT)
     assert "main" in repo.branches()
+
+
+def test_readme_does_not_link_repositories_that_do_not_exist(tmp_path: Path) -> None:
+    """A planned repository has no URL to point at yet.
+
+    Linking one publishes a 404 into every repository in the set at once, and
+    these are generated in bulk, so a single wrong branch multiplies.
+    """
+    text = readme("us-congress-bills-113", tmp_path, BUILT)
+
+    assert "https://github.com/junxit/us-congress-statutes" not in text
+    assert "`us-congress-statutes`" in text  # still named, just not linked
+
+
+def test_readme_links_repositories_that_do_exist(tmp_path: Path) -> None:
+    """The point of the table is to be navigable where navigation is possible."""
+    text = readme("us-congress-bills-113", tmp_path, BUILT)
+    assert "https://github.com/junxit/us-congress-code" in text
+
+
+def test_write_repo_refuses_to_publish_a_broken_link(bills_repo: GitRepo, monkeypatch) -> None:
+    """Catching a bad link at write time beats catching it after publication.
+
+    These are generated in bulk, so a wrong branch in the template lands in
+    every repository at once; refusing here means it is never committed.
+    """
+    import uscongress.jobs.artifacts as mod
+
+    monkeypatch.setattr(
+        mod,
+        "readme",
+        lambda *a, **k: "See [ghost](https://github.com/junxit/us-congress-ghost).\n",
+    )
+    with pytest.raises(ValueError, match="broken links"):
+        write_repo(bills_repo.path, "us-congress-bills-113", BUILT)
+
+    # Nothing was committed: main still holds only what it started with.
+    assert sorted(GitRepo(bills_repo.path).read_tree("main")) == ["GAPS.md"]

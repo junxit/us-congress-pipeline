@@ -31,6 +31,7 @@ from pathlib import Path
 from .. import config
 from ..gitbuild import GitRepo
 from ..registry import OWNER, PIPELINE_REPO, REPOSITORIES, Repository
+from .links import check_document
 
 PIPELINE_URL = f"https://github.com/{OWNER}/{PIPELINE_REPO}"
 
@@ -113,10 +114,12 @@ def _related_table(current: str, built: set[str]) -> list[str]:
         family = repo.name.replace("{congress}", "") if "{" in repo.name else ""
         in_family = bool(family) and current.startswith(family)
         here = " ← you are here" if repo.name == current or in_family else ""
+        # Only link a repository that exists. Linking one that is still planned
+        # publishes a 404 into every repository in the set at once.
         name = (
-            f"`{repo.name}`"
-            if "{" in repo.name
-            else f"[`{repo.name}`]({repo.url})"
+            f"[`{repo.name}`]({repo.url})"
+            if "{" not in repo.name and repo.name in built
+            else f"`{repo.name}`"
         )
         lines.append(
             f"| {name}{here} | {repo.phase} | {repo.summary} | {_status_of(repo, built)} |"
@@ -400,6 +403,21 @@ def write_repo(path: Path, name: str, built: set[str]) -> bool:
     """
     repo = GitRepo(path)
     files = {"README.md": readme(name, path, built), "LICENSE": LICENSE_DATA}
+
+    # Check before committing, not after. These are written in bulk into
+    # repositories that are then published, so a bad link in the template lands
+    # in all of them at once; catching it here means it is never committed.
+    existing_files = repo.list_files("main")
+    broken = check_document(
+        files["README.md"],
+        repo=name,
+        document="README.md",
+        files=existing_files | set(files),
+        repos=built | {PIPELINE_REPO},
+    )
+    if broken:
+        detail = "; ".join(str(link) for link in broken)
+        raise ValueError(f"refusing to write a README with broken links: {detail}")
     message = (
         "Add README and licence\n"
         "\n"

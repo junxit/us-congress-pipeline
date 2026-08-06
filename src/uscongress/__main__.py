@@ -52,6 +52,10 @@ def main(argv: list[str] | None = None) -> int:
         "artifacts", help="write README and LICENSE into every generated repo"
     )
 
+    subparsers.add_parser(
+        "check-links", help="verify every link in every generated document resolves"
+    )
+
     bills = subparsers.add_parser(
         "seed-bills", help="build a us-congress-bills-{congress} repo"
     )
@@ -119,6 +123,11 @@ def main(argv: list[str] | None = None) -> int:
         changed = artifacts_job.write_all()
         print(f"\n{len(changed)} repositories updated")
         return 0
+
+    if args.command == "check-links":
+        from .jobs import links as links_job
+
+        return 1 if links_job.report() else 0
 
     if args.command == "seed-bills":
         from pathlib import Path

@@ -49,6 +49,13 @@ BATCH = 40
 
 REPO_PREFIX = "us-congress-bills"
 
+#: Above this many omitted measures, the gap table stops being something a
+#: person can read and becomes something to grep, so it moves to a TSV.
+INLINE_GAP_LIMIT = 200
+
+#: How many to show inline once the full list has moved out.
+GAP_SAMPLE = 50
+
 
 @dataclass(frozen=True)
 class TextVersion:
@@ -610,10 +617,68 @@ def _write_gaps(repo: GitRepo, congress: str, gaps: list[tuple[str, str, str]]) 
         congress: Congress number.
         gaps: ``(branch, citation, title)`` for each omitted measure.
     """
+    # fast-import sets a commit's whole tree, so main must be read first.
+    # Writing only the gap record would delete the README and licence that
+    # `uscongress artifacts` puts on this branch.
+    existing = repo.read_tree("main")
+    merged = {**existing, **gap_documents(congress, gaps)}
+    if merged == existing:
+        return
+
+    with repo.fast_import() as stream:
+        stream.commit(
+            "main",
+            merged,
+            f"Record {len(gaps):,} measures with no text in the {congress}th Congress\n"
+            "\n"
+            "BILLSTATUS lists them but links no bill text, so they have no\n"
+            "branch here. Stated rather than left as an unexplained absence.\n",
+        )
+
+
+def _branch_number(branch: str) -> int:
+    """Return a branch's trailing number, so measures sort numerically.
+
+    Args:
+        branch: Branch name, e.g. ``hr-588``.
+
+    Returns:
+        The number, or 0 if there is none.
+    """
+    tail = branch.rsplit("-", 1)[-1]
+    return int(tail) if tail.isdigit() else 0
+
+
+def gap_documents(congress: str, gaps: list[tuple[str, str, str]]) -> dict[str, str]:
+    """Render the record of measures that have no text.
+
+    A gap list is not always small. The 108th Congress has 8,755 of them, and
+    the resulting table ran to nearly a megabyte of Markdown -- past the point
+    where a reader can use it, and past the point where forges render it
+    reliably. Above a threshold the document keeps the explanation and a summary,
+    shows a sample, and moves the complete list into a TSV that greps cleanly.
+
+    The link to that companion is emitted only in the branch that also writes
+    it, so the document can never point at a file that is not there.
+
+    Args:
+        congress: Congress number.
+        gaps: ``(branch, citation, title)`` for each omitted measure.
+
+    Returns:
+        Filename to contents.
+    """
+    ordered = sorted(gaps, key=lambda g: (g[0].rsplit("-", 1)[0], _branch_number(g[0])))
+
+    counts: dict[str, int] = {}
+    for branch, _, _ in ordered:
+        kind = branch.rsplit("-", 1)[0]
+        counts[kind] = counts.get(kind, 0) + 1
+
     lines = [
         f"# Measures without text — {congress}th Congress",
         "",
-        f"{len(gaps):,} measures are recorded in BILLSTATUS but have no bill text",
+        f"{len(ordered):,} measures are recorded in BILLSTATUS but have no bill text",
         "linked in any of their `textVersions` entries, so they have no branch in",
         "this repository.",
         "",
@@ -623,19 +688,41 @@ def _write_gaps(repo: GitRepo, congress: str, gaps: list[tuple[str, str, str]]) 
         "officers, adopting rules -- generally carry no published text in any",
         "Congress.",
         "",
-        "| Measure | Title |",
+        "## By measure type",
+        "",
+        "| Type | Without text |",
         "|---|---|",
+        *(
+            f"| `{kind}` | {count:,} |"
+            for kind, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+        ),
+        "",
     ]
-    for _, citation, title in sorted(gaps, key=lambda g: g[0]):
-        clean = (title or "(untitled)").replace("|", "\\|")
-        lines.append(f"| `{citation}` | {clean} |")
 
-    with repo.fast_import() as stream:
-        stream.commit(
-            "main",
-            {"GAPS.md": "\n".join(lines) + "\n"},
-            f"Record {len(gaps):,} measures with no text in the {congress}th Congress\n"
-            "\n"
-            "BILLSTATUS lists them but links no bill text, so they have no\n"
-            "branch here. Stated rather than left as an unexplained absence.\n",
-        )
+    def row(entry: tuple[str, str, str]) -> str:
+        _, citation, title = entry
+        return f"| `{citation}` | {(title or '(untitled)').replace('|', '/')} |"
+
+    documents: dict[str, str] = {}
+    if len(ordered) <= INLINE_GAP_LIMIT:
+        lines += ["## Every measure", "", "| Measure | Title |", "|---|---|"]
+        lines += [row(entry) for entry in ordered]
+    else:
+        shown = ordered[:GAP_SAMPLE]
+        lines += [
+            f"## The first {len(shown)}",
+            "",
+            f"The complete list of {len(ordered):,} is in [`GAPS.tsv`](GAPS.tsv), which",
+            "is tab-separated so it can be grepped and diffed without a Markdown",
+            "reader.",
+            "",
+            "| Measure | Title |",
+            "|---|---|",
+        ]
+        lines += [row(entry) for entry in shown]
+        documents["GAPS.tsv"] = "\n".join(
+            ["measure\ttitle", *(f"{c}\t{t or ''}" for _, c, t in ordered)]
+        ) + "\n"
+
+    documents["GAPS.md"] = "\n".join(lines).rstrip() + "\n"
+    return documents

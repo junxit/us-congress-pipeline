@@ -209,6 +209,24 @@ class GitRepo:
         out = self._run("for-each-ref", "--format=%(refname:short)", "refs/heads")
         return {line.strip() for line in out.splitlines() if line.strip()}
 
+    def list_files(self, branch: str) -> set[str]:
+        """Return the names of every file on a branch, without reading them.
+
+        :meth:`read_tree` reads contents, which costs one ``git show`` per file.
+        On the US Code repository that is 60,493 of them, so anything that only
+        needs to know *whether* a path exists must ask this instead.
+
+        Args:
+            branch: Branch name.
+
+        Returns:
+            Repository-relative paths, or an empty set if the branch is absent.
+        """
+        try:
+            return set(self._run("ls-tree", "-r", "--name-only", branch).split())
+        except subprocess.CalledProcessError:
+            return set()
+
     def read_tree(self, branch: str) -> dict[str, str]:
         """Return every file on a branch, path to contents.
 

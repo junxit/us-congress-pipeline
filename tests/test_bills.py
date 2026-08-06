@@ -20,6 +20,7 @@ from uscongress.jobs.bills import (
     _fetch_cached,
     _write_gaps,
     branch_of,
+    gap_documents,
     TextVersion,
     commit_message,
     metadata_markdown,
@@ -276,3 +277,65 @@ def test_gaps_are_recorded_rather_than_left_unexplained(tmp_path) -> None:
     assert "108th Congress" in text
     assert "`H.Res. 1`" in text
     assert "upstream gap, not a build failure" in text
+
+
+def _gaps(n: int) -> list[tuple[str, str, str]]:
+    """n omitted measures."""
+    return [(f"hr-{i}", f"H.R. {i}", f"Title {i}") for i in range(1, n + 1)]
+
+
+def test_small_gap_list_stays_inline() -> None:
+    """Most Congresses have a handful of gaps; a table is the right shape."""
+    docs = gap_documents("113", _gaps(5))
+
+    assert sorted(docs) == ["GAPS.md"]
+    assert "## Every measure" in docs["GAPS.md"]
+    assert "GAPS.tsv" not in docs["GAPS.md"]
+
+
+def test_large_gap_list_moves_to_a_companion_file() -> None:
+    """The 108th has 8,755 gaps, which ran to nearly a megabyte of Markdown.
+
+    Past that size the table stops being readable and forges stop rendering it
+    reliably, so the full list becomes a TSV and the document keeps a sample.
+    """
+    docs = gap_documents("108", _gaps(900))
+
+    assert sorted(docs) == ["GAPS.md", "GAPS.tsv"]
+    assert len(docs["GAPS.md"]) < 10_000
+    assert docs["GAPS.tsv"].count("\n") == 901  # header + 900 rows
+
+
+def test_the_companion_is_linked_only_when_it_is_written() -> None:
+    """A link and the file it points at must never drift apart."""
+    small = gap_documents("113", _gaps(5))
+    large = gap_documents("108", _gaps(900))
+
+    assert ("GAPS.tsv" in small["GAPS.md"]) is ("GAPS.tsv" in small)
+    assert ("GAPS.tsv" in large["GAPS.md"]) is ("GAPS.tsv" in large)
+
+
+def test_gaps_are_summarised_by_measure_type() -> None:
+    """A count per type is what a reader can actually use at this scale."""
+    mixed = [("hr-1", "H.R. 1", "a"), ("hres-2", "H.Res. 2", "b"), ("hres-3", "H.Res. 3", "c")]
+    text = gap_documents("108", mixed)["GAPS.md"]
+
+    assert "## By measure type" in text
+    assert "| `hres` | 2 |" in text
+    assert "| `hr` | 1 |" in text
+
+
+def test_writing_gaps_preserves_the_readme_and_licence(tmp_path) -> None:
+    """fast-import sets the whole tree, so main must be read before writing.
+
+    Writing only the gap record would delete the artifacts that
+    `uscongress artifacts` puts on this branch -- silently, on the next build.
+    """
+    repo = GitRepo(tmp_path / "us-congress-bills-113")
+    repo.init()
+    with repo.fast_import() as stream:
+        stream.commit("main", {"README.md": "readme\n", "LICENSE": "licence\n"}, "Artifacts")
+
+    _write_gaps(repo, "113", _gaps(3))
+
+    assert sorted(repo.read_tree("main")) == ["GAPS.md", "LICENSE", "README.md"]
