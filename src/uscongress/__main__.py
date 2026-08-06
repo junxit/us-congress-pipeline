@@ -48,6 +48,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     seed.add_argument("--repo-path", help="override the repository location")
 
+    subparsers.add_parser(
+        "artifacts", help="write README and LICENSE into every generated repo"
+    )
+
     bills = subparsers.add_parser(
         "seed-bills", help="build a us-congress-bills-{congress} repo"
     )
@@ -107,6 +111,13 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         asyncio.run(_seed())
+        return 0
+
+    if args.command == "artifacts":
+        from .jobs import artifacts as artifacts_job
+
+        changed = artifacts_job.write_all()
+        print(f"\n{len(changed)} repositories updated")
         return 0
 
     if args.command == "seed-bills":

@@ -209,6 +209,29 @@ class GitRepo:
         out = self._run("for-each-ref", "--format=%(refname:short)", "refs/heads")
         return {line.strip() for line in out.splitlines() if line.strip()}
 
+    def read_tree(self, branch: str) -> dict[str, str]:
+        """Return every file on a branch, path to contents.
+
+        Needed because :class:`FastImport` sets a commit's whole tree with
+        ``deleteall``: adding one file without reading the others first would
+        delete them.
+
+        Args:
+            branch: Branch name.
+
+        Returns:
+            The branch's files, or an empty mapping if it does not exist.
+        """
+        try:
+            listing = self._run("ls-tree", "-r", "--name-only", branch)
+        except subprocess.CalledProcessError:
+            return {}
+        files = {}
+        for path in (line.strip() for line in listing.splitlines()):
+            if path:
+                files[path] = self._run("show", f"{branch}:{path}")
+        return files
+
     def fast_import(self) -> FastImport:
         """Open a stream for writing commits without touching the working tree.
 

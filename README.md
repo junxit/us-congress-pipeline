@@ -169,9 +169,28 @@ work in a browser and fail from a script. The client handles this.
 
 ## Licence
 
-Compiled federal text is public domain under 17 U.S.C. § 105, and each generated data
-repository carries that notice.
+This pipeline is **proprietary — © 2026 Jade Naaman, all rights reserved**; see
+[`LICENSE`](LICENSE). No licence is granted. Terms may be opened up later; nothing here is
+offered under an open-source licence today.
 
-This pipeline is **proprietary — © 2026 Jade Naaman, all rights reserved.** No licence is
-granted. Terms may be opened up later; nothing here is offered under an open-source licence
-today.
+The generated repositories are licensed **separately**, because they hold two different kinds
+of material. The federal text is a work of the United States Government, so 17 U.S.C. § 105
+puts it in the public domain and no rights are asserted over it — claiming otherwise would be
+a claim with nothing behind it. The layer this project authored around that text — the
+Markdown conversion, the structure of the history, the commit messages and the explanatory
+prose — is © 2026 Jade Naaman, all rights reserved. Each generated repository carries its own
+`LICENSE` saying exactly that.
+
+## Keeping the generated repositories self-describing
+
+```bash
+uv run uscongress artifacts   # write README.md and LICENSE into every generated repo
+```
+
+A generated repository is published without its pipeline, so it has to explain itself:
+what a branch means, how to read a diff, what the data does *not* say, and where it came
+from. `artifacts` writes that into each one, along with the cross-reference table linking
+back here and across to the sibling repositories, so the set stays navigable as phases land.
+
+It is idempotent — the counts it embeds deliberately exclude the commit it makes, so
+re-running it after a new phase changes only what actually changed.
