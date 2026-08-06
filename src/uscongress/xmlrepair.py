@@ -44,6 +44,13 @@ _TOKEN = re.compile(
 )
 
 
+#: An ``&`` that does not begin a character or entity reference. Bill documents
+#: carry these unescaped -- Senate Resolution 264 of the 113th Congress is
+#: titled "State of Florida v. Lawrence, Denny, & Scarbrough" -- which makes the
+#: document malformed as published.
+_BARE_AMPERSAND = re.compile(rb"&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#[xX][0-9a-fA-F]+);)")
+
+
 @dataclass(frozen=True)
 class RepairReport:
     """What a repair pass changed.
@@ -51,11 +58,13 @@ class RepairReport:
     Attributes:
         dropped_end_tags: Names of unmatched end tags that were removed.
         closed_implicitly: Names of unclosed elements that were closed.
+        escaped_ampersands: Count of bare ``&`` characters escaped.
         changed: Whether the document was modified at all.
     """
 
     dropped_end_tags: tuple[str, ...]
     closed_implicitly: tuple[str, ...]
+    escaped_ampersands: int
     changed: bool
 
     def describe(self) -> str:
@@ -71,6 +80,8 @@ class RepairReport:
             parts.append(f"dropped {len(self.dropped_end_tags)} unmatched end tags: {detail}")
         if self.closed_implicitly:
             parts.append(f"closed {len(self.closed_implicitly)} unclosed elements")
+        if self.escaped_ampersands:
+            parts.append(f"escaped {self.escaped_ampersands} bare ampersands")
         return "; ".join(parts)
 
 
@@ -129,7 +140,39 @@ def repair(xml_bytes: bytes) -> tuple[bytes, RepairReport]:
         out.append(token)
 
     out.append(xml_bytes[cursor:])
+    repaired = b"".join(out) if (dropped or closed) else xml_bytes
 
-    if not dropped and not closed:
-        return xml_bytes, RepairReport((), (), False)
-    return b"".join(out), RepairReport(tuple(dropped), tuple(closed), True)
+    # Escaping runs last, over markup that is already balanced, so an ampersand
+    # inside a tag that was about to be dropped is not counted. It is applied to
+    # text only: an attribute value can hold a bare & too, but rewriting inside
+    # tags risks corrupting markup, and no observed document needs it.
+    repaired, ampersands = _escape_bare_ampersands(repaired)
+
+    if not dropped and not closed and not ampersands:
+        return xml_bytes, RepairReport((), (), 0, False)
+    return repaired, RepairReport(tuple(dropped), tuple(closed), ampersands, True)
+
+
+def _escape_bare_ampersands(xml_bytes: bytes) -> tuple[bytes, int]:
+    """Escape ``&`` characters that do not begin a reference, outside tags.
+
+    Args:
+        xml_bytes: Raw XML.
+
+    Returns:
+        A ``(repaired, count)`` pair.
+    """
+    out: list[bytes] = []
+    count = 0
+    cursor = 0
+    for match in _TOKEN.finditer(xml_bytes):
+        text = xml_bytes[cursor : match.start()]
+        fixed, found = _BARE_AMPERSAND.subn(b"&amp;", text)
+        out.append(fixed)
+        out.append(match.group(0))
+        count += found
+        cursor = match.end()
+    tail, found = _BARE_AMPERSAND.subn(b"&amp;", xml_bytes[cursor:])
+    out.append(tail)
+    count += found
+    return (b"".join(out), count) if count else (xml_bytes, 0)

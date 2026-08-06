@@ -61,3 +61,35 @@ def test_unclosed_element_is_closed_implicitly() -> None:
     out, report = repair(data)
     assert b"</c>" in out
     assert out.endswith(b"</a>")
+
+
+def test_bare_ampersand_is_escaped() -> None:
+    """govinfo publishes bill text with unescaped ampersands.
+
+    Senate Resolution 264 of the 113th Congress is titled "State of Florida v.
+    Lawrence, Denny, & Scarbrough", which makes the document malformed as
+    published and unparseable by any conforming parser.
+    """
+    fixed, report = repair(b"<a><t>Lawrence, Denny, & Scarbrough</t></a>")
+
+    assert b"Denny, &amp; Scarbrough" in fixed
+    assert report.escaped_ampersands == 1
+    assert report.changed
+
+
+def test_existing_entities_are_left_alone() -> None:
+    """Escaping a valid reference again would corrupt the text."""
+    source = b"<a><t>&amp; &lt; &gt; &#160; &#xA0; &quot;</t></a>"
+    fixed, report = repair(source)
+
+    assert fixed == source
+    assert report.escaped_ampersands == 0
+    assert not report.changed
+
+
+def test_ampersand_repair_leaves_markup_intact() -> None:
+    """Only text is rewritten; tags and attributes are passed through."""
+    fixed, _ = repair(b'<a href="x?p=1&q=2"><t>A & B</t></a>')
+
+    assert b'href="x?p=1&q=2"' in fixed
+    assert b"A &amp; B" in fixed
