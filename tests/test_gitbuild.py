@@ -110,3 +110,93 @@ def test_tags_are_detected(repo: GitRepo) -> None:
     assert repo.has_tag("pl-113-21") is False
     repo.tag("pl-113-21")
     assert repo.has_tag("pl-113-21") is True
+
+
+def _git(repo: GitRepo, *args: str) -> str:
+    """Run a read-only git command and return trimmed stdout."""
+    return subprocess.run(
+        ["git", "-C", str(repo.path), *args], capture_output=True, text=True
+    ).stdout.strip()
+
+
+def test_fast_import_chains_commits_on_one_branch(repo: GitRepo) -> None:
+    """Successive versions of a bill are commits on its branch, oldest first."""
+    with repo.fast_import() as stream:
+        stream.commit("hr-588", {"bill.md": "v1\n"}, "Introduced in House", date(2013, 2, 6))
+        stream.commit("hr-588", {"bill.md": "v2\n"}, "Reported in House", date(2013, 4, 9))
+
+    assert _git(repo, "log", "--format=%s", "hr-588").splitlines() == [
+        "Reported in House",
+        "Introduced in House",
+    ]
+
+
+def test_fast_import_appends_to_a_branch_from_an_earlier_run(repo: GitRepo) -> None:
+    """A resumed build must extend existing branches, not restart them.
+
+    fast-import does not adopt an existing branch tip on its own: without an
+    explicit ``from``, the first commit of a new stream starts a fresh root and
+    git rejects the update as a non-fast-forward. That failure arrives only
+    after the whole run has been done, so it is worth pinning.
+    """
+    with repo.fast_import() as stream:
+        stream.commit("hr-588", {"bill.md": "v1\n"}, "Introduced in House", date(2013, 2, 6))
+    with repo.fast_import() as stream:
+        stream.commit("hr-588", {"bill.md": "v2\n"}, "Enrolled Bill", date(2013, 7, 19))
+
+    assert _git(repo, "log", "--format=%s", "hr-588").splitlines() == [
+        "Enrolled Bill",
+        "Introduced in House",
+    ]
+    assert _git(repo, "show", "hr-588:bill.md") == "v2"
+
+
+def test_branches_are_independent(repo: GitRepo) -> None:
+    """Bills do not descend from a common trunk; each branch is its own root."""
+    with repo.fast_import() as stream:
+        stream.commit("hr-1", {"bill.md": "house\n"}, "Introduced in House", date(2013, 1, 3))
+        stream.commit("s-1", {"bill.md": "senate\n"}, "Introduced in Senate", date(2013, 1, 3))
+
+    assert repo.branches() == {"hr-1", "s-1"}
+    assert _git(repo, "show", "hr-1:bill.md") == "house"
+    assert _git(repo, "show", "s-1:bill.md") == "senate"
+    assert _git(repo, "rev-list", "--count", "hr-1") == "1"
+
+
+def test_non_ascii_content_survives(repo: GitRepo) -> None:
+    """Bill text carries section signs, em dashes and typographic quotes.
+
+    fast-import frames payloads by byte length, so measuring characters instead
+    would desynchronise the stream on any of them.
+    """
+    body = "§ 2. Amended— insert “and”, then sección.\n"
+    with repo.fast_import() as stream:
+        stream.commit("hr-1", {"bill.md": body}, "Introduced in House", date(2013, 1, 3))
+
+    assert _git(repo, "show", "hr-1:bill.md") == body.strip()
+
+
+def test_commit_dates_follow_the_upstream_version_date(repo: GitRepo) -> None:
+    """``git log`` should read as legislative chronology."""
+    with repo.fast_import() as stream:
+        stream.commit("hr-1", {"bill.md": "x\n"}, "Introduced in House", date(2013, 2, 6))
+
+    assert _git(repo, "log", "-1", "--format=%ad", "--date=short", "hr-1") == "2013-02-06"
+
+
+def test_fast_import_leaves_the_working_tree_alone(repo: GitRepo) -> None:
+    """The whole point: tens of thousands of branches without a checkout."""
+    with repo.fast_import() as stream:
+        stream.commit("hr-1", {"bill.md": "x\n"}, "Introduced in House", date(2013, 1, 3))
+
+    assert not (repo.path / "bill.md").exists()
+    assert _git(repo, "status", "--porcelain") == ""
+
+
+def test_each_commit_replaces_the_whole_tree(repo: GitRepo) -> None:
+    """A version supersedes the last, so stale files must not linger."""
+    with repo.fast_import() as stream:
+        stream.commit("hr-1", {"a.md": "1\n", "b.md": "2\n"}, "Introduced in House", date(2013, 1, 3))
+        stream.commit("hr-1", {"a.md": "1\n"}, "Reported in House", date(2013, 2, 3))
+
+    assert _git(repo, "ls-tree", "--name-only", "hr-1").split() == ["a.md"]

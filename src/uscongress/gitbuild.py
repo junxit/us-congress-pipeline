@@ -12,7 +12,7 @@ import hashlib
 import json
 import subprocess
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 AUTHOR_NAME = "us-congress-pipeline"
@@ -196,6 +196,27 @@ class GitRepo:
         out = self._run("tag", "--list", name)
         return bool(out.strip())
 
+    def branches(self) -> set[str]:
+        """Return every branch name in the repository.
+
+        Read in one call rather than per-branch: a bills repository holds tens
+        of thousands of branches, and asking git about each one separately costs
+        a process per question.
+
+        Returns:
+            Branch names, without the ``refs/heads/`` prefix.
+        """
+        out = self._run("for-each-ref", "--format=%(refname:short)", "refs/heads")
+        return {line.strip() for line in out.splitlines() if line.strip()}
+
+    def fast_import(self) -> FastImport:
+        """Open a stream for writing commits without touching the working tree.
+
+        Returns:
+            A context manager; see :class:`FastImport`.
+        """
+        return FastImport(self)
+
     def size_bytes(self, repack: bool = False) -> int:
         """Return the repository's on-disk size.
 
@@ -220,3 +241,152 @@ class GitRepo:
             return int(self._run("rev-list", "--count", "HEAD").strip())
         except subprocess.CalledProcessError:
             return 0
+
+
+class FastImport:
+    """Write commits into a repository via ``git fast-import``.
+
+    :meth:`GitRepo.sync_tree` and :meth:`GitRepo.commit` operate on the working
+    tree: they write files to disk, stage them, and prune empty directories.
+    That is right for one linear history of large snapshots, which is what the
+    US Code repository is. It is unusable for bills.
+
+    A single Congress holds up to 19,315 measures, one branch each. Checking out
+    a branch to write one file, committing, and checking out the next would move
+    the working tree tens of thousands of times and spawn several processes per
+    commit. fast-import instead takes one stream on stdin and never touches the
+    working tree at all, so the cost is the bytes written rather than the number
+    of refs.
+
+    Commits appended to a branch that the stream has already written chain onto
+    it automatically; the first commit to a branch starts it as a root. Bills do
+    not descend from a common trunk, so every branch is its own root and there is
+    no ``main`` for them to diverge from.
+
+    Args:
+        repo: Repository to write into. Must already exist.
+    """
+
+    def __init__(self, repo: GitRepo) -> None:
+        self._repo = repo
+        self._process: subprocess.Popen[bytes] | None = None
+        self._existing: set[str] = set()
+        self._started: set[str] = set()
+        self.commits = 0
+
+    def __enter__(self) -> FastImport:
+        """Start the fast-import process.
+
+        Returns:
+            This writer.
+        """
+        self._existing = self._repo.branches()
+        self._started = set()
+        self._process = subprocess.Popen(
+            ["git", "-C", str(self._repo.path), "fast-import", "--quiet", "--done"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        """Finish the stream and wait for git to write its objects.
+
+        Raises:
+            RuntimeError: If fast-import reported a failure.
+        """
+        assert self._process is not None and self._process.stdin is not None
+        self._write(b"done\n")
+        self._process.stdin.close()
+        stderr = self._process.stderr.read() if self._process.stderr else b""
+        code = self._process.wait()
+        self._process = None
+        if code != 0 and exc_info[0] is None:
+            raise RuntimeError(
+                f"git fast-import exited {code}: {stderr.decode('utf-8', 'replace')}"
+            )
+
+    def _write(self, payload: bytes) -> None:
+        """Write raw bytes to the stream.
+
+        Args:
+            payload: Bytes to send.
+        """
+        assert self._process is not None and self._process.stdin is not None
+        self._process.stdin.write(payload)
+
+    @staticmethod
+    def _data(payload: bytes) -> bytes:
+        """Frame a payload as a fast-import ``data`` block.
+
+        The length is a byte count, not a character count, so text has to be
+        encoded before it is measured or any non-ASCII content -- section signs,
+        em dashes and typographic quotes, all of which occur in bill text --
+        desynchronises the stream.
+
+        Args:
+            payload: Raw bytes.
+
+        Returns:
+            The framed block.
+        """
+        return b"data %d\n%s\n" % (len(payload), payload)
+
+    def commit(
+        self,
+        branch: str,
+        files: dict[str, str],
+        message: str,
+        when: date | None = None,
+    ) -> None:
+        """Append one commit to a branch, replacing its whole tree.
+
+        Args:
+            branch: Branch name, without ``refs/heads/``.
+            files: Complete tree for this commit, path to content.
+            message: Full commit message.
+            when: Date for both author and committer timestamps. Defaults to the
+                epoch when absent, so a missing upstream date is obvious rather
+                than silently reading as the day the pipeline ran.
+        """
+        stamp = f"{int(_epoch_seconds(when))} +0000"
+        ident = f"{AUTHOR_NAME} <{AUTHOR_EMAIL}>".encode()
+
+        self._write(b"commit refs/heads/%s\n" % branch.encode())
+        self._write(b"author %s %s\n" % (ident, stamp.encode()))
+        self._write(b"committer %s %s\n" % (ident, stamp.encode()))
+        self._write(self._data(message.encode()))
+        if branch not in self._started:
+            if branch in self._existing:
+                # A branch this stream has not written yet, but which the
+                # repository already holds, needs its parent stated explicitly.
+                # Without this fast-import starts a fresh root and git rejects
+                # the ref update as a non-fast-forward -- so a resumed build
+                # fails loudly, but only after the work is done.
+                self._write(b"from refs/heads/%s^0\n" % branch.encode())
+            self._started.add(branch)
+        self._write(b"deleteall\n")
+        for path, content in sorted(files.items()):
+            body = content.encode()
+            self._write(b"M 100644 inline %s\n" % path.encode())
+            self._write(self._data(body))
+        self._write(b"\n")
+        self.commits += 1
+
+
+def _epoch_seconds(when: date | None) -> int:
+    """Return a date as seconds since the epoch, at midday UTC.
+
+    Midday matches :meth:`GitRepo.commit`, which stamps ``T12:00:00+00:00`` so a
+    date never lands on the wrong calendar day in a nearby timezone.
+
+    Args:
+        when: The date, or None.
+
+    Returns:
+        Seconds since the epoch.
+    """
+    if when is None:
+        return 0
+    return int(datetime(when.year, when.month, when.day, 12, tzinfo=UTC).timestamp())
