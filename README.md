@@ -29,17 +29,24 @@ publishing daily.
 | `us-congress-bills-{congress}` | one repo per Congress; one branch per bill |
 | `us-congress-record-{congress}` | Congressional Record, sharded by Congress |
 
-Every repository is prefixed `us-congress-`. Sharding by Congress is forced by arithmetic:
-roughly 180,000 measures since 2003, against a recommended ceiling of 5,000 branches per
-repository.
+Every repository is prefixed `us-congress-`. Sharding by Congress is a deliberate choice, not
+a capacity limit: measured against govinfo, the twelve Congresses from the 108th hold 171,881
+measures in 6.60 GB of XML, which one repository could carry. GitHub publishes no branch-count
+ceiling, and the whole corpus packs to roughly 1–2 GB.
+
+It is sharded because a finished Congress never changes again, so frozen shards never rebuild
+and their clones stay valid; because a defect in recent data should not force a rebuild of
+2003; because reading the 118th should not mean downloading 6.6 GB; and because twelve
+repositories build in parallel where one serialises. Branch counts run 10,637 to 19,315 per
+Congress.
 
 All repositories are private for now. Publishing is a one-way door and the decision is
 deliberately deferred.
 
 ## What this is — and what it is not
 
-Diffing a bill branch against its base tag shows how the **bill** changed, not how the **US
-Code** would change. Bills are written as amendatory instructions ("strike subsection (b) and
+Diffing across a bill branch's own commits — `hr-1234~2..hr-1234`, or against the commit that
+introduced it — shows how the **bill** changed, not how the **US Code** would change. Bills are written as amendatory instructions ("strike subsection (b) and
 insert…"), not as diffs, and executing them automatically is an unsolved problem: measured
 across seven real bills, only ~49% of amendatory instructions carry a machine-readable US Code
 reference, and a large bill would need ~99.99% per-instruction accuracy to come out wholly
@@ -61,19 +68,58 @@ uv run uscongress comps --fresh       # ignore today's manifest, refetch everyth
 uv run uscongress releasepoints       # list all 386 OLRC release points, oldest first
 uv run uscongress seed-code           # build us-congress-code from every release point
 uv run uscongress seed-code --limit 5 # build only the oldest 5
+uv run uscongress seed-bills --congress 113   # build us-congress-bills-113
+uv run uscongress seed-bills --congress 113 --limit 25   # first 25 measures only
 uv run uscongress index               # regenerate REPOSITORIES.md
 
 uv run pytest                         # tests
 ```
 
 Every job is resumable and idempotent: `comps` skips packages already recorded, `seed-code`
-skips release points whose tag exists, and both cache their downloads. Re-running a completed
-job fetches nothing.
+skips release points whose tag exists, `seed-bills` skips measures whose branch exists, and
+all of them cache their downloads. Re-running a completed job fetches nothing — re-running a
+finished Congress takes seconds and rebuilds no branches.
 
 OLRC lists 386 release points but only **383 are distinct** — `pl-113-165`, `pl-115-95not91`
 and `pl-115-117not91not96not97` each appear twice at adjacent positions on
 `priorreleasepoints.htm`. The tag check that makes `seed-code` resumable also absorbs the
 duplicates, so a complete `us-congress-code` has 383 commits and 383 tags, not 386.
+
+### Inside a bills repository
+
+Each measure is a branch named from its citation — `hr-588`, `s-1339`, `sconres-13` — holding
+one commit per text version, oldest first. Two files per commit:
+
+| File | Contents |
+|---|---|
+| `bill.md` | the bill text as of that version |
+| `metadata.md` | sponsor, cosponsors, committees and actions **as of that version** |
+
+`metadata.md` is filtered to the version's date on purpose. BILLSTATUS is a single present-day
+snapshot of the whole measure, so writing it unfiltered would have a bill's introduced text
+already reporting that it became law — the same trap as Table III's present-day classification
+in `us-congress-code`.
+
+A `main` branch carries `GAPS.md`, listing measures that have no branch because govinfo
+records them in BILLSTATUS but links no text. This is not evenly spread, and the older
+Congresses are mostly gaps:
+
+| Congress | branches | no text |
+|---|---|---|
+| 108 | 1,912 | **8,755** |
+| 109 | 10,766 | 2,302 |
+| 110 | 13,724 | 314 |
+| 111 | 13,520 | 155 |
+| 112–119 | 120,260 | 173 total |
+
+Ordering comes from BILLSTATUS `textVersions`, not from the bill documents: `action-date` is
+absent from engrossed, enrolled and received versions, and a reported version repeats the
+introduction date, so the files cannot sequence themselves. Where BILLSTATUS gives no date —
+usually the enrolled bill — the preceding version's date is carried forward and the commit
+message says so.
+
+Bill text is **legacy `bill.dtd` XML, not USLM.** GPO publishes a parallel USLM 2.0 tree, but
+it covers 1.8% of versions (2,443 of 134,013), so `billtext.py` renders the legacy format.
 
 ### Why `comps` runs first
 

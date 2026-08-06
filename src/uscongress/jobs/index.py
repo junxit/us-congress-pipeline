@@ -26,7 +26,14 @@ def _status_cell(name: str) -> str:
         Markdown for the status column.
     """
     if "{" in name:
-        return "planned (sharded)"
+        # A shard family has no single repository to query, but reporting it as
+        # merely "planned" once the shards are built on disk understates what
+        # exists. Count them instead.
+        built = sorted(config.REPOS_DIR.glob(name.replace("{congress}", "*")))
+        built = [p for p in built if (p / ".git").is_dir()]
+        if not built:
+            return "planned (sharded)"
+        return f"{len(built)} shards built locally, not pushed"
     status = fetch_status(name)
     if status.error:
         return f"unknown — {status.error}"
@@ -78,16 +85,25 @@ def render() -> str:
         lines += [f"- `{r.name}` — {r.shards}" for r in sharded]
         lines += [
             "",
-            "Sharding by Congress is forced by arithmetic: roughly 180,000 measures",
-            "since 2003, against GitHub's recommended ceiling of 5,000 branches per",
-            "repository.",
+            "Sharding by Congress is a deliberate choice, not a capacity limit. The",
+            "twelve Congresses from the 108th hold 171,881 measures in 6.60 GB of XML,",
+            "which packs to roughly 1-2 GB; one repository could carry all of it, and",
+            "GitHub publishes no branch-count ceiling.",
+            "",
+            "It is sharded because a finished Congress never changes again, so frozen",
+            "shards never rebuild and their clones stay valid; because a defect in",
+            "recent data should not force a rebuild of 2003; because reading the 118th",
+            "should not mean downloading 6.6 GB; and because twelve repositories build",
+            "in parallel where one serialises. Branch counts run 10,637 to 19,315 per",
+            "Congress.",
         ]
 
     lines += [
         "",
         "## What the diffs mean",
         "",
-        "Diffing a bill branch against its base tag shows how the **bill** changed,",
+        "Diffing across a bill branch's own commits -- `hr-1234~2..hr-1234`, or",
+        "against the commit that introduced it -- shows how the **bill** changed,",
         "not how the **US Code** would change. Bills are written as amendatory",
         "instructions, not diffs, and executing them automatically is unsolved.",
         "Synthesised effects on existing law are always marked derived.",
