@@ -26,14 +26,23 @@ def _status_cell(name: str) -> str:
         Markdown for the status column.
     """
     if "{" in name:
-        # A shard family has no single repository to query, but reporting it as
-        # merely "planned" once the shards are built on disk understates what
-        # exists. Count them instead.
-        built = sorted(config.REPOS_DIR.glob(name.replace("{congress}", "*")))
-        built = [p for p in built if (p / ".git").is_dir()]
+        # A shard family has no single repository to query, so each member is
+        # asked about separately. Reporting the family as merely "planned" once
+        # the shards exist understates what is there.
+        built = sorted(
+            p
+            for p in config.REPOS_DIR.glob(name.replace("{congress}", "*"))
+            if (p / ".git").is_dir() and not p.name.endswith(".pre-fix")
+        )
         if not built:
             return "planned (sharded)"
-        return f"{len(built)} shards built locally, not pushed"
+        live = [p for p in built if fetch_status(p.name).exists]
+        if not live:
+            return f"{len(built)} shards built locally, not pushed"
+        visibility = "private" if all(fetch_status(p.name).private for p in live) else "**mixed**"
+        if len(live) == len(built):
+            return f"{len(live)} shards live, {visibility}"
+        return f"{len(live)} of {len(built)} shards live, {visibility}"
     status = fetch_status(name)
     if status.error:
         return f"unknown — {status.error}"
