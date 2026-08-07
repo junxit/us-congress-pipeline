@@ -151,6 +151,16 @@ it covers 1.8% of versions (2,443 of 134,013), so `billtext.py` renders the lega
 
 ## Staying alive
 
+> [!IMPORTANT]
+> **The schedule is paused as of 2026-08-07**, pending a `DATA_REPO_TOKEN` repository
+> secret. The workflow token GitHub injects is scoped to the repository running it, so it
+> can commit the heartbeat here but cannot push to the thirteen data repositories; that
+> needs a credential with **Contents: read/write** on the `junxit` repositories.
+>
+> Re-enable with `gh workflow enable update` once it is set. This note is here because a
+> disabled schedule raises nothing and notifies nobody — it is the exact failure the rest
+> of this section is built to prevent, so it does not get to be silent either.
+
 `uv run uscongress update` is the daily job, and it runs in
 [`.github/workflows/update.yml`](.github/workflows/update.yml) rather than on a machine
 somewhere, because the run history of a public workflow is itself a liveness record that
