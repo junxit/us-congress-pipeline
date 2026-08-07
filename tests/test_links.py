@@ -34,6 +34,30 @@ def test_link_to_a_repository_that_does_not_exist_fails() -> None:
     assert broken[0].reason == "repository does not exist"
 
 
+def test_a_deep_link_is_checked_on_its_repository_segment() -> None:
+    """Only the first path segment names the repository.
+
+    Reading the whole path as a name reports every link *into* a repository as
+    broken. The one that mattered was each generated repository's pointer at the
+    pipeline's ``STATUS.md``, which is how a reader who found the data on its
+    own tells a maintained corpus from an abandoned one.
+    """
+    body = (
+        "[status](https://github.com/junxit/us-congress-pipeline/blob/main/STATUS.md)\n"
+        "[gone](https://github.com/junxit/us-congress-nope/blob/main/STATUS.md)\n"
+    )
+    broken = check_document(
+        body,
+        repo="us-congress-bills-113",
+        document="README.md",
+        files=set(),
+        repos={"us-congress-pipeline"},
+    )
+
+    assert [link.label for link in broken] == ["gone"]
+    assert "repository does not exist" in broken[0].reason
+
+
 def test_link_to_a_name_template_fails() -> None:
     """``us-congress-bills-{congress}`` is a family name, not a repository.
 

@@ -102,7 +102,13 @@ def check_document(
                     BrokenLink(repo, document, label, target, "no such heading")
                 )
         elif target.startswith(f"https://github.com/{OWNER}/"):
-            name = target[len(f"https://github.com/{OWNER}/") :].strip("/")
+            rest = target[len(f"https://github.com/{OWNER}/") :].strip("/")
+            # Only the first segment names the repository. A deep link such as
+            # .../us-congress-pipeline/blob/main/STATUS.md is a link into a
+            # repository, not a link to one called "us-congress-pipeline/blob/
+            # main/STATUS.md", and reading it as the latter reports every deep
+            # link in the project as broken.
+            name = rest.split("/", 1)[0]
             if "{" in name:
                 broken.append(
                     BrokenLink(repo, document, label, target, "links a name template")

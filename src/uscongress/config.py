@@ -17,6 +17,11 @@ RAW_DIR = DATA_DIR / "raw"
 REPOS_DIR = DATA_DIR / "repos"
 COMPS_DIR = DATA_DIR / "comps"
 
+#: Run state for the daily job. Outside ``data/`` and tracked in git on purpose:
+#: a scheduled runner is a fresh machine every time, so a watermark it cannot
+#: carry between runs is not a watermark.
+STATE_DIR = REPO_ROOT / "state"
+
 #: Content-addressed blob store shared by every snapshot, so an unchanged
 #: package costs nothing on the second run.
 COMPS_OBJECTS_DIR = COMPS_DIR / "objects"
@@ -73,6 +78,12 @@ def govinfo_api_key() -> str:
 
 
 def ensure_dirs() -> None:
-    """Create the data directories that jobs write into."""
-    for directory in (RAW_DIR, REPOS_DIR, COMPS_OBJECTS_DIR, COMPS_SNAPSHOTS_DIR):
+    """Create the directories that jobs write into."""
+    for directory in (
+        RAW_DIR,
+        REPOS_DIR,
+        COMPS_OBJECTS_DIR,
+        COMPS_SNAPSHOTS_DIR,
+        STATE_DIR,
+    ):
         directory.mkdir(parents=True, exist_ok=True)

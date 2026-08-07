@@ -1,0 +1,126 @@
+# The daily loop.
+#
+# It runs here rather than on a machine somewhere because the run history of a
+# public workflow is itself a liveness record: anyone can look at it and see
+# whether this project is still alive. A launchd job on a laptop is invisible,
+# and invisible is how every predecessor died.
+#
+# Two GitHub behaviours this file is shaped around:
+#
+#   * A scheduled workflow is disabled automatically after 60 days without
+#     repository activity. Committing the heartbeat on every run is what keeps
+#     that from happening -- the job's own output is what keeps the job alive.
+#   * The built-in GITHUB_TOKEN cannot push to a *different* repository, and the
+#     data lives in fourteen of them. Pushing needs a credential with access to
+#     the junxit org's repositories; DATA_REPO_TOKEN below.
+#
+# The heartbeat is committed even when the run fails, because a failed run is
+# exactly the one whose outcome most needs to be visible. The job then fails
+# anyway, so GitHub raises a notification of its own.
+
+name: update
+
+on:
+  schedule:
+    # 05:00 UTC daily. govinfo's nightly BILLSTATUS load lands around 00:20 UTC,
+    # so this asks a few hours after it has settled rather than during it.
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+    inputs:
+      since:
+        description: "Override the watermark, e.g. 2026-08-01"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  # Two runs rebuilding the same branches would race on the push. Queued rather
+  # than cancelled: a run that has already rebuilt should be allowed to publish.
+  group: update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        # Pinned exactly, unlike checkout above, because astral-sh stopped
+        # publishing floating major tags after v7 -- `@v9` does not resolve.
+        # Bump this deliberately; a daily job is the worst place to discover
+        # that an action reference has gone stale.
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --frozen
+
+      - name: Test
+        # Cheap, and the alternative is a defective build writing into fourteen
+        # public repositories before anyone notices.
+        run: uv run pytest -q
+
+      - name: Update
+        id: update
+        # Failure is handled below: the heartbeat has to be written and pushed
+        # first, or a run that failed leaves no public trace that it ran at all.
+        continue-on-error: true
+        env:
+          GOVINFO_API_KEY: ${{ secrets.GOVINFO_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
+          # Through the environment, never interpolated into the command. A
+          # workflow_dispatch input is free text, and `${{ }}` inside `run:` is
+          # substituted before the shell sees it, so a value containing shell
+          # metacharacters would execute rather than be parsed as a date.
+          SINCE: ${{ inputs.since }}
+        run: |
+          if [ -n "$SINCE" ]; then
+            uv run uscongress update --publish --since "$SINCE"
+          else
+            uv run uscongress update --publish
+          fi
+
+      - name: Publish the heartbeat
+        # Runs even when the update failed. A failed run is exactly the one
+        # whose outcome most needs to be visible, and the heartbeat records the
+        # failure rather than silently not moving.
+        if: always()
+        run: |
+          git config user.name "us-congress-pipeline"
+          git config user.email "pipeline@junxit.invalid"
+          # Staged one at a time on purpose. `git add A B` with B missing is
+          # fatal and stages *neither* -- so a crash before the watermark was
+          # written would also drop STATUS.md, losing the heartbeat on exactly
+          # the run whose outcome most needs recording. `|| true` because a
+          # missing file here is a thing to survive, not a second failure.
+          git add STATUS.md || true
+          git add state/update.json || true
+          if git diff --cached --quiet; then
+            echo "heartbeat unchanged"
+            exit 0
+          fi
+          git commit -m "chore: update heartbeat
+
+          Written by the daily job. The date in STATUS.md is the signal: it
+          goes stale on its own if this stops running, which is the failure
+          mode that raises no error."
+          # Retry once against anything that landed while this ran. Losing the
+          # push would leave the heartbeat reading stale when the job in fact
+          # worked, which is the one lie this file exists to prevent.
+          git push || {
+            git pull --rebase --autostash
+            git push
+          }
+
+      - name: Fail if the update did not succeed
+        if: steps.update.outcome == 'failure'
+        run: |
+          echo "The update failed; the watermark was not advanced, so the next"
+          echo "run covers this window again. See the Update step for detail."
+          exit 1
