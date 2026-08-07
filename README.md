@@ -2,7 +2,14 @@
 
 ETL that mirrors the workings of the US Congress as git repositories — the text of federal law
 with its history as commits, every bill as a branch, tags marking the law at a point in time,
-and commit messages carrying sponsors, cosponsors, committee actions and votes.
+and each commit carrying who sponsored the measure and where it had got to.
+
+Concretely: sponsor and cosponsor count are commit trailers, and sponsor, cosponsors,
+committees and actions are in `metadata.md` beside the text, each filtered to the version it
+sits on. **Roll-call votes are planned, not built** — phase 8 in the
+[roadmap](REPOSITORIES.md#roadmap). They need a Congress.gov API key nothing here reads yet.
+Said plainly rather than left to be discovered, which is the rule the generated repositories
+follow in their own `GAPS.md`.
 
 **This repository contains only the pipeline.** It *generates* the data repositories; it does
 not contain them.
@@ -14,6 +21,11 @@ March–April 2026 and every one went silent within weeks; the older, better-kno
 (`divegeek/uscode`, `unitedstates/uscode`) are archived. Meanwhile the upstream government
 feeds — govinfo bulk data, OLRC release points, the Congress.gov API — are healthy and
 publishing daily.
+
+*Maintained* is the whole claim, so [`STATUS.md`](STATUS.md) carries the date this last
+updated. That file is the point: a project like this does not die with an error. A disabled
+schedule or an expired token raises nothing and notifies nobody, so nothing has to fire for
+you to notice — the date simply stops moving. See [Staying alive](#staying-alive).
 
 ## Repositories it produces
 
@@ -78,6 +90,10 @@ uv run uscongress seed-bills --congress 113   # build us-congress-bills-113
 uv run uscongress seed-bills --congress 113 --limit 25   # first 25 measures only
 uv run uscongress index               # regenerate REPOSITORIES.md
 
+uv run uscongress update              # the daily job: rebuild whatever changed
+uv run uscongress update --dry-run    # list what changed upstream, build nothing
+uv run uscongress update --check      # exit non-zero if the daily loop has stopped
+
 uv run pytest                         # tests
 ```
 
@@ -106,6 +122,12 @@ snapshot of the whole measure, so writing it unfiltered would have a bill's intr
 already reporting that it became law — the same trap as Table III's present-day classification
 in `us-congress-code`.
 
+Committees follow the same rule and name their chamber, because both chambers run an Armed
+Services, a Judiciary and an Appropriations Committee. H.R. 7283 of the 119th was referred to
+House Oversight on 2026-01-30 and to Senate Homeland Security on 2026-07-23, so only the first
+appears on its introduced version — a bill that had not yet passed the House should not
+already be sitting in a Senate committee.
+
 A `main` branch carries `GAPS.md`, listing measures that have no branch because govinfo
 records them in BILLSTATUS but links no text. This is not evenly spread, and the older
 Congresses are mostly gaps:
@@ -127,6 +149,45 @@ message says so.
 Bill text is **legacy `bill.dtd` XML, not USLM.** GPO publishes a parallel USLM 2.0 tree, but
 it covers 1.8% of versions (2,443 of 134,013), so `billtext.py` renders the legacy format.
 
+## Staying alive
+
+`uv run uscongress update` is the daily job, and it runs in
+[`.github/workflows/update.yml`](.github/workflows/update.yml) rather than on a machine
+somewhere, because the run history of a public workflow is itself a liveness record that
+anyone can read.
+
+**Only what changed is rebuilt.** govinfo's incremental collections endpoint reported 1,183
+BILLSTATUS packages modified in the six days to 2026-08-07 — about 170 a day, against roughly
+18,000 to re-poll a Congress blindly. Each changed measure has its branch **rewritten from the
+root**, not appended to: BILLSTATUS is one present-day snapshot and `metadata.md` is filtered
+to each version's date, so a correction upstream can change what an *older* commit should say,
+and appending cannot express that.
+
+Rewriting costs nothing when nothing moved. The render is a pure function of the source
+document and the commit timestamps come from the version dates, so an unchanged measure
+rebuilds to byte-identical commits with the same SHAs, git records no change, and there is
+nothing to push. That is what makes the hour of deliberate overlap on every run free, and it
+is why the watermark can advance only on success: a crash re-fetches rather than skips, and
+re-fetching is cheap while missing a bill is not.
+
+**The failure mode is silence, so the signal is inverted.** Nothing has to fire:
+
+| Where | What it says |
+|---|---|
+| [`STATUS.md`](STATUS.md) | written every run, successful or not. A date that stops moving is legible to a stranger who knows nothing about this project |
+| `update --check` | exits non-zero once the last success is more than two days old, like `check-links` and `describe --check` |
+| the workflow | raises a GitHub notification on failure by itself |
+| `state/update.json` | the watermark, committed rather than gitignored — a scheduled runner is a fresh machine every time, so `git log state/update.json` is the history of the loop |
+
+Committing the heartbeat also keeps the schedule alive: GitHub disables a scheduled workflow
+after 60 days without repository activity, and the job's own output is what prevents that.
+
+**New US Code release points are reported, not built.** A release point is a full snapshot of
+~60,000 files built against the one before it — the guard that stops a truncated archive
+recording 336 repeals and reversing them two commits later compares the two trees — so it is
+built where that history already is, with `seed-code`. The daily job puts the backlog on
+`STATUS.md` instead of hiding it.
+
 ### Why `comps` runs first
 
 govinfo replaces Statute Compilations **in place and keeps no version archive**. Once a
@@ -145,14 +206,30 @@ collection costs one manifest, not another 270 MB.
 src/uscongress/
 ├── config.py        filesystem layout, credentials, rate limits
 ├── govinfo.py       rate-limited, retrying async client
+├── gitbuild.py      GitRepo and the fast-import writer
+├── render.py        USLM 1.0 → Markdown (the US Code)
+├── billtext.py      legacy bill-DTD XML → Markdown (bills)
+├── xmlrepair.py     unbalanced tags and bare ampersands in government XML
+├── registry.py      the repositories, and the roadmap beside them
 └── jobs/
-    └── comps.py     Statute Compilations snapshot
+    ├── comps.py     Statute Compilations snapshot
+    ├── uscode.py    → us-congress-code
+    ├── bills.py     → us-congress-bills-{congress}
+    ├── table3.py    per-law attribution trailers
+    ├── update.py    the daily loop and its heartbeat
+    ├── publish.py   fetching and pushing refs, with GitHub's real failure modes
+    ├── index.py     REPOSITORIES.md
+    ├── artifacts.py README and LICENSE into each generated repo
+    ├── describe.py  GitHub description and topics
+    └── links.py     check-links
+state/update.json    the watermark — committed, so the loop survives a fresh runner
 data/                gitignored — corpora and generated repos (~50 GB)
 ```
 
 `data/` is gitignored in full. It holds the fetched corpora and the generated repositories,
 which carry their own git histories; nesting them inside this repository's history would be
-painful to undo.
+painful to undo. `state/` is the exception that is *not* gitignored: it is a few hundred
+bytes, and a watermark a scheduled runner cannot carry between runs is not a watermark.
 
 ## Data sources
 
@@ -209,13 +286,20 @@ added there is covered without anything being written by hand. `describe --check
 `check-links` both exit non-zero when something has drifted, so neither depends on
 anyone remembering to look.
 
-Two things GitHub gets wrong on its own, both worth knowing:
+Three things GitHub gets wrong on its own, all handled in
+[`jobs/publish.py`](src/uscongress/jobs/publish.py) so the daily job does not have to
+rediscover them:
 
 - A repository's **default branch** becomes the first branch pushed, which for a bills
   repository is `hconres-1` — landing every visitor on a random bill instead of the
-  README. Set it to `main` explicitly.
-- A single push of ~10,000 refs is rejected outright with `Internal Server Error`, after
-  transferring everything. Push in batches of about 2,000.
+  README. It is set to `main` explicitly.
+- A single push of ~10,000 refs is rejected outright with `Internal Server Error`,
+  atomically, after transferring everything: zero refs land. Pushes go out in batches of
+  2,000.
+- **Individual refs fail transiently** with the same error — about one in 2,000 during the
+  119th — while git reports the push as successful. Push output is therefore not evidence:
+  what landed is read back with `ls-remote`, compared against local, and the difference is
+  pushed again.
 
 A generated repository is published without its pipeline, so it has to explain itself:
 what a branch means, how to read a diff, what the data does *not* say, and where it came
