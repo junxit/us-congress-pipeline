@@ -226,3 +226,45 @@ def test_write_repo_refuses_to_publish_a_broken_link(bills_repo: GitRepo, monkey
 
     # Nothing was committed: main still holds only what it started with.
     assert sorted(GitRepo(bills_repo.path).read_tree("main")) == ["GAPS.md"]
+
+
+def test_record_examples_name_paths_that_exist(tmp_path) -> None:
+    """A README whose commands fail is worse than one with none.
+
+    The first draft hard-coded `git show
+    daily:2017/01-03/senate/001-senate-chamber-action.md`, and no such file
+    exists -- that day's first Senate item is `001-congressional-record.md` --
+    while the diff example named a day the bound edition does not carry. Shard
+    contents differ, so the examples are read from the repository they will be
+    published into.
+    """
+    repo = GitRepo(tmp_path / "us-congress-record-115")
+    repo.init()
+    with repo.fast_import() as stream:
+        stream.commit(
+            "daily",
+            {
+                "2017/01-03/README.md": "index\n",
+                "2017/01-03/senate/001-congressional-record.md": "text\n",
+            },
+            "2017-01-03",
+        )
+        stream.commit("bound", {"2017/01-03/senate/001-congressional-record.md": "x\n"}, "b")
+
+    day, item, shared = artifacts._record_examples(repo.path)  # noqa: SLF001
+
+    # A day is YYYY/MM-DD, not the year: the day's own README sits one level
+    # shallower than the documents and must not collapse the answer.
+    assert day == "2017/01-03"
+    assert item in repo.list_files("daily")
+    assert shared == "2017/01-03"
+
+
+def test_record_examples_omit_the_diff_when_there_is_nothing_to_compare(tmp_path) -> None:
+    """A shard whose bound edition is unbuilt must not advertise `git diff`."""
+    repo = GitRepo(tmp_path / "us-congress-record-119")
+    repo.init()
+    with repo.fast_import() as stream:
+        stream.commit("daily", {"2025/01-03/senate/001-a.md": "t\n"}, "2025-01-03")
+
+    assert artifacts._record_examples(repo.path)[2] == ""  # noqa: SLF001

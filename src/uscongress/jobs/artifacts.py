@@ -183,6 +183,24 @@ def _facts(path: Path, name: str) -> list[str]:
                 f"- **{versions:,} commits**, one per text version",
                 "- a `main` branch holding this README, the licence, and `GAPS.md`",
             ]
+        if name.startswith("us-congress-record-"):
+            lines = []
+            for branch, edition in (("daily", "daily edition"), ("bound", "bound edition")):
+                days = int(repo._run("rev-list", "--count", branch).strip())  # noqa: SLF001
+                if not days:
+                    continue
+                names = repo._run("ls-tree", "-r", "--name-only", branch).splitlines()  # noqa: SLF001
+                # One README.md per issue day is navigation, not proceedings.
+                documents = sum(1 for n in names if n.endswith(".md")) - days
+                lines.append(
+                    f"- **{days:,} issue days** on `{branch}`, the {edition}, "
+                    f"holding **{documents:,} documents**"
+                )
+            if lines:
+                lines.append(
+                    "- a `main` branch holding this README, the licence, and `GAPS.md`"
+                )
+            return lines
         if name == "us-congress-code":
             tags = len([t for t in repo._run("tag").splitlines() if t.strip()])  # noqa: SLF001
             return [
@@ -207,11 +225,61 @@ def _facts(path: Path, name: str) -> list[str]:
     return []
 
 
-def _usage(name: str) -> list[str]:
+def _record_examples(path: Path) -> tuple[str, str, str]:
+    """Pick real paths out of a Record shard for its README's examples.
+
+    Written rather than hard-coded because the hard-coded ones were wrong: the
+    first draft told the reader to run
+    ``git show daily:2017/01-03/senate/001-senate-chamber-action.md``, and that
+    file does not exist -- the real first item of that day is
+    ``001-congressional-record.md`` -- while the diff example named a day the
+    bound edition does not carry. A README whose commands fail is worse than one
+    with none, and shard contents differ, so the examples are read from the
+    repository they will be published into.
+
+    The earliest day is chosen deliberately: it does not move as the crawl
+    progresses, so regenerating this file later does not churn the examples.
+
+    Args:
+        path: Repository directory.
+
+    Returns:
+        A ``(day, item, shared_day)`` triple. ``shared_day`` is empty when the
+        bound edition holds nothing to compare against yet.
+    """
+    repo = GitRepo(path)
+
+    def days(branch: str) -> list[str]:
+        # A day is the first two segments, `YYYY/MM-DD`. Trimming from the right
+        # instead gets this wrong, because a day's own README.md sits one level
+        # shallower than the documents and collapses to just the year.
+        return sorted(
+            {
+                "/".join(name.split("/")[:2])
+                for name in repo.list_files(branch)
+                if name.count("/") >= 2
+            }
+        )
+
+    daily_days = days("daily")
+    day = daily_days[0] if daily_days else "2017/01-03"
+    items = sorted(
+        name
+        for name in repo.list_files("daily")
+        if name.startswith(f"{day}/") and name.count("/") >= 3
+    )
+    item = items[0] if items else f"{day}/senate/001-congressional-record.md"
+    shared = next((d for d in days("bound") if d in set(daily_days)), "")
+    return day, item, shared
+
+
+def _usage(name: str, path: Path) -> list[str]:
     """Render the how-to-use section, which differs by repository shape.
 
     Args:
         name: Repository name.
+        path: Repository directory, read for the Record shards so their example
+            commands name paths that actually exist.
 
     Returns:
         Markdown lines.
@@ -250,6 +318,55 @@ def _usage(name: str) -> list[str]:
             f"Branches are named from the citation — `hr-588`, `s-1339`, "
             f"`sconres-13` — so a measure of the {congress}th Congress can be found "
             "without a lookup.",
+        ]
+    if name.startswith("us-congress-record-"):
+        congress = name.rsplit("-", 1)[-1]
+        day, item, shared = _record_examples(path)
+        lines = [
+            "```bash",
+            f"git clone {url}",
+            f"cd {name}",
+            "",
+            "# the daily edition: one commit per issue day, oldest first",
+            "git log --reverse --format='%ad  %s' --date=short daily | head",
+            "",
+            "# everything printed on one day",
+            f"git show --stat daily -- {day}/",
+            "",
+            "# read one item",
+            f"git show daily:{item}",
+        ]
+        if shared:
+            lines += [
+                "",
+                "# what the permanent edition changed about what was said",
+                f"git diff bound daily -- {shared}/",
+            ]
+        lines += [
+            "",
+            "# what is missing, and why",
+            "git show main:GAPS.md",
+            "```",
+            "",
+        ]
+        return lines + [
+            "Two branches carry the same proceedings, published years apart:",
+            "",
+            "| Branch | Edition | Contents |",
+            "|---|---|---|",
+            "| `daily` | CREC | the issue printed the next morning |",
+            "| `bound` | CRECB | the permanent edition, revised and repaginated |",
+            "",
+            "Files live at `YYYY/MM-DD/{senate,house,extensions,daily-digest}/`, "
+            "numbered in the order they were printed. Each day also carries a "
+            "`README.md` indexing that day.",
+            "",
+            "**The tree accumulates.** A commit adds the day's proceedings without "
+            "removing the days before it, so a commit's diff *is* that day's "
+            f"publication and `git log` is the {congress}th Congress's calendar. "
+            "That is the opposite of the bills repositories, where each commit "
+            "replaces the whole tree, and it is right here because the Record is "
+            "a serial: an issue succeeds its predecessor rather than revising it.",
         ]
     if name == "us-congress-code":
         return [
@@ -354,6 +471,33 @@ def _caveats(name: str) -> list[str]:
             "published text at all and therefore no branch; `GAPS.md` lists every "
             "one. This is heavily concentrated before the 111th Congress.",
         ]
+    if name.startswith("us-congress-record-"):
+        return common + [
+            "",
+            "**The machine-readable Record begins in 1994, not 1873.** The "
+            "Congressional Record has been published since 1873 and govinfo holds "
+            "2,420 bound-edition parts covering all of it, but only the 337 from "
+            "1999 onwards carry text: the rest are scanned page images whose "
+            "granules offer a PDF and no text rendition at all. That century is "
+            "unbuildable here, not merely unbuilt. `GAPS.md` names what is "
+            "affected.",
+            "",
+            "**A diff between commits is not a revision.** The tree accumulates, "
+            "so each commit's diff is the proceedings printed that day. To see "
+            "what was actually *changed* about a day, compare the two editions: "
+            "`git diff bound daily -- YYYY/MM-DD/`.",
+            "",
+            "**An issue day is a legislative day, not a calendar day.** The Senate "
+            "may hold one sitting across two dates, and it prints under the first: "
+            "the 6–7 February 2017 sitting appears under 6 February, so "
+            "7 February has no Senate section at all. That is the chamber's "
+            "convention, not a gap.",
+            "",
+            "**Not everything here was spoken aloud.** Material inserted into the "
+            "Record rather than delivered on the floor is marked ● in the source "
+            "and kept as ● here, because the distinction is the whole reason the "
+            "mark exists.",
+        ]
     if name == "us-congress-code":
         return common + [
             "",
@@ -419,12 +563,16 @@ def readme(name: str, path: Path, built: set[str]) -> str:
         )
 
     congress = name.rsplit("-", 1)[-1] if name.startswith("us-congress-bills-") else ""
+    session = name.rsplit("-", 1)[-1] if name.startswith("us-congress-record-") else ""
     title = f"{name}"
-    subtitle = (
-        f"Measures of the {congress}th Congress, each as a branch."
-        if congress
-        else entry.summary
-    )
+    if congress:
+        subtitle = f"Measures of the {congress}th Congress, each as a branch."
+    elif session:
+        subtitle = (
+            f"Floor proceedings of the {session}th Congress, one commit per issue day."
+        )
+    else:
+        subtitle = entry.summary
 
     lines = [
         f"# {title}",
@@ -450,7 +598,7 @@ def readme(name: str, path: Path, built: set[str]) -> str:
         "",
         "## Using it",
         "",
-        *_usage(name),
+        *_usage(name, path),
         "",
         "## What to watch out for",
         "",
