@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from uscongress.gitbuild import GitRepo
+from uscongress.jobs import artifacts
 from uscongress.jobs.artifacts import (
     LICENSE_DATA,
     LICENSE_PIPELINE,
@@ -122,6 +123,50 @@ def test_write_repo_leaves_measure_branches_alone(bills_repo: GitRepo) -> None:
         text=True,
     ).stdout.split()
     assert listing == ["bill.md"]
+
+
+def test_a_fast_import_repository_is_never_written_through_the_working_tree(
+    tmp_path,
+) -> None:
+    """Which write path is correct depends on how a repository was built.
+
+    This used to test the name prefix ``us-congress-bills-``. The Congressional
+    Record shards are also written through fast-import and also have nothing
+    checked out, so they did not match it, took the working-tree path, and
+    ``git add -A`` staged the deletion of everything on ``main`` that was not one
+    of the two files just written. It really removed ``GAPS.md`` from
+    ``us-congress-record-115`` -- silently, because deleting a file is a
+    perfectly ordinary commit.
+    """
+    repo = GitRepo(tmp_path / "us-congress-record-115")
+    repo.init()
+    with repo.fast_import() as stream:
+        stream.commit("main", {"GAPS.md": "# gaps\n"}, "Record what is missing")
+
+    artifacts.write_repo(repo.path, "us-congress-record-115", {"us-congress-record-115"})
+
+    assert sorted(repo.read_tree("main")) == ["GAPS.md", "LICENSE", "README.md"]
+
+
+def test_the_wreckage_of_a_bad_run_does_not_look_like_a_working_tree(tmp_path) -> None:
+    """The first fix for the above was defeated by its own damage.
+
+    It asked whether *anything* was on disk. But the buggy run had already
+    written ``README.md`` and ``LICENSE`` into the directory, so the next run saw
+    two files, concluded there was a working tree, and deleted ``GAPS.md`` a
+    second time. The question has to be whether *every* tracked file is present.
+    """
+    repo = GitRepo(tmp_path / "us-congress-record-115")
+    repo.init()
+    with repo.fast_import() as stream:
+        stream.commit("main", {"GAPS.md": "# gaps\n"}, "Record what is missing")
+    # Exactly the residue the bad run left behind.
+    (repo.path / "README.md").write_text("stale\n", encoding="utf-8")
+    (repo.path / "LICENSE").write_text("stale\n", encoding="utf-8")
+
+    artifacts.write_repo(repo.path, "us-congress-record-115", {"us-congress-record-115"})
+
+    assert sorted(repo.read_tree("main")) == ["GAPS.md", "LICENSE", "README.md"]
 
 
 def test_write_repo_is_idempotent(bills_repo: GitRepo) -> None:

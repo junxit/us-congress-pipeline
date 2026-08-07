@@ -519,7 +519,7 @@ def write_repo(path: Path, name: str, built: set[str]) -> bool:
         "material it holds.\n"
     )
 
-    if name.startswith("us-congress-bills-"):
+    if not _has_working_tree(path):
         existing = repo.read_tree("main")
         merged = {**existing, **files}
         if merged == existing:
@@ -531,6 +531,42 @@ def write_repo(path: Path, name: str, built: set[str]) -> bool:
     for filename, content in files.items():
         repo.write(filename, content)
     return repo.commit(message)
+
+
+def _has_working_tree(path: Path) -> bool:
+    """Report whether ``main`` is genuinely checked out on disk.
+
+    Which write path is correct is a property of how the repository was *built*,
+    not of its name. This used to test the name prefix ``us-congress-bills-``,
+    and the Congressional Record shards -- also written through fast-import,
+    also with nothing checked out -- did not match it. They took the
+    working-tree path, where ``git add -A`` sees a directory holding only the
+    two files just written and stages the deletion of everything else on
+    ``main``. It removed ``GAPS.md`` from ``us-congress-record-115``: the same
+    trap ``bills._write_gaps`` documents, arriving from the opposite direction
+    and just as quietly, because deleting a file is an ordinary commit.
+
+    The question has to be *is every tracked file present*, not *is anything
+    present*. The first attempt at this asked the weaker one and was defeated by
+    its own wreckage: the buggy run had already written ``README.md`` and
+    ``LICENSE`` into the directory, so the next run saw two files, concluded
+    there was a working tree, and deleted ``GAPS.md`` a second time.
+
+    ``all`` short-circuits, so a fast-import repository costs one stat rather
+    than a walk of 101,975 files.
+
+    Args:
+        path: Repository directory.
+
+    Returns:
+        True if every file on ``main`` exists on disk.
+    """
+    tracked = GitRepo(path).list_files("main")
+    if not tracked:
+        # Nothing committed yet: the only signal left is whether anything is
+        # staged for a first commit.
+        return any(child.name != ".git" for child in path.iterdir())
+    return all((path / name).exists() for name in tracked)
 
 
 def write_all() -> list[str]:
