@@ -19,24 +19,25 @@ from uscongress.registry import PHASES, REPOSITORIES, Phase, phase_of
 
 
 def test_every_phase_of_the_plan_is_present() -> None:
-    """The plan has nine phases, 0 through 8, and none may go missing.
+    """The plan has ten phases, 0 through 9, and none may go missing.
 
     Phase 3 went missing once already: it produces no repository, so a registry
     keyed on repositories had nowhere to put it, and the daily loop was skipped
     while phases 4, 5 and 6 were considered -- the exact reordering the plan's
     numbering existed to prevent.
     """
-    assert [p.number for p in PHASES] == list(range(9))
+    assert [p.number for p in PHASES] == list(range(10))
 
 
-def test_the_phases_that_produce_no_repository_are_the_expected_four() -> None:
-    """Standing up the loop, backfilling a family, derived material, and votes.
+def test_the_phases_that_produce_no_repository_are_the_expected_five() -> None:
+    """Half the plan adds to repositories that already exist.
 
-    All four add to repositories that already exist. If a fifth appears, either
-    the plan changed or a `produces` was dropped by accident; both are worth
+    Standing up the loop, backfilling a family, derived material, votes, and the
+    credentials the loop needs to run unattended. If a sixth appears, either the
+    plan changed or a `produces` was dropped by accident; both are worth
     stopping on.
     """
-    assert [p.number for p in PHASES if not p.produces] == [3, 4, 7, 8]
+    assert [p.number for p in PHASES if not p.produces] == [3, 4, 7, 8, 9]
 
 
 def test_every_produced_repository_is_in_the_index() -> None:
@@ -94,7 +95,7 @@ def test_the_roadmap_explains_the_gap_in_the_numbering() -> None:
     repository cannot leave the explanation naming the wrong ones.
     """
     text = "\n".join(_roadmap())
-    assert "Phases 3, 4, 7 and 8 produce no repository" in text
+    assert "Phases 3, 4, 7, 8 and 9 produce no repository" in text
 
 
 def test_repository_state_comes_from_the_roadmap_not_the_disk() -> None:

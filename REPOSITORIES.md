@@ -3,12 +3,12 @@
 Every repository in this project, what it holds, and whether it exists yet,
 and the plan the whole thing is being built to.
 
-**Generated** 2026-08-07 02:51 UTC by `uv run uscongress index`. Do not edit by hand —
+**Generated** 2026-08-07 04:11 UTC by `uv run uscongress index`. Do not edit by hand —
 the source of truth is `src/uscongress/registry.py`.
 
 ## Roadmap
 
-5 of 9 phases shipped. Phases 3, 4, 7 and 8 produce no repository
+5 of 10 phases shipped. Phases 3, 4, 7, 8 and 9 produce no repository
 of their own — they add to repositories built earlier — which is why the
 repository table below skips those numbers.
 
@@ -23,6 +23,7 @@ repository table below skips those numbers.
 | 6 | **The Congressional Record**<br>Floor proceedings from 1873, sharded by Congress and linked to bill branches by metadata. Independent of phase 5. | planned | `us-congress-record-{congress}` |
 | 7 | **Experimental amendment execution**<br>What a bill would do to existing law, under `derived/` and never authoritative. Measured across seven real bills only ~49% of amendatory instructions carry a machine-readable US Code reference, and a large bill would need ~99.99% per-instruction accuracy to come out wholly correct, so the output is marked derived and unapplied instructions are stated rather than guessed at. | planned | — |
 | 8 | **Roll-call votes**<br>How each member voted, on the commit for the version that was voted on. Needs a Congress.gov API key, which nothing here reads yet — everything built so far comes from govinfo. Produces no new repository: it adds to the measures already built. Note that commit messages are part of what a commit hashes, so filling them in rewrites every affected branch, which is why it is its own phase rather than a change to phase 2. | planned | — |
+| 9 | **Hand the daily loop its own credentials**<br>**The schedule is paused until this lands.** Phase 3 built the loop and proved it against live data, but the token GitHub injects into a workflow is scoped to the repository running it: enough to commit the heartbeat here, not enough to push the thirteen data repositories. That needs a `DATA_REPO_TOKEN` secret carrying Contents: read/write on the `junxit` repositories, which has to be minted by hand. Then `gh workflow enable update`. Tracked as a phase rather than a note because an unattended loop that nobody turned on is the same silent failure as one that stopped. | planned | — |
 
 Phases 5 and 6 are independent of everything above and of each other, so
 they can be reordered or run in parallel now that the daily loop is
@@ -37,7 +38,7 @@ one states its own terms in a `LICENSE` file.
 | Repository | Phase | Contents | Status |
 |---|---|---|---|
 | [`us-congress-pipeline`](https://github.com/junxit/us-congress-pipeline) ← you are here | 0 | The ETL itself. Generates every repository below. | live, **public**, pushed 2026-08-07 |
-| [`us-congress-code`](https://github.com/junxit/us-congress-code) | 1 | The codified US Code. One commit per OLRC release point, tagged, with per-law attribution from Table III. | live, **public**, pushed 2026-08-06 |
+| [`us-congress-code`](https://github.com/junxit/us-congress-code) | 1 | The codified US Code. One commit per OLRC release point, tagged, with per-law attribution from Table III. | live, **public**, pushed 2026-08-07 |
 | `us-congress-bills-{congress}` | 2 | One branch per measure; one commit per bill text version. | 12 shards live, **public** |
 | `us-congress-statutes` | 5 | Statutes at Large — session laws as enacted, volumes 1–137. | not created yet |
 | `us-congress-record-{congress}` | 6 | Congressional Record floor proceedings, 1873 to present, linked to bills by metadata. | planned (sharded) |

@@ -234,6 +234,22 @@ PHASES: list[Phase] = [
         ),
         state=PLANNED,
     ),
+    Phase(
+        number=9,
+        title="Hand the daily loop its own credentials",
+        detail=(
+            "**The schedule is paused until this lands.** Phase 3 built the loop "
+            "and proved it against live data, but the token GitHub injects into a "
+            "workflow is scoped to the repository running it: enough to commit the "
+            "heartbeat here, not enough to push the thirteen data repositories. "
+            "That needs a `DATA_REPO_TOKEN` secret carrying Contents: read/write "
+            "on the `junxit` repositories, which has to be minted by hand. Then "
+            "`gh workflow enable update`. Tracked as a phase rather than a note "
+            "because an unattended loop that nobody turned on is the same silent "
+            "failure as one that stopped."
+        ),
+        state=PLANNED,
+    ),
 ]
 
 
