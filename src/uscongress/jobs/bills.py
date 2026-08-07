@@ -75,6 +75,30 @@ class TextVersion:
 
 
 @dataclass(frozen=True)
+class Committee:
+    """One committee a measure was referred to.
+
+    Attributes:
+        name: Committee name as BILLSTATUS records it, e.g. ``Natural Resources
+            Committee``.
+        chamber: ``House`` or ``Senate``. Both chambers run an Armed Services,
+            a Judiciary and an Appropriations Committee, so a bare name is
+            ambiguous on any measure that has crossed over.
+        since: Earliest recorded activity date, or None if BILLSTATUS dates
+            none of them.
+    """
+
+    name: str
+    chamber: str
+    since: date | None
+
+    @property
+    def label(self) -> str:
+        """Committee as written in ``metadata.md``, chamber first."""
+        return f"{self.chamber} — {self.name}" if self.chamber else self.name
+
+
+@dataclass(frozen=True)
 class Measure:
     """One measure and the metadata BILLSTATUS records for it.
 
@@ -87,7 +111,7 @@ class Measure:
         sponsor: Sponsor's full name as recorded.
         sponsor_id: Sponsor's bioguide identifier.
         cosponsors: ``(name, bioguide id, date)`` for each cosponsor.
-        committees: Committee names.
+        committees: Committees of referral, earliest activity first.
         actions: ``(date, text)`` for each recorded action.
         law: Public law number, if the measure was enacted.
         versions: Text versions, oldest first.
@@ -101,7 +125,7 @@ class Measure:
     sponsor: str
     sponsor_id: str
     cosponsors: tuple[tuple[str, str, date | None], ...]
-    committees: tuple[str, ...]
+    committees: tuple[Committee, ...]
     actions: tuple[tuple[date | None, str], ...]
     law: str
     versions: tuple[TextVersion, ...]
@@ -183,6 +207,74 @@ def _version_code(url: str) -> str:
     return trailing
 
 
+#: Where committees of referral live, in the two BILLSTATUS spellings. Order
+#: matters only in that the first path to match wins; no document uses both.
+_COMMITTEE_PATHS = ("committees/item", "committees/billCommittees/item")
+
+
+def _committees(bill: ET.Element) -> tuple[Committee, ...]:
+    """Read the measure's committees of referral.
+
+    Three things about the path matter, and getting any of them wrong is silent.
+
+    The element is ``<item>``, not ``<committee>``. Asking for
+    ``committees/committee`` matched nothing at all: sampled over 200 measures
+    in each of the 108th, 111th, 113th, 116th and 119th Congresses, 96% carry
+    committees and none of them were found, so every ``metadata.md`` in all
+    160,190 branches was written without a Committees section.
+
+    The path must be an exact child of ``<bill>``, not ``.//``. Each entry in
+    ``<actions>`` carries its own ``<committees>`` block naming the committee
+    that acted, so a descendant search counts referrals several times over --
+    six items instead of two on H.R. 7283 of the 119th.
+
+    And there are **two spellings**, exactly as there are for the measure
+    number. Every one of the 13 documents in 171,916 that writes
+    ``<billNumber>`` and ``<billType>`` also wraps this list one level deeper,
+    in ``<billCommittees>``; 11 of them carry no committees at all, leaving
+    H.R. 4200 of the 113th and H.R. 3354 of the 115th as the two measures whose
+    output this changes. Two in 171,916 is far below what any sample finds,
+    which is the reason to handle it rather than a reason not to: the failure is
+    not an error but two measures missing their committees for ever, with
+    nothing to say so.
+
+    Args:
+        bill: The ``<bill>`` element.
+
+    Returns:
+        Committees, earliest activity first.
+    """
+    items: list[ET.Element] = []
+    for path in _COMMITTEE_PATHS:
+        items = bill.findall(path)
+        if items:
+            break
+
+    found: list[Committee] = []
+    for item in items:
+        name = _text(item, "name")
+        if not name:
+            continue
+        # The referral date lives on the activities, not on the committee. Only
+        # the earliest is kept: it is the point from which the committee holds
+        # the measure, which is what decides whether it existed at a version.
+        dates = [
+            when
+            for when in (
+                _date(_text(act, "date")) for act in item.findall("activities/item")
+            )
+            if when is not None
+        ]
+        found.append(
+            Committee(
+                name=name,
+                chamber=_text(item, "chamber"),
+                since=min(dates) if dates else None,
+            )
+        )
+    return tuple(sorted(found, key=lambda c: (c.since is None, c.since or date.min)))
+
+
 def parse_status(xml_bytes: bytes) -> Measure:
     """Parse one BILLSTATUS document.
 
@@ -258,13 +350,7 @@ def parse_status(xml_bytes: bytes) -> Measure:
         sponsor=_text(bill, ".//sponsors/item/fullName"),
         sponsor_id=_text(bill, ".//sponsors/item/bioguideId"),
         cosponsors=cosponsors,
-        committees=tuple(
-            name
-            for name in (
-                _text(c, "name") for c in bill.findall(".//committees/committee")
-            )
-            if name
-        ),
+        committees=_committees(bill),
         actions=actions,
         law=law,
         versions=tuple(versions),
@@ -274,11 +360,16 @@ def parse_status(xml_bytes: bytes) -> Measure:
 def metadata_markdown(measure: Measure, version: TextVersion) -> str:
     """Render the measure's record as it stood at one version.
 
-    Cosponsors and actions are filtered to the version's date. BILLSTATUS is a
-    single present-day snapshot, so writing it unfiltered onto every commit
-    would have the introduced text already reporting that the bill became law --
-    the same trap as Table III's present-day classification in the US Code
-    repository, and equally misleading.
+    Cosponsors, committees and actions are filtered to the version's date.
+    BILLSTATUS is a single present-day snapshot, so writing it unfiltered onto
+    every commit would have the introduced text already reporting that the bill
+    became law -- the same trap as Table III's present-day classification in the
+    US Code repository, and equally misleading.
+
+    Committees follow the same rule: H.R. 7283 was referred to House Oversight
+    on 2026-01-30 and to Senate Homeland Security on 2026-07-23, so listing both
+    on the introduced version would have a bill that had not yet passed the
+    House already sitting in a Senate committee.
 
     Args:
         measure: The measure.
@@ -292,6 +383,11 @@ def metadata_markdown(measure: Measure, version: TextVersion) -> str:
         (name, bid)
         for name, bid, signed in measure.cosponsors
         if cutoff is None or signed is None or signed <= cutoff
+    ]
+    committees = [
+        committee
+        for committee in measure.committees
+        if cutoff is None or committee.since is None or committee.since <= cutoff
     ]
     actions = [
         (when, text)
@@ -324,9 +420,9 @@ def metadata_markdown(measure: Measure, version: TextVersion) -> str:
         lines += [f"## Cosponsors ({len(cosponsors)})", ""]
         lines += [f"- {name} ({bid})" for name, bid in cosponsors]
         lines.append("")
-    if measure.committees:
-        lines += ["## Committees", ""]
-        lines += [f"- {name}" for name in measure.committees]
+    if committees:
+        lines += [f"## Committees ({len(committees)})", ""]
+        lines += [f"- {committee.label}" for committee in committees]
         lines.append("")
     if actions:
         lines += ["## Actions", ""]
@@ -456,7 +552,11 @@ async def discover(client: GovInfoClient, congress: str) -> list[tuple[str, str]
 
 
 async def _build_measure(
-    client: GovInfoClient, congress: str, name: str, url: str
+    client: GovInfoClient,
+    congress: str,
+    name: str,
+    url: str,
+    refresh: bool = False,
 ) -> tuple[Measure, list[tuple[TextVersion, dict[str, str]]]] | None:
     """Fetch and render every version of one measure.
 
@@ -465,12 +565,20 @@ async def _build_measure(
         congress: Congress number.
         name: BILLSTATUS filename.
         url: BILLSTATUS URL.
+        refresh: Discard the cached BILLSTATUS document and fetch it again.
+            Only the status document: a bill text version is immutable once
+            published, but BILLSTATUS is rewritten upstream whenever the measure
+            moves, and re-reading yesterday's copy is exactly what the daily job
+            exists to avoid.
 
     Returns:
         The measure and its rendered versions, or None if it has no usable text.
     """
+    status_path = _cache_path(congress, name)
+    if refresh:
+        status_path.unlink(missing_ok=True)
     try:
-        measure = parse_status(await _fetch_cached(client, url, _cache_path(congress, name)))
+        measure = parse_status(await _fetch_cached(client, url, status_path))
     except Exception as exc:  # noqa: BLE001 - one bad measure must not kill the build
         print(f"       {name}: unreadable BILLSTATUS - {type(exc).__name__}: {exc}", flush=True)
         return None
@@ -509,6 +617,7 @@ async def seed(
     congress: str,
     limit: int | None = None,
     repo_path: Path | None = None,
+    rebuild: bool = False,
 ) -> GitRepo:
     """Build one Congress's bills repository.
 
@@ -520,6 +629,10 @@ async def seed(
         congress: Congress number, e.g. ``113``.
         limit: Build only the first N measures. None builds all.
         repo_path: Override the repository location.
+        rebuild: Rewrite every branch from its root rather than skipping the
+            ones already present. For correcting a rendering defect in commits
+            that are already written: the content changes, so every SHA changes,
+            and a repository already pushed needs a force push afterwards.
 
     Returns:
         The repository that was built.
@@ -542,19 +655,21 @@ async def seed(
     pending: list[tuple[str, str]] = []
     for name, url in measures:
         branch = branch_of(name)
-        if branch and branch in existing:
+        if branch and branch in existing and not rebuild:
             skipped += 1
         else:
             pending.append((name, url))
     if skipped:
         print(f"  {skipped} branches already present, {len(pending)} to build", flush=True)
+    if rebuild:
+        print(f"  rebuilding all {len(pending)} from their roots", flush=True)
 
     for start in range(0, len(pending), BATCH):
         batch = pending[start : start + BATCH]
         results = await asyncio.gather(
             *(_build_measure(client, congress, name, url) for name, url in batch)
         )
-        with repo.fast_import() as stream:
+        with repo.fast_import(replace=rebuild) as stream:
             for result in results:
                 if result is None:
                     unreadable += 1

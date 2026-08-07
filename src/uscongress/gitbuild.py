@@ -209,6 +209,30 @@ class GitRepo:
         out = self._run("for-each-ref", "--format=%(refname:short)", "refs/heads")
         return {line.strip() for line in out.splitlines() if line.strip()}
 
+    def ref_map(self) -> dict[str, str]:
+        """Return every branch and the commit it points at.
+
+        Comparing this before and after a build is how a job learns what it
+        really did, rather than what its own bookkeeping thinks it did. A
+        rebuild that renders to identical bytes leaves the SHA alone, so this
+        separates a branch that changed from one that was merely rewritten.
+
+        Returns:
+            Branch name to full commit SHA.
+        """
+        try:
+            out = self._run(
+                "for-each-ref", "--format=%(refname:short) %(objectname)", "refs/heads"
+            )
+        except subprocess.CalledProcessError:
+            return {}
+        refs: dict[str, str] = {}
+        for line in out.splitlines():
+            name, _, sha = line.strip().partition(" ")
+            if name and sha:
+                refs[name] = sha
+        return refs
+
     def list_files(self, branch: str) -> set[str]:
         """Return the names of every file on a branch, without reading them.
 
@@ -250,13 +274,16 @@ class GitRepo:
                 files[path] = self._run("show", f"{branch}:{path}")
         return files
 
-    def fast_import(self) -> FastImport:
+    def fast_import(self, replace: bool = False) -> FastImport:
         """Open a stream for writing commits without touching the working tree.
+
+        Args:
+            replace: Rewrite each branch from its root instead of extending it.
 
         Returns:
             A context manager; see :class:`FastImport`.
         """
-        return FastImport(self)
+        return FastImport(self, replace=replace)
 
     def size_bytes(self, repack: bool = False) -> int:
         """Return the repository's on-disk size.
@@ -306,10 +333,17 @@ class FastImport:
 
     Args:
         repo: Repository to write into. Must already exist.
+        replace: Discard each written branch's existing history rather than
+            extending it. Needed when a rendering defect has to be corrected in
+            commits that are already written -- the content changes, so every
+            SHA below it changes, and there is no way to express that as an
+            append. Off by default, because in normal operation a non-fast-
+            forward update means a bug.
     """
 
-    def __init__(self, repo: GitRepo) -> None:
+    def __init__(self, repo: GitRepo, replace: bool = False) -> None:
         self._repo = repo
+        self._replace = replace
         self._process: subprocess.Popen[bytes] | None = None
         self._existing: set[str] = set()
         self._started: set[str] = set()
@@ -321,10 +355,18 @@ class FastImport:
         Returns:
             This writer.
         """
-        self._existing = self._repo.branches()
+        # In replace mode every branch is written from its root, so nothing is
+        # treated as pre-existing and no `from` line is emitted.
+        self._existing = set() if self._replace else self._repo.branches()
         self._started = set()
+        command = ["git", "-C", str(self._repo.path), "fast-import", "--quiet", "--done"]
+        if self._replace:
+            # Without --force git refuses the ref update as a non-fast-forward,
+            # and it refuses it at the end, after the whole stream has been read
+            # and every object written.
+            command.append("--force")
         self._process = subprocess.Popen(
-            ["git", "-C", str(self._repo.path), "fast-import", "--quiet", "--done"],
+            command,
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,

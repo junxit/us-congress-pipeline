@@ -16,6 +16,7 @@ import pytest
 
 from uscongress.gitbuild import GitRepo
 from uscongress.jobs.bills import (
+    Committee,
     Measure,
     _fetch_cached,
     _write_gaps,
@@ -123,7 +124,10 @@ def _measure(**overrides: object) -> Measure:
             ("Rep. Early [D-XX-1]", "E000001", date(2013, 2, 6)),
             ("Rep. Late [D-XX-2]", "L000002", date(2013, 6, 20)),
         ),
-        "committees": ("House Natural Resources",),
+        "committees": (
+            Committee("Natural Resources Committee", "House", date(2013, 2, 6)),
+            Committee("Environment and Public Works Committee", "Senate", date(2013, 6, 20)),
+        ),
         "actions": (
             (date(2013, 2, 6), "Introduced in House."),
             (date(2013, 7, 18), "Became Public Law No: 113-21."),
@@ -180,6 +184,172 @@ def test_commit_message_is_explicit_about_a_missing_date() -> None:
     """
     version = TextVersion("Enrolled Bill", None, "https://example.invalid/x", "enr")
     assert "not recorded upstream" in commit_message(_measure(), version)
+
+
+#: The committees block as BILLSTATUS actually writes it, trimmed from
+#: H.R. 7283 of the 119th: two referrals months apart, each dated only on its
+#: activities, and one of them repeated inside an <actions> entry.
+_COMMITTEES = (
+    "<committees>"
+    "<item><systemCode>hsgo00</systemCode>"
+    "<name>Oversight and Government Reform Committee</name>"
+    "<chamber>House</chamber><type>Standing</type>"
+    "<activities>"
+    "<item><name>Markup By</name><date>2026-02-04T14:57:30Z</date></item>"
+    "<item><name>Referred To</name><date>2026-01-30T15:32:10Z</date></item>"
+    "</activities></item>"
+    "<item><systemCode>ssga00</systemCode>"
+    "<name>Homeland Security and Governmental Affairs Committee</name>"
+    "<chamber>Senate</chamber><type>Standing</type>"
+    "<activities>"
+    "<item><name>Referred To</name><date>2026-07-23T19:01:06Z</date></item>"
+    "</activities></item>"
+    "</committees>"
+    "<actions><item><actionDate>2026-01-30</actionDate>"
+    "<text>Referred to the House Committee on Oversight and Government Reform.</text>"
+    "<committees><item><systemCode>hsgo00</systemCode>"
+    "<name>Oversight and Government Reform Committee</name></item></committees>"
+    "</item></actions>"
+)
+
+
+def test_committees_are_read_from_the_element_billstatus_writes() -> None:
+    """The element is ``<item>``, not ``<committee>``.
+
+    Asking for ``committees/committee`` matched nothing at all. Sampled over 200
+    measures in each of the 108th, 111th, 113th, 116th and 119th Congresses, 96%
+    carry committees and none were found, so every ``metadata.md`` across all
+    160,190 branches was written without a Committees section.
+    """
+    measure = parse_status(
+        _status(_item("Introduced in House", "2026-01-30", "ih"), extra=_COMMITTEES)
+    )
+
+    assert [c.name for c in measure.committees] == [
+        "Oversight and Government Reform Committee",
+        "Homeland Security and Governmental Affairs Committee",
+    ]
+    assert [c.chamber for c in measure.committees] == ["House", "Senate"]
+
+
+def test_committees_are_not_double_counted_from_actions() -> None:
+    """The path must be an exact child of ``<bill>``, not ``.//``.
+
+    Every entry in ``<actions>`` carries its own ``<committees>`` block naming
+    the committee that acted, so a descendant search counts referrals several
+    times over -- six items instead of two on H.R. 7283 of the 119th.
+    """
+    measure = parse_status(
+        _status(_item("Introduced in House", "2026-01-30", "ih"), extra=_COMMITTEES)
+    )
+    assert len(measure.committees) == 2
+
+
+def test_a_committee_is_dated_from_its_earliest_activity() -> None:
+    """The referral date lives on the activities, not on the committee.
+
+    Only the earliest matters: it is the point from which the committee holds
+    the measure. House Oversight's activities run 2026-02-04 then 2026-01-30, so
+    reading them in document order would date the referral to the markup.
+    """
+    measure = parse_status(
+        _status(_item("Introduced in House", "2026-01-30", "ih"), extra=_COMMITTEES)
+    )
+    assert measure.committees[0].since == date(2026, 1, 30)
+    assert measure.committees[1].since == date(2026, 7, 23)
+
+
+def test_committees_do_not_leak_the_future() -> None:
+    """Committees follow the same as-of-this-version rule as cosponsors.
+
+    H.R. 7283 was referred to House Oversight on 2026-01-30 and to Senate
+    Homeland Security on 2026-07-23. Listing both on the introduced version
+    would have a bill that had not yet passed the House already sitting in a
+    Senate committee.
+    """
+    measure = parse_status(
+        _status(_item("Introduced in House", "2026-01-30", "ih"), extra=_COMMITTEES)
+    )
+    introduced = metadata_markdown(
+        measure, TextVersion("Introduced in House", date(2026, 1, 30), "u", "ih")
+    )
+    referred = metadata_markdown(
+        measure, TextVersion("Referred in Senate", date(2026, 7, 23), "u", "rfs")
+    )
+
+    assert "## Committees (1)" in introduced
+    assert "House — Oversight and Government Reform Committee" in introduced
+    assert "Homeland Security" not in introduced
+    assert "## Committees (2)" in referred
+    assert "Senate — Homeland Security and Governmental Affairs Committee" in referred
+
+
+def test_the_variant_schema_nests_committees_one_level_deeper() -> None:
+    """The same documents that write ``<billNumber>`` wrap committees too.
+
+    H.R. 4200 of the 113th holds its referrals under
+    ``<committees><billCommittees><item>``, not ``<committees><item>``. All 13
+    documents in 171,916 that use ``<billNumber>`` do this; 11 carry no
+    committees, so only two measures change. Far below what any sample finds,
+    which is precisely why it needs a test: the failure is not an error but two
+    measures missing their committees for ever, with nothing to say so.
+    """
+    status = (
+        "<billStatus><bill>"
+        "<billNumber>4200</billNumber><billType>HR</billType>"
+        "<congress>113</congress><title>A measure</title>"
+        "<committees><billCommittees>"
+        "<item><name>Financial Services Committee</name><chamber>House</chamber>"
+        "<activities><item><name>Referred To</name>"
+        "<date>2014-03-11T14:03:00Z</date></item></activities></item>"
+        "</billCommittees></committees>"
+        "<textVersions><item><type>Introduced in House</type>"
+        "<date>2014-03-11</date><formats><item>"
+        "<url>https://www.govinfo.gov/content/pkg/BILLS-113hr4200ih/xml/BILLS-113hr4200ih.xml</url>"
+        "</item></formats></item></textVersions>"
+        "</bill></billStatus>"
+    ).encode()
+    measure = parse_status(status)
+
+    assert [c.label for c in measure.committees] == [
+        "House — Financial Services Committee"
+    ]
+    assert measure.committees[0].since == date(2014, 3, 11)
+
+
+def test_a_committee_names_its_chamber() -> None:
+    """Both chambers run an Armed Services, a Judiciary and an Appropriations.
+
+    A bare name is ambiguous on any measure that has crossed over.
+    """
+    assert Committee("Judiciary Committee", "Senate", None).label == (
+        "Senate — Judiciary Committee"
+    )
+    assert Committee("Joint Economic Committee", "", None).label == (
+        "Joint Economic Committee"
+    )
+
+
+def test_an_undated_committee_is_kept_rather_than_dropped() -> None:
+    """Absence of a date is not evidence the referral had not happened.
+
+    The same rule as an undated cosponsor: filtering it out would silently lose
+    a real referral, which is worse than showing it a version early.
+    """
+    status = _status(
+        _item("Introduced in House", "2013-02-06", "ih"),
+        extra=(
+            "<committees><item><name>Rules Committee</name>"
+            "<chamber>House</chamber></item></committees>"
+        ),
+    )
+    measure = parse_status(status)
+
+    assert measure.committees[0].since is None
+    text = metadata_markdown(
+        measure, TextVersion("Introduced in House", date(2013, 2, 6), "u", "ih")
+    )
+    assert "House — Rules Committee" in text
 
 
 def test_a_document_without_a_bill_is_rejected() -> None:

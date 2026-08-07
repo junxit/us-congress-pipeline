@@ -151,6 +151,46 @@ def test_fast_import_appends_to_a_branch_from_an_earlier_run(repo: GitRepo) -> N
     assert _git(repo, "show", "hr-588:bill.md") == "v2"
 
 
+def test_replace_rewrites_a_branch_from_its_root(repo: GitRepo) -> None:
+    """Correcting a rendering defect cannot be expressed as an append.
+
+    The committee selector was wrong in every ``metadata.md`` already written,
+    so fixing it changes the content of commits that exist, and with it every
+    SHA below them. Replace mode drops the old history rather than chaining a
+    correction on top of it, which would leave the wrong text in the branch.
+    """
+    with repo.fast_import() as stream:
+        stream.commit("hr-588", {"bill.md": "v1\n"}, "Introduced in House", date(2013, 2, 6))
+        stream.commit("hr-588", {"bill.md": "v2\n"}, "Enrolled Bill", date(2013, 7, 19))
+
+    with repo.fast_import(replace=True) as stream:
+        stream.commit("hr-588", {"bill.md": "fixed\n"}, "Introduced in House", date(2013, 2, 6))
+
+    assert _git(repo, "log", "--format=%s", "hr-588").splitlines() == ["Introduced in House"]
+    assert _git(repo, "show", "hr-588:bill.md") == "fixed"
+    assert _git(repo, "rev-list", "--count", "hr-588") == "1"
+
+
+def test_replace_leaves_branches_it_does_not_write_alone(repo: GitRepo) -> None:
+    """A rebuild of the measures must not disturb ``main``.
+
+    ``main`` carries the README, the licence and GAPS.md, none of which the
+    measure rebuild regenerates. ``--force`` applies per ref, so a branch the
+    stream never mentions is untouched -- worth pinning, because losing it would
+    be silent until someone opened the repository.
+    """
+    with repo.fast_import() as stream:
+        stream.commit("main", {"README.md": "readme\n"}, "Artifacts")
+        stream.commit("hr-588", {"bill.md": "v1\n"}, "Introduced in House", date(2013, 2, 6))
+    before = _git(repo, "rev-parse", "main")
+
+    with repo.fast_import(replace=True) as stream:
+        stream.commit("hr-588", {"bill.md": "fixed\n"}, "Introduced in House", date(2013, 2, 6))
+
+    assert _git(repo, "rev-parse", "main") == before
+    assert repo.read_tree("main") == {"README.md": "readme\n"}
+
+
 def test_branches_are_independent(repo: GitRepo) -> None:
     """Bills do not descend from a common trunk; each branch is its own root."""
     with repo.fast_import() as stream:
