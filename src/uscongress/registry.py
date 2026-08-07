@@ -191,10 +191,12 @@ PHASES: list[Phase] = [
         number=5,
         title="Statutes at Large",
         detail=(
-            "Session laws as enacted, volumes 1–137 (1789–2023). Independent of "
-            "everything above and of phase 6."
+            "Session laws as enacted, 135 volumes and 101,975 laws, one commit "
+            "per volume. Volumes 7 and 8 get none: they hold only Indian and "
+            "foreign treaties, which are ratification rather than passage and "
+            "presentment. Independent of everything above and of phase 6."
         ),
-        state=PLANNED,
+        state=DONE,
         produces="us-congress-statutes",
     ),
     Phase(

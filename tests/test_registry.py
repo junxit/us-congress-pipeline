@@ -105,11 +105,11 @@ def test_repository_state_comes_from_the_roadmap_not_the_disk() -> None:
     reports a shipped phase as planned on any machine that has not built it,
     and that answer is then published into all fourteen repositories at once.
     """
-    code = next(r for r in REPOSITORIES if r.name == "us-congress-code")
-    statutes = next(r for r in REPOSITORIES if r.name == "us-congress-statutes")
+    shipped = next(r for r in REPOSITORIES if r.name == "us-congress-code")
+    planned = next(r for r in REPOSITORIES if "record" in r.name)
 
-    assert artifacts._status_of(code, built=set()) == "built"  # noqa: SLF001
-    assert artifacts._status_of(statutes, built=set()) == "planned"  # noqa: SLF001
+    assert artifacts._status_of(shipped, built=set()) == "built"  # noqa: SLF001
+    assert artifacts._status_of(planned, built=set()) == "planned"  # noqa: SLF001
 
 
 def test_a_shard_family_reports_what_is_actually_there() -> None:
