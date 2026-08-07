@@ -422,6 +422,7 @@ class FastImport:
         files: dict[str, str],
         message: str,
         when: date | None = None,
+        whole_tree: bool = True,
     ) -> None:
         """Append one commit to a branch, replacing its whole tree.
 
@@ -432,6 +433,15 @@ class FastImport:
             when: Date for both author and committer timestamps. Defaults to the
                 epoch when absent, so a missing upstream date is obvious rather
                 than silently reading as the day the pipeline ran.
+            whole_tree: Whether ``files`` is the commit's entire tree. True
+                emits ``deleteall`` first, which is right when each commit is a
+                complete snapshot -- a bill version, a release point. Set it
+                False for a history that *accumulates*, where each commit adds
+                to what the last one held: the Congressional Record's 119th
+                Congress is ~350 issue days totalling ~63,000 documents, so
+                re-sending the whole tree every day would push ~66 GB through
+                the stream to write ~500 MB of content. Files not named are
+                inherited from the parent commit untouched.
         """
         stamp = f"{int(_epoch_seconds(when))} +0000"
         ident = f"{AUTHOR_NAME} <{AUTHOR_EMAIL}>".encode()
@@ -449,7 +459,8 @@ class FastImport:
                 # fails loudly, but only after the work is done.
                 self._write(b"from refs/heads/%s^0\n" % branch.encode())
             self._started.add(branch)
-        self._write(b"deleteall\n")
+        if whole_tree:
+            self._write(b"deleteall\n")
         for path, content in sorted(files.items()):
             body = content.encode()
             self._write(b"M 100644 inline %s\n" % path.encode())
