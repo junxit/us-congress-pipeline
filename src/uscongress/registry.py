@@ -92,8 +92,8 @@ REPOSITORIES: list[Repository] = [
     Repository(
         name="us-congress-record-{congress}",
         summary=(
-            "Congressional Record floor proceedings, 1873 to present, "
-            "linked to bills by metadata."
+            "Congressional Record floor proceedings as text, 1994 to present, "
+            "sharded by Congress and linked to bills by metadata."
         ),
         source="govinfo CREC + CRECB",
         phase=6,
@@ -201,8 +201,13 @@ PHASES: list[Phase] = [
         number=6,
         title="The Congressional Record",
         detail=(
-            "Floor proceedings from 1873, sharded by Congress and linked to bill "
-            "branches by metadata. Independent of phase 5."
+            "Floor proceedings, sharded by Congress and linked to bill branches "
+            "by metadata. Independent of phase 5. **The machine-readable Record "
+            "begins in 1994, not 1873**: of 2,420 bound-edition packages, the "
+            "2,083 covering 1873–1998 are scanned page images whose granules "
+            "offer a PDF and no `txtLink` at all, so that century is unbuildable "
+            "rather than merely unbuilt — measured against "
+            "`GPO-CRECB-1947-pt1` and `GPO-CRECB-1970-pt2`."
         ),
         state=PLANNED,
         produces="us-congress-record-{congress}",
