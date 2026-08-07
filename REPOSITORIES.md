@@ -3,7 +3,7 @@
 Every repository in this project, what it holds, and whether it exists yet,
 and the plan the whole thing is being built to.
 
-**Generated** 2026-08-07 06:31 UTC by `uv run uscongress index`. Do not edit by hand —
+**Generated** 2026-08-07 08:13 UTC by `uv run uscongress index`. Do not edit by hand —
 the source of truth is `src/uscongress/registry.py`.
 
 ## Roadmap
@@ -41,7 +41,7 @@ one states its own terms in a `LICENSE` file.
 | [`us-congress-code`](https://github.com/junxit/us-congress-code) | 1 | The codified US Code. One commit per OLRC release point, tagged, with per-law attribution from Table III. | live, **public**, pushed 2026-08-07 |
 | `us-congress-bills-{congress}` | 2 | One branch per measure; one commit per bill text version. | 12 shards live, **public** |
 | [`us-congress-statutes`](https://github.com/junxit/us-congress-statutes) | 5 | Statutes at Large — session laws as enacted, volumes 1–137. | live, **public**, pushed 2026-08-07 |
-| `us-congress-record-{congress}` | 6 | Congressional Record floor proceedings as text, 1994 to present, sharded by Congress and linked to bills by metadata. | 1 shards built locally, not pushed |
+| `us-congress-record-{congress}` | 6 | Congressional Record floor proceedings as text, 1994 to present, sharded by Congress and linked to bills by metadata. | 1 of 2 shards live, **public** |
 
 ### The sharded repositories
 
@@ -50,7 +50,7 @@ repositories it actually stands for.
 
 **`us-congress-bills-{congress}`** — [`108`](https://github.com/junxit/us-congress-bills-108), [`109`](https://github.com/junxit/us-congress-bills-109), [`110`](https://github.com/junxit/us-congress-bills-110), [`111`](https://github.com/junxit/us-congress-bills-111), [`112`](https://github.com/junxit/us-congress-bills-112), [`113`](https://github.com/junxit/us-congress-bills-113), [`114`](https://github.com/junxit/us-congress-bills-114), [`115`](https://github.com/junxit/us-congress-bills-115), [`116`](https://github.com/junxit/us-congress-bills-116), [`117`](https://github.com/junxit/us-congress-bills-117), [`118`](https://github.com/junxit/us-congress-bills-118), [`119`](https://github.com/junxit/us-congress-bills-119)
 
-**`us-congress-record-{congress}`** — `115`
+**`us-congress-record-{congress}`** — `103`, [`115`](https://github.com/junxit/us-congress-record-115)
 
 
 ## Sources
