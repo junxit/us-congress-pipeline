@@ -176,6 +176,40 @@ def test_a_branch_that_exists_nowhere_is_not_reported_as_published(
     assert not report.ok
 
 
+def test_what_git_said_about_a_failed_push_is_kept(
+    origin: Path, source: GitRepo, monkeypatch
+) -> None:
+    """Discarding git's output made a real failure undiagnosable.
+
+    Pushing 1,884 rewritten refs of the 108th landed nothing, three times over,
+    and reported only "1,884 refs did not land" -- so the cause looked like the
+    transient per-ref failures this module already knows about, and finding the
+    real one (a request too large) took a bisection. git had been saying so all
+    along into a pipe nobody read.
+    """
+    import uscongress.jobs.publish as publish_module
+
+    def refuses(path: Path, *args: str, check: bool = True):
+        if args and args[0] == "push":
+            return subprocess.CompletedProcess(
+                args, returncode=1, stdout="", stderr="fatal: the remote end hung up"
+            )
+        return publish_module._git(path, *args, check=check)  # noqa: SLF001
+
+    real = publish_module._git  # noqa: SLF001
+    monkeypatch.setattr(
+        publish_module,
+        "_git",
+        lambda p, *a, **k: refuses(p, *a, **k) if a and a[0] == "push" else real(p, *a, **k),
+    )
+    report = push(source.path, str(origin), ["hr-1"], attempts=1)
+
+    assert not report.ok
+    assert report.errors
+    assert "the remote end hung up" in report.errors[0]
+    assert "1 refs" in report.errors[0]
+
+
 def test_prepare_fetches_only_the_branches_asked_for(
     origin: Path, source: GitRepo, tmp_path: Path
 ) -> None:

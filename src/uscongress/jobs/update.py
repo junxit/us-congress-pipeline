@@ -558,8 +558,13 @@ async def update_bills(
                 # git reports success for refs that did not land, so this is
                 # read back from the remote. Failing the run holds the watermark
                 # so tomorrow tries these again.
+                # git's own words come first. "N refs did not land" on its own
+                # sends the reader hunting a transient failure when the cause
+                # may be flatly stated in the output that was thrown away.
                 result.errors.append(
-                    f"{name}: {len(report.missing)} refs did not land: "
+                    f"{name}: {len(report.missing)} refs did not land"
+                    + (f" — {report.errors[-1]}" if report.errors else "")
+                    + "; first: "
                     + ", ".join(report.missing[:10])
                 )
             if not publish.default_branch_is_main(name):

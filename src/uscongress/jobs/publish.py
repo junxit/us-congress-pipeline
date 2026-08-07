@@ -34,9 +34,16 @@ from pathlib import Path
 from ..gitbuild import GitRepo
 from ..registry import OWNER
 
-#: Refs per push. A single request carrying ~10,000 is rejected atomically with
-#: Internal Server Error, after transferring all of them.
-BATCH = 2000
+#: Refs per push.
+#:
+#: A single request carrying ~10,000 is rejected atomically with Internal Server
+#: Error, after transferring all of them. The ceiling is a good deal lower than
+#: that for *force* updates, which is what correcting already-published commits
+#: needs: pushing 1,884 rewritten refs of the 108th landed nothing at all, three
+#: times over, taking 1.9 minutes each to fail. 878 and 800 in one request both
+#: succeeded, in under a minute. So this is set below what was measured to work
+#: rather than below what was measured to break.
+BATCH = 800
 
 #: How many times to re-push refs that did not land. Transient failures are
 #: independent, so a second attempt clears nearly all of them.
@@ -223,11 +230,16 @@ class PushReport:
         pushed: Branches whose remote SHA now matches local.
         missing: Branches that still do not match after every attempt.
         attempts: How many rounds were needed.
+        errors: What git said on the requests that failed. Kept because the
+            first version of this discarded it: a batch that landed nothing
+            reported only "N refs did not land", and the reason -- a request too
+            large -- took a bisection to find that git had been saying all along.
     """
 
     pushed: list[str] = field(default_factory=list)
     missing: list[str] = field(default_factory=list)
     attempts: int = 0
+    errors: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -273,8 +285,9 @@ def push(
             window = outstanding[start : start + batch]
             # Failure here is not fatal: git reports success for refs that did
             # not land and failure for a batch in which most did, so the remote
-            # is asked either way.
-            _git(
+            # is asked either way. But what git said is kept -- discarding it
+            # turned a request-too-large into an unexplained "nothing landed".
+            result = _git(
                 path,
                 "push",
                 "--quiet",
@@ -282,6 +295,12 @@ def push(
                 *(f"+refs/heads/{b}:refs/heads/{b}" for b in window),
                 check=False,
             )
+            if result.returncode != 0:
+                detail = (result.stderr or result.stdout).strip()
+                report.errors.append(
+                    f"{len(window)} refs, git exited {result.returncode}: "
+                    f"{detail[-400:] or '(no output)'}"
+                )
 
         published = remote_refs(url)
         outstanding = [b for b in outstanding if published.get(b) != local[b]]
