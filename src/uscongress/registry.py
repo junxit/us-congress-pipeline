@@ -1,10 +1,23 @@
-"""The registry of repositories this pipeline produces.
+"""The registry of what this pipeline builds, and the plan it is building to.
 
-This module is the single source of truth for what exists, what each repository
-holds, and which phase creates it. ``uscongress index`` renders it to
+Two lists, deliberately separate.
+
+:data:`REPOSITORIES` is an index of repositories: what each one holds, what it
+is built from, and which phase creates it. ``uscongress index`` renders it to
 ``REPOSITORIES.md`` with live status pulled from GitHub, so the index cannot
-drift from reality: if a repository is missing, the index says so rather than
-implying it exists.
+drift from reality -- a missing repository is reported as missing rather than
+implied to exist.
+
+:data:`PHASES` is the roadmap. It exists because an index shaped around
+repositories cannot hold the whole plan: three of the eight phases produce no
+repository at all. Phase 3 stands up the daily loop, phase 4 backfills a family
+that already exists, and phase 7 adds derived material inside repositories built
+earlier. Listing only the repository-producing phases left the numbering
+skipping from 2 to 5 with nothing to say why, and lost the one phase whose
+absence actually mattered: the plan ordered the daily loop *before* the corpus
+expanded, precisely because bot rot is what killed every predecessor, and
+running phases 4, 5 and 6 while 3 was missing is the failure that ordering
+existed to prevent.
 """
 
 from __future__ import annotations
@@ -87,6 +100,153 @@ REPOSITORIES: list[Repository] = [
         shards="one repo per Congress",
     ),
 ]
+
+
+#: A phase that has shipped.
+DONE = "done"
+
+#: A phase not started.
+PLANNED = "planned"
+
+
+@dataclass(frozen=True)
+class Phase:
+    """One phase of the plan.
+
+    Attributes:
+        number: Phase number, as the plan numbers them.
+        title: Short name for the work.
+        detail: What the phase does, and why it sits where it does.
+        state: :data:`DONE` or :data:`PLANNED`.
+        produces: Repository the phase creates, or an empty string when it
+            produces none. Three phases produce nothing: standing up the daily
+            loop, backfilling a family that already exists, and adding derived
+            material inside repositories built earlier.
+    """
+
+    number: int
+    title: str
+    detail: str
+    state: str
+    produces: str = ""
+
+    @property
+    def is_done(self) -> bool:
+        """Whether the phase has shipped."""
+        return self.state == DONE
+
+
+PHASES: list[Phase] = [
+    Phase(
+        number=0,
+        title="Scaffold, and snapshot the Statute Compilations",
+        detail=(
+            "The ETL itself, and the one genuinely time-sensitive job in the "
+            "project: govinfo replaces Statute Compilations in place and keeps no "
+            "version archive, so every day without a snapshot is history that "
+            "cannot be recovered."
+        ),
+        state=DONE,
+        produces=PIPELINE_REPO,
+    ),
+    Phase(
+        number=1,
+        title="The codified US Code",
+        detail=(
+            "383 distinct OLRC release points, each a commit and a tag, with "
+            "per-law attribution from Table III."
+        ),
+        state=DONE,
+        produces="us-congress-code",
+    ),
+    Phase(
+        number=2,
+        title="Bills of the current Congress",
+        detail="Every measure of the 119th as a branch, one commit per text version.",
+        state=DONE,
+        produces="us-congress-bills-{congress}",
+    ),
+    Phase(
+        number=3,
+        title="The daily loop, and a heartbeat that goes stale on its own",
+        detail=(
+            "Rebuild whatever govinfo reports as changed, and publish the date it "
+            "last ran. Ordered before the corpus expanded, not after: bot rot is "
+            "what killed every predecessor, and a stopped job raises no error — it "
+            "simply stops, which is why the signal has to be a date going stale "
+            "rather than an alert having to fire."
+        ),
+        state=DONE,
+    ),
+    Phase(
+        number=4,
+        title="Backfill the 118th through the 108th",
+        detail=(
+            "The remaining eleven Congresses, ~160,000 further branches. Produces "
+            "no new repository: it fills out the family phase 2 created."
+        ),
+        state=DONE,
+    ),
+    Phase(
+        number=5,
+        title="Statutes at Large",
+        detail=(
+            "Session laws as enacted, volumes 1–137 (1789–2023). Independent of "
+            "everything above and of phase 6."
+        ),
+        state=PLANNED,
+        produces="us-congress-statutes",
+    ),
+    Phase(
+        number=6,
+        title="The Congressional Record",
+        detail=(
+            "Floor proceedings from 1873, sharded by Congress and linked to bill "
+            "branches by metadata. Independent of phase 5."
+        ),
+        state=PLANNED,
+        produces="us-congress-record-{congress}",
+    ),
+    Phase(
+        number=7,
+        title="Experimental amendment execution",
+        detail=(
+            "What a bill would do to existing law, under `derived/` and never "
+            "authoritative. Measured across seven real bills only ~49% of "
+            "amendatory instructions carry a machine-readable US Code reference, "
+            "and a large bill would need ~99.99% per-instruction accuracy to come "
+            "out wholly correct, so the output is marked derived and unapplied "
+            "instructions are stated rather than guessed at."
+        ),
+        state=PLANNED,
+    ),
+    Phase(
+        number=8,
+        title="Roll-call votes",
+        detail=(
+            "How each member voted, on the commit for the version that was voted "
+            "on. Needs a Congress.gov API key, which nothing here reads yet — "
+            "everything built so far comes from govinfo. Produces no new "
+            "repository: it adds to the measures already built. Note that commit "
+            "messages are part of what a commit hashes, so filling them in "
+            "rewrites every affected branch, which is why it is its own phase "
+            "rather than a change to phase 2."
+        ),
+        state=PLANNED,
+    ),
+]
+
+
+def phase_of(number: int) -> Phase | None:
+    """Look up one phase.
+
+    Args:
+        number: Phase number.
+
+    Returns:
+        The phase, or None if there is no such phase.
+    """
+    return next((p for p in PHASES if p.number == number), None)
 
 
 @dataclass

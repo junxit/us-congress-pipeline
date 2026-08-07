@@ -12,7 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from .. import config
-from ..registry import OWNER, PREFIX, REPOSITORIES, Repository, RepoStatus
+from ..registry import OWNER, PHASES, PREFIX, REPOSITORIES, Repository, RepoStatus
 from ..registry import fetch_status as _fetch_status
 
 INDEX_PATH = config.REPO_ROOT / "REPOSITORIES.md"
@@ -110,6 +110,48 @@ def _shards_of(repo: Repository) -> list[str]:
     return sorted(found, key=key)
 
 
+def _roadmap() -> list[str]:
+    """Render the plan's phases.
+
+    The repository table below cannot carry the roadmap on its own: three of the
+    eight phases produce no repository, so a table keyed on repositories showed
+    the numbering jumping from 2 to 5 with nothing to explain the gap -- and
+    omitted the phase whose absence mattered most, the daily loop the plan
+    deliberately ordered before the corpus expanded.
+
+    Returns:
+        Markdown lines.
+    """
+    done = sum(1 for phase in PHASES if phase.is_done)
+    quiet = [str(p.number) for p in sorted(PHASES, key=lambda p: p.number) if not p.produces]
+    gaps = ", ".join(quiet[:-1]) + f" and {quiet[-1]}" if len(quiet) > 1 else quiet[0]
+    lines = [
+        "## Roadmap",
+        "",
+        f"{done} of {len(PHASES)} phases shipped. Phases {gaps} produce no repository",
+        "of their own — they add to repositories built earlier — which is why the",
+        "repository table below skips those numbers.",
+        "",
+        "| Phase | Work | State | Produces |",
+        "|---|---|---|---|",
+    ]
+    for phase in sorted(PHASES, key=lambda p: p.number):
+        produces = f"`{phase.produces}`" if phase.produces else "—"
+        state = "**shipped**" if phase.is_done else "planned"
+        lines.append(
+            f"| {phase.number} | **{phase.title}**<br>{phase.detail} | {state} | "
+            f"{produces} |"
+        )
+    lines += [
+        "",
+        "Phases 5 and 6 are independent of everything above and of each other, so",
+        "they can be reordered or run in parallel now that the daily loop is",
+        "standing. See [`STATUS.md`](STATUS.md) for whether it last ran.",
+        "",
+    ]
+    return lines
+
+
 def render() -> str:
     """Build the Markdown index.
 
@@ -120,10 +162,14 @@ def render() -> str:
     lines = [
         "# Repository index",
         "",
-        "Every repository in this project, what it holds, and whether it exists yet.",
+        "Every repository in this project, what it holds, and whether it exists yet,",
+        "and the plan the whole thing is being built to.",
         "",
         f"**Generated** {stamp} by `uv run uscongress index`. Do not edit by hand —",
         "the source of truth is `src/uscongress/registry.py`.",
+        "",
+        *_roadmap(),
+        "## The repositories",
         "",
         f"All names are prefixed `{PREFIX}`. Every repository here is public; the",
         "federal text they carry is public domain under 17 U.S.C. § 105, and each",

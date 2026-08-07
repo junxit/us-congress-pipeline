@@ -1,9 +1,34 @@
 # Repository index
 
-Every repository in this project, what it holds, and whether it exists yet.
+Every repository in this project, what it holds, and whether it exists yet,
+and the plan the whole thing is being built to.
 
-**Generated** 2026-08-07 01:17 UTC by `uv run uscongress index`. Do not edit by hand —
+**Generated** 2026-08-07 02:51 UTC by `uv run uscongress index`. Do not edit by hand —
 the source of truth is `src/uscongress/registry.py`.
+
+## Roadmap
+
+5 of 9 phases shipped. Phases 3, 4, 7 and 8 produce no repository
+of their own — they add to repositories built earlier — which is why the
+repository table below skips those numbers.
+
+| Phase | Work | State | Produces |
+|---|---|---|---|
+| 0 | **Scaffold, and snapshot the Statute Compilations**<br>The ETL itself, and the one genuinely time-sensitive job in the project: govinfo replaces Statute Compilations in place and keeps no version archive, so every day without a snapshot is history that cannot be recovered. | **shipped** | `us-congress-pipeline` |
+| 1 | **The codified US Code**<br>383 distinct OLRC release points, each a commit and a tag, with per-law attribution from Table III. | **shipped** | `us-congress-code` |
+| 2 | **Bills of the current Congress**<br>Every measure of the 119th as a branch, one commit per text version. | **shipped** | `us-congress-bills-{congress}` |
+| 3 | **The daily loop, and a heartbeat that goes stale on its own**<br>Rebuild whatever govinfo reports as changed, and publish the date it last ran. Ordered before the corpus expanded, not after: bot rot is what killed every predecessor, and a stopped job raises no error — it simply stops, which is why the signal has to be a date going stale rather than an alert having to fire. | **shipped** | — |
+| 4 | **Backfill the 118th through the 108th**<br>The remaining eleven Congresses, ~160,000 further branches. Produces no new repository: it fills out the family phase 2 created. | **shipped** | — |
+| 5 | **Statutes at Large**<br>Session laws as enacted, volumes 1–137 (1789–2023). Independent of everything above and of phase 6. | planned | `us-congress-statutes` |
+| 6 | **The Congressional Record**<br>Floor proceedings from 1873, sharded by Congress and linked to bill branches by metadata. Independent of phase 5. | planned | `us-congress-record-{congress}` |
+| 7 | **Experimental amendment execution**<br>What a bill would do to existing law, under `derived/` and never authoritative. Measured across seven real bills only ~49% of amendatory instructions carry a machine-readable US Code reference, and a large bill would need ~99.99% per-instruction accuracy to come out wholly correct, so the output is marked derived and unapplied instructions are stated rather than guessed at. | planned | — |
+| 8 | **Roll-call votes**<br>How each member voted, on the commit for the version that was voted on. Needs a Congress.gov API key, which nothing here reads yet — everything built so far comes from govinfo. Produces no new repository: it adds to the measures already built. Note that commit messages are part of what a commit hashes, so filling them in rewrites every affected branch, which is why it is its own phase rather than a change to phase 2. | planned | — |
+
+Phases 5 and 6 are independent of everything above and of each other, so
+they can be reordered or run in parallel now that the daily loop is
+standing. See [`STATUS.md`](STATUS.md) for whether it last ran.
+
+## The repositories
 
 All names are prefixed `us-congress-`. Every repository here is public; the
 federal text they carry is public domain under 17 U.S.C. § 105, and each
