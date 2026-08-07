@@ -59,7 +59,19 @@ def _status_cell(name: str) -> str:
         live = [p for p in built if fetch_status(p.name).exists]
         if not live:
             return f"{len(built)} shards built locally, not pushed"
-        visibility = "private" if all(fetch_status(p.name).private for p in live) else "**mixed**"
+
+        # Three cases, not two: all private, all public, or a mix mid-flip.
+        # Collapsing the last two into one reported a fully published family as
+        # "mixed", which is the state that most needs to be visible when it is
+        # real and most misleading when it is not.
+        private = sum(1 for p in live if fetch_status(p.name).private)
+        if private == len(live):
+            visibility = "private"
+        elif private == 0:
+            visibility = "**public**"
+        else:
+            visibility = f"**mixed** ({private} still private)"
+
         if len(live) == len(built):
             return f"{len(live)} shards live, {visibility}"
         return f"{len(live)} of {len(built)} shards live, {visibility}"
@@ -113,8 +125,9 @@ def render() -> str:
         f"**Generated** {stamp} by `uv run uscongress index`. Do not edit by hand —",
         "the source of truth is `src/uscongress/registry.py`.",
         "",
-        f"All names are prefixed `{PREFIX}`. All repositories are private for now;",
-        "publishing is a one-way door and the decision is deliberately deferred.",
+        f"All names are prefixed `{PREFIX}`. Every repository here is public; the",
+        "federal text they carry is public domain under 17 U.S.C. § 105, and each",
+        "one states its own terms in a `LICENSE` file.",
         "",
         "| Repository | Phase | Contents | Status |",
         "|---|---|---|---|",

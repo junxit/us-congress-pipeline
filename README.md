@@ -45,8 +45,9 @@ and their clones stay valid; because a defect in recent data should not force a 
 repositories build in parallel where one serialises. Branch counts run 10,637 to 19,315 per
 Congress.
 
-All repositories are private for now. Publishing is a one-way door and the decision is
-deliberately deferred.
+All of these repositories are public. The federal text they carry is public domain under
+17 U.S.C. § 105; each one states its own terms in a `LICENSE` file, and the pipeline's own
+terms are separate — see [Licence](#licence).
 
 ## What this is — and what it is not
 
