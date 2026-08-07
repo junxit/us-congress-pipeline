@@ -139,16 +139,23 @@ class GovInfoClient:
         assert last_exc is not None
         raise last_exc
 
-    async def get_bytes(self, url: str) -> bytes:
+    async def get_bytes(self, url: str, headers: dict[str, str] | None = None) -> bytes:
         """Fetch a URL and return its raw body.
 
         Args:
             url: Absolute URL.
+            headers: Extra request headers. Needed more often than it looks:
+                bulk data serves ``STATUTE/107``, ``108`` and ``109`` as a
+                67,225-byte "Govinfo Bulkdata Service Error" page at **HTTP 200**
+                under httpx's default ``Accept: */*``, and returns all three in
+                full -- 13.7, 35.1 and 19.1 MB -- under ``Accept:
+                application/xml``. That is the same trap as the 406 on listings,
+                pointed the other way, and it is silent rather than fatal.
 
         Returns:
             The response body.
         """
-        response = await self._request(url)
+        response = await self._request(url, headers=headers)
         return response.content
 
     async def list_bulkdata(self, path: str) -> list[BulkFile]:
