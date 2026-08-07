@@ -189,8 +189,32 @@ prose — is © 2026 Jade Naaman, all rights reserved. Each generated repository
 ## Keeping the generated repositories self-describing
 
 ```bash
-uv run uscongress artifacts   # write README.md and LICENSE into every generated repo
+uv run uscongress artifacts         # write README.md and LICENSE into every generated repo
+uv run uscongress describe          # set each repo's GitHub description and topics
+uv run uscongress describe --check  # report any whose metadata has drifted
+uv run uscongress check-links       # verify every link in every generated document resolves
 ```
+
+**Publishing a new repository** — after `seed-code` or `seed-bills` has built it:
+
+1. `gh repo create junxit/<name> --private`
+2. `uv run uscongress artifacts` — README and licence
+3. `uv run uscongress describe` — GitHub description, homepage and topics
+4. push its branches, then set its default branch to `main`
+5. `uv run uscongress check-links` and `uscongress describe --check` to confirm
+
+Steps 2, 3 and 5 derive everything from `src/uscongress/registry.py`, so a repository
+added there is covered without anything being written by hand. `describe --check` and
+`check-links` both exit non-zero when something has drifted, so neither depends on
+anyone remembering to look.
+
+Two things GitHub gets wrong on its own, both worth knowing:
+
+- A repository's **default branch** becomes the first branch pushed, which for a bills
+  repository is `hconres-1` — landing every visitor on a random bill instead of the
+  README. Set it to `main` explicitly.
+- A single push of ~10,000 refs is rejected outright with `Internal Server Error`, after
+  transferring everything. Push in batches of about 2,000.
 
 A generated repository is published without its pipeline, so it has to explain itself:
 what a branch means, how to read a diff, what the data does *not* say, and where it came

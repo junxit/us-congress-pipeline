@@ -56,6 +56,15 @@ def main(argv: list[str] | None = None) -> int:
         "check-links", help="verify every link in every generated document resolves"
     )
 
+    describe = subparsers.add_parser(
+        "describe", help="set each repo's GitHub description and topics"
+    )
+    describe.add_argument(
+        "--check",
+        action="store_true",
+        help="report repos whose description or topics are out of date, change nothing",
+    )
+
     bills = subparsers.add_parser(
         "seed-bills", help="build a us-congress-bills-{congress} repo"
     )
@@ -128,6 +137,15 @@ def main(argv: list[str] | None = None) -> int:
         from .jobs import links as links_job
 
         return 1 if links_job.report() else 0
+
+    if args.command == "describe":
+        from .jobs import describe as describe_job
+
+        if args.check:
+            return 1 if describe_job.check() else 0
+        changed = describe_job.apply_all()
+        print(f"\n{len(changed)} repositories updated")
+        return 0
 
     if args.command == "seed-bills":
         from pathlib import Path
