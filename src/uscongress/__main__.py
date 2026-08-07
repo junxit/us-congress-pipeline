@@ -79,6 +79,28 @@ def main(argv: list[str] | None = None) -> int:
         help="rewrite every branch from its root; needs a force push afterwards",
     )
 
+    statutes = subparsers.add_parser(
+        "seed-statutes", help="build the us-congress-statutes repo"
+    )
+    statutes.add_argument("--limit", type=int, help="build only the first N volumes")
+    statutes.add_argument("--repo-path", help="override the repository location")
+
+    record = subparsers.add_parser(
+        "seed-record", help="build a us-congress-record-{congress} repo"
+    )
+    record.add_argument(
+        "--congress", required=True, type=int, help="Congress number, e.g. 115"
+    )
+    record.add_argument(
+        "--limit", type=int, help="build only the first N issue days of each edition"
+    )
+    record.add_argument("--repo-path", help="override the repository location")
+    record.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="rewrite each edition branch from its root; needs a force push afterwards",
+    )
+
     update = subparsers.add_parser(
         "update", help="rebuild whatever changed upstream since the last run"
     )
@@ -210,6 +232,59 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         asyncio.run(_seed_bills())
+        return 0
+
+    if args.command == "seed-statutes":
+        from pathlib import Path
+
+        from .govinfo import GovInfoClient
+        from .jobs import statutes as statutes_job
+
+        async def _seed_statutes() -> None:
+            async with GovInfoClient() as client:
+                repo = await statutes_job.seed(
+                    client,
+                    limit=args.limit,
+                    repo_path=Path(args.repo_path) if args.repo_path else None,
+                )
+            laws = len(
+                [p for p in repo.list_files("main") if p.startswith(statutes_job.LAW_PREFIX)]
+            )
+            size = repo.size_bytes(repack=True)
+            print(
+                f"\n{repo.commit_count()} commits, {laws:,} laws, "
+                f"{size / 1e6:.0f} MB packed"
+            )
+
+        asyncio.run(_seed_statutes())
+        return 0
+
+    if args.command == "seed-record":
+        from pathlib import Path
+
+        from .govinfo import GovInfoClient
+        from .jobs import record as record_job
+
+        async def _seed_record() -> None:
+            async with GovInfoClient() as client:
+                repo = await record_job.seed(
+                    client,
+                    congress=args.congress,
+                    limit=args.limit,
+                    repo_path=Path(args.repo_path) if args.repo_path else None,
+                    rebuild=args.rebuild,
+                )
+            days = sum(
+                len(record_job.built_days(repo, edition))
+                for edition in (record_job.DAILY, record_job.BOUND)
+            )
+            size = repo.size_bytes(repack=True)
+            print(
+                f"\n{days} issue days, {size / 1e6:.0f} MB packed "
+                f"({size / max(days, 1) / 1e3:.0f} KB per day)"
+            )
+
+        asyncio.run(_seed_record())
         return 0
 
     if args.command == "update":

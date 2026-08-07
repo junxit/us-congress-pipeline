@@ -190,6 +190,18 @@ def _facts(path: Path, name: str) -> list[str]:
                 "- the full US Code as Markdown, one file per section",
                 "- a `GAPS.md` recording release points that could not be built",
             ]
+        if name == "us-congress-statutes":
+            tags = len([t for t in repo._run("tag").splitlines() if t.strip()])  # noqa: SLF001
+            # Only files under volume-NNN/ are counted. README.md, LICENSE and
+            # GAPS.md are on the same branch, and counting them would make this
+            # number change every time this file is written -- which changes the
+            # file, which changes the number.
+            laws = len([p for p in repo.list_files("main") if p.startswith("volume-")])
+            return [
+                f"- **{tags:,} volumes**, each a commit and a tag",
+                f"- **{laws:,} session laws** as enacted, one Markdown file each",
+                "- a `GAPS.md` recording what is deliberately not here",
+            ]
     except Exception:  # noqa: BLE001 - a repository mid-build simply reports less
         return []
     return []
@@ -261,6 +273,42 @@ def _usage(name: str) -> list[str]:
             "Sections live at `title-NN/chapter-NN/sec-NNN.md`. Appendix titles keep "
             "their letter: `title-05a`, `title-50a`.",
         ]
+    if name == "us-congress-statutes":
+        return [
+            "```bash",
+            f"git clone {url}",
+            f"cd {name}",
+            "",
+            "# one commit per volume; the subject carries the years it covers",
+            "git log --oneline",
+            "",
+            "# tags are named for the citation: stat-117 is 117 Stat.",
+            "git show --stat stat-117",
+            "",
+            "# a law as it was enacted",
+            "cat volume-117/public/public-law-108-1.md",
+            "",
+            "# the private relief acts of 1951, filed apart from general law",
+            "ls volume-065/private/",
+            "",
+            "# everything the Statutes at Large prints that is not here",
+            "cat GAPS.md",
+            "```",
+            "",
+            "Laws live at `volume-NNN/{public,private,resolutions,organic}/`, named "
+            "the way they are cited: `public-law-108-1.md`, `private-law-82-1.md`, "
+            "`chapter-1-1-i.md` for the numbered chapters that preceded public law "
+            "numbering in 1957.",
+            "",
+            "Each file opens with frontmatter carrying its `citation` (*117 Stat. 3*), "
+            "its `approved` date and, where GPO records one, the `bills` reference — "
+            "`108/s-23`, which is branch `s-23` of `us-congress-bills-108`.",
+            "",
+            "Tags are `stat-001` to `stat-137`, named for the citation rather than "
+            "for the directory. `volume-117` would be both a tag and a path, and git "
+            "refuses an argument that is both — `git log volume-117` fails with "
+            "*ambiguous argument*.",
+        ]
     return ["```bash", f"git clone {url}", "```"]
 
 
@@ -317,6 +365,32 @@ def _caveats(name: str) -> list[str]:
             "*where does this law live now*, not *what did this commit change*. "
             "PL 113-40 (2013) is listed under Title 54, which did not exist until "
             "December 2014. For what changed, read the diff.",
+        ]
+    if name == "us-congress-statutes":
+        return common + [
+            "",
+            "**A diff here is not a change in the law.** A session law is printed "
+            "as passed and is never amended — a later Congress supersedes it, it "
+            "does not rewrite the page. The only thing that ever changes is GPO's "
+            "transcription, so a diff between two commits for the same volume is a "
+            "correction to the text of the *record*, not to the law.",
+            "",
+            "**Commit dates before 1970 are all 1970-01-01.** git stores no "
+            "timestamp earlier than the Unix epoch, and 82 of the 137 volumes close "
+            "before then. The real dates are on each commit's subject line, in its "
+            "message, and in the `approved:` frontmatter of every law.",
+            "",
+            "**Treaties and proclamations are not here.** The Statutes at Large "
+            "prints them alongside the session laws, but they are not acts of "
+            "Congress passed by both chambers and presented for signature. Volumes "
+            "7 and 8 contain nothing else and therefore have no commit at all; "
+            "`GAPS.md` says so.",
+            "",
+            "**Marginal notes have been moved, not deleted.** In the printed volume "
+            "they sit in the margin; in the source XML they sit *inside* the "
+            "sentence, often mid-clause. Reproducing that position would splice a "
+            "note into the middle of a provision, so they are collected under a "
+            "heading of their own at the end of each law.",
         ]
     return common
 

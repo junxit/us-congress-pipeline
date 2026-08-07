@@ -38,8 +38,8 @@ you to notice — the date simply stops moving. See [Staying alive](#staying-ali
 |---|---|---|---|
 | [`us-congress-code`](https://github.com/junxit/us-congress-code) | 1 | the codified US Code; one commit per OLRC release point, tagged | built |
 | `us-congress-bills-{congress}` | 2 | one repo per Congress; one branch per measure | 12 built, [108](https://github.com/junxit/us-congress-bills-108)–[119](https://github.com/junxit/us-congress-bills-119) |
-| `us-congress-statutes` | 5 | Statutes at Large, volumes 1–137 (1789–2023) | planned |
-| `us-congress-record-{congress}` | 6 | Congressional Record, sharded by Congress | planned |
+| `us-congress-statutes` | 5 | Statutes at Large, volumes 1–137 (1789–2023) | built, not yet published |
+| `us-congress-record-{congress}` | 6 | Congressional Record, sharded by Congress | job built, one shard in progress |
 
 Only repositories that exist are linked here; the rest are named but not linked, because a
 link to a repository that has not been created yet is a 404. [`REPOSITORIES.md`](REPOSITORIES.md)
@@ -88,6 +88,10 @@ uv run uscongress seed-code           # build us-congress-code from every releas
 uv run uscongress seed-code --limit 5 # build only the oldest 5
 uv run uscongress seed-bills --congress 113   # build us-congress-bills-113
 uv run uscongress seed-bills --congress 113 --limit 25   # first 25 measures only
+uv run uscongress seed-statutes       # build us-congress-statutes, volumes 1–137
+uv run uscongress seed-statutes --limit 10   # the ten oldest volumes only
+uv run uscongress seed-record --congress 115  # build us-congress-record-115
+uv run uscongress seed-record --congress 115 --limit 5   # first 5 issue days per edition
 uv run uscongress index               # regenerate REPOSITORIES.md
 
 uv run uscongress update              # the daily job: rebuild whatever changed
@@ -98,9 +102,10 @@ uv run pytest                         # tests
 ```
 
 Every job is resumable and idempotent: `comps` skips packages already recorded, `seed-code`
-skips release points whose tag exists, `seed-bills` skips measures whose branch exists, and
-all of them cache their downloads. Re-running a completed job fetches nothing — re-running a
-finished Congress takes seconds and rebuilds no branches.
+skips release points whose tag exists, `seed-bills` skips measures whose branch exists,
+`seed-statutes` skips volumes whose tag exists, `seed-record` skips issue days already
+committed, and all of them cache their downloads. Re-running a completed job fetches nothing
+— re-running a finished Congress takes seconds and rebuilds no branches.
 
 OLRC lists 386 release points but only **383 are distinct** — `pl-113-165`, `pl-115-95not91`
 and `pl-115-117not91not96not97` each appear twice at adjacent positions on
@@ -148,6 +153,82 @@ message says so.
 
 Bill text is **legacy `bill.dtd` XML, not USLM.** GPO publishes a parallel USLM 2.0 tree, but
 it covers 1.8% of versions (2,443 of 134,013), so `billtext.py` renders the legacy format.
+
+### Inside the statutes repository
+
+One commit per volume, holding every session law that volume prints as one Markdown file each.
+Laws live at `volume-NNN/{public,private,resolutions,organic}/`, named the way they are
+cited:
+`public-law-108-1.md`, `private-law-82-1.md`, and `chapter-1-1-i.md` for the numbered
+chapters that preceded public-law numbering.
+
+Tags are named for the citation — `stat-001` to `stat-137`, as in *117 Stat.* — rather than
+matching the directories. `volume-117` would be both a tag and a path, and git refuses an
+argument that is both: `git log volume-117` fails with *ambiguous argument*. The tag moved
+rather than the directory, because the directory listing is what a reader browses first.
+
+Per-public-law commits would have made `git log` the chronology of enactment since 1789, and
+were rejected: a session law is printed as passed and never amended, so no commit would ever
+touch what an earlier one wrote, and ~102,000 commits of pure addition is a sorted list
+rather than a history. **The one diff that is real here is GPO's re-transcription** — volume 1
+was re-digitised on 2025-11-03 — and that is expressible only when the volume is the commit
+unit.
+
+**Commit dates before 1970 are all 1970-01-01.** git stores no timestamp earlier than the
+Unix epoch: `git commit` refuses `1799-03-03` outright, and writing a negative one through
+`fast-import` succeeds only for `git log` to render it blank. 82 of the 137 volumes close
+before then, so each commit's subject line carries the years instead, and every law carries
+its own `approved:` date.
+
+Statutes at Large XML is **USLM 2.0 (GPO), not USLM 1.0 (OLRC)**, and `statutetext.py` is a
+sibling of `render.py` rather than an extension of it. The namespace differs, but the reason
+is that the printed page puts marginalia *inside* the sentence: 5,293 `<sidenote>` elements
+in volume 1 alone, one of them opening between "United" and "States" in the 1789 oath act.
+Flattening with `itertext()`, which is right for the US Code, splices a marginal note into
+the middle of the clause and produces fluent English that is not the law.
+
+`GAPS.md` records what is deliberately absent — chiefly the 13,387 treaties, proclamations
+and executive agreements the volumes also print, which are not acts of Congress. Volumes 7
+and 8 contain nothing else and so have no commit at all.
+
+### Inside a Congressional Record repository
+
+Three branches. `daily` is CREC, the edition printed overnight; `bound` is CRECB, the
+permanent edition GPO republishes years later with corrections folded in and pages renumbered
+into one continuous run; `main` carries the artifacts and `GAPS.md`. They are two
+publications of the same proceedings rather than versions of one document, so keeping them
+apart makes `git diff bound daily -- 2018/07-23/` answer a real question — what changed
+between what was said and what was printed permanently.
+
+One commit per **issue day**, and the history **accumulates**: each commit adds
+`YYYY/MM-DD/{senate,house,extensions,daily-digest}/NNN-slug.md` and leaves every earlier day
+in place, so `git log` is the legislative calendar and a commit's diff is exactly what was
+published that day. The Record is a serial publication — an issue succeeds its predecessor
+rather than revising it — so replacing the tree each commit, which is what `fast-import` does
+by default, would leave the branch holding only the most recent issue.
+
+Each document carries its `granule`, page, `172 Cong. Rec. S4415`-style citation, the members
+recorded as speaking with their bioguide identifiers, and the measures it refers to. All of
+that comes from **one MODS request per package** rather than one per granule: a 288-granule
+day is 3.4 MB of MODS against 288 separate calls, which across the corpus is the difference
+between a 34-hour crawl and a 67-hour one. Measures are named as plain citations, not links —
+`us-congress-bills` exists only for the 108th to the 119th, and the Record reaches back
+further.
+
+**The machine-readable Record begins in 1994, not 1873.** CRECB holds 2,420 volume parts back
+to 1873 and only the 337 named `CRECB-{year}-pt{n}` (1999–2018) have an HTML rendition; the
+other 2,083 are scanned page images whose `/htm` answers **HTTP 400**. CREC starts on
+1994-01-01. So a shard for a Congress that ended before 1994 is empty, and its `GAPS.md` says
+so rather than leaving the absence to be read as a build that failed. Shards from the 116th
+on have no `bound` branch either — the newest bound volume is 2018.
+
+Placement is the trap. A day can be several packages: 11 March 2025 is published as three
+overlapping ones whose granules share 267 identifiers, and 4 January 2023 is two genuinely
+distinct issues. They are merged per day and deduplicated on the **granule** identifier,
+which is the only stable identity. And a package is placed by its own declared Congress,
+never by its date — `CREC-2025-01-03-v170` is dated the day the 119th convened and declares
+the 118th, which adjourned sine die that morning. Both shards hold a `2025/01-03/`, which is
+what actually happened.
 
 ## Staying alive
 
@@ -219,12 +300,15 @@ src/uscongress/
 ├── gitbuild.py      GitRepo and the fast-import writer
 ├── render.py        USLM 1.0 → Markdown (the US Code)
 ├── billtext.py      legacy bill-DTD XML → Markdown (bills)
+├── statutetext.py   USLM 2.0 → Markdown (the Statutes at Large)
 ├── xmlrepair.py     unbalanced tags and bare ampersands in government XML
 ├── registry.py      the repositories, and the roadmap beside them
 └── jobs/
     ├── comps.py     Statute Compilations snapshot
     ├── uscode.py    → us-congress-code
     ├── bills.py     → us-congress-bills-{congress}
+    ├── statutes.py  → us-congress-statutes
+    ├── record.py    → us-congress-record-{congress}
     ├── table3.py    per-law attribution trailers
     ├── update.py    the daily loop and its heartbeat
     ├── publish.py   fetching and pushing refs, with GitHub's real failure modes
@@ -255,10 +339,19 @@ All federal, all public domain under 17 U.S.C. § 105.
 - **Members** — `unitedstates/congress-legislators` (CC0), the bioguide↔LIS crosswalk
 
 Two mutually incompatible USLM schemas are in production: OLRC emits v1.0.15, GPO emits
-v2.0.17. The pipeline needs both.
+v2.0. The pipeline needs both, and GPO is not internally consistent either — the 137
+Statutes at Large volumes declare four different minor versions (2.0.10, 2.0.12, 2.0.13,
+2.0.17).
 
 Bulk listing endpoints return **HTTP 406** without an `Accept: application/json` header — they
 work in a browser and fail from a script. The client handles this.
+
+The same trap runs the other way for files, and there it is silent rather than fatal.
+`STATUTE/107`, `108` and `109` answer **HTTP 200 with 67,225 bytes of "Govinfo Bulkdata
+Service Error" HTML** under a default `Accept: */*`, while the directory listing for the
+same path advertises 13.7 MB of `application/xml`. With `Accept: application/xml` all three
+return in full. No other volume does it, so a sampled check would never see it — which is why
+every fetch validates its payload before caching, rather than trusting the status code.
 
 ## Licence
 
