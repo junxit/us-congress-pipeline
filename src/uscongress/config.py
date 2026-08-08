@@ -32,9 +32,31 @@ COMPS_SNAPSHOTS_DIR = COMPS_DIR / "snapshots"
 GOVINFO_BULKDATA = "https://www.govinfo.gov/bulkdata"
 GOVINFO_API = "https://api.govinfo.gov"
 
-#: govinfo permits 36,000 requests/hour (10/s). We stay just under it; the
-#: limit is per-key, and tripping it costs more time than it saves.
-GOVINFO_RATE_PER_SEC = 9.0
+#: One pace for both hosts, and they are not governed the same way.
+#:
+#: ``api.govinfo.gov`` is rate limited: 36,000 requests/hour, enforced per API
+#: key by api.data.gov's API Umbrella, which says so in its own headers --
+#: ``x-ratelimit-limit: 36000`` beside ``x-ratelimit-remaining``. Exceeding it
+#: answers 429, and a higher allowance is requested from api.data.gov.
+#:
+#: ``www.govinfo.gov`` is not. The bulkdata tree, ``/content/pkg/`` renditions
+#: and ``/metadata/pkg/`` MODS take no key, return no rate-limit headers, and
+#: ``robots.txt`` states no Crawl-delay.
+#:
+#: That distinction was worth measuring because it is where the time goes. A
+#: Congressional Record shard is ~100,000 rendition fetches and ~600 MODS
+#: fetches against a few dozen keyed listing calls, so with the crawl running
+#: flat out at ~37,000 requests/hour the key showed ~120 consumed in that hour:
+#: over 99% of the traffic never touches the limited API. Pacing at 9/s was
+#: therefore throttling unkeyed static files as though they spent API quota.
+#:
+#: 20/s is above the keyed limit, which is safe only because the keyed calls are
+#: a few dozen per shard and cannot sustain it -- do not raise this to speed up
+#: something that *is* API-bound without pacing the two hosts separately. It is
+#: also a deliberate long way below what the unkeyed host will serve, measured
+#: at ~66/s: an absence of a published limit is not permission to flood a public
+#: service.
+GOVINFO_RATE_PER_SEC = 20.0
 
 
 def _load_dotenv(path: Path) -> None:
