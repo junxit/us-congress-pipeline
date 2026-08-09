@@ -734,11 +734,14 @@ def roll_markdown(roll: RollCall) -> str:
             # that is silently absent for some members and present for others
             # reads as an upstream inconsistency rather than a refusal here.
             lines += [
-                f"> {len(unmatched)} of {len(roll.positions)} members could not be"
-                " matched to a bioguide ID and are left blank. A mapping whose"
-                " surname or state disagrees with this document is refused"
-                " rather than guessed: a vote attributed to the wrong senator"
-                " would be wrong in a way that reads as authoritative.",
+                (
+                    f"> {len(unmatched)} of {len(roll.positions)} members could"
+                    " not be matched to a bioguide ID and are left blank. A"
+                    " mapping whose surname or state disagrees with this"
+                    " document is refused rather than guessed: a vote"
+                    " attributed to the wrong senator would be wrong in a way"
+                    " that reads as authoritative."
+                ),
                 "",
             ]
 
