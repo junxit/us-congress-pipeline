@@ -322,6 +322,8 @@ def _usage(name: str, path: Path) -> list[str]:
             "| `bill.md` | the bill text as of that version |",
             "| `metadata.md` | sponsor, cosponsors, committees, actions and votes **as of that version** |",
             "| `votes/*.md` | how each member voted, one file per roll call |",
+            "| `derived/amendments.md` | **derived, unofficial**: what the bill "
+            "would do to existing law, where that follows from the bill itself |",
             "",
             "A roll call appears on the commit for the text that was before the chamber "
             "when it voted, and on every commit after it — never on text that predates "
@@ -465,10 +467,15 @@ def _caveats(name: str) -> list[str]:
             "",
             "**A diff between two versions of a bill shows how the bill changed, "
             "not how the US Code would change.** Bills are written as amendatory "
-            "instructions — *strike subsection (b) and insert…* — not as diffs, and "
-            "executing them automatically is unsolved: measured across seven real "
-            "bills, only ~49% of instructions carry a machine-readable US Code "
-            "reference. Nothing here attempts it.",
+            "instructions — *strike subsection (b) and insert…* — not as diffs. "
+            "`derived/amendments.md` on each branch reads those instructions and "
+            "carries out the ones it can: measured over 6,433 instructions, 24.0% "
+            "state both the text removed and the text inserted, so the result "
+            "follows from the bill alone. The rest are listed with the reason "
+            "they were not, most often because the bill names the law by "
+            "structure and the words it changes are in the US Code rather than in "
+            "the bill. **Everything under `derived/` is derived, unofficial, and "
+            "not law.**",
             "",
             "**`metadata.md` is as of its version, not final.** The upstream record "
             "is a single present-day snapshot of the whole measure. Written "

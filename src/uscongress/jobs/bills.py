@@ -33,7 +33,7 @@ from pathlib import Path
 
 from defusedxml.ElementTree import fromstring as _safe_fromstring
 
-from .. import config
+from .. import amendments, config
 from .. import votes as votes_text
 from ..billtext import render_bill
 from ..gitbuild import GitRepo
@@ -124,6 +124,12 @@ class Measure:
             :func:`parse_status`, which does no I/O.
         votes_unavailable: Each roll call BILLSTATUS names that the chamber
             does not publish where it says it does, paired with why.
+        derived: ``(reason, count)`` for the amendatory instructions read from
+            the measure's **last committed version**, with ``executed`` as the
+            reason for the ones that were. Only the last version is counted:
+            an instruction usually survives from the introduced text to the
+            enrolled one, so counting every version would report the same
+            instruction three or four times over.
     """
 
     congress: str
@@ -141,6 +147,7 @@ class Measure:
     recorded_votes: tuple[votes_text.RecordedVote, ...] = ()
     rolls: tuple[votes_text.RollCall, ...] = ()
     votes_unavailable: tuple[tuple[votes_text.RecordedVote, str], ...] = ()
+    derived: tuple[tuple[str, int], ...] = ()
 
     @property
     def branch(self) -> str:
@@ -724,6 +731,14 @@ async def _build_measure(
             doc = render_bill(body, legis_num=measure.citation)
         except Exception:  # noqa: BLE001 - a missing or odd version is recorded as absent
             continue
+        # Parsed once and used twice: the rendered file and the tally below
+        # read the same instructions. Parsing again per version would double
+        # the cost across roughly 400,000 commits to learn nothing new.
+        try:
+            instructions = amendments.read_instructions(body)
+        except Exception:  # noqa: BLE001 - a bill that will not parse still gets its text
+            instructions = ()
+        derived_counts = _count_instructions(instructions)
         rendered.append(
             (
                 version,
@@ -731,6 +746,7 @@ async def _build_measure(
                 {
                     "bill.md": doc.markdown,
                     "metadata.md": metadata_markdown(measure, version),
+                    **derived_documents(measure, version, instructions),
                     # fast-import replaces the whole tree on every commit, so
                     # the votes as of this version are re-emitted rather than
                     # inherited. A vote that appeared two commits ago and is
@@ -739,6 +755,8 @@ async def _build_measure(
                 },
             )
         )
+    if rendered:
+        measure = replace(measure, derived=derived_counts)
     return measure, rendered
 
 
@@ -781,6 +799,7 @@ async def seed(
     gaps: list[tuple[str, str, str]] = []
     votes_missing: list[tuple[str, str, str]] = []
     votes_late: list[tuple[str, str, str]] = []
+    derived_totals: dict[str, int] = {}
 
     # Drop measures already on disk before any fetching or rendering, so a
     # resume costs a listing rather than a rebuild.
@@ -834,6 +853,8 @@ async def seed(
                 existing.add(measure.branch)
                 built += 1
                 _account_votes(measure, rendered[-1][0], votes_missing, votes_late)
+                for reason, count in measure.derived:
+                    derived_totals[reason] = derived_totals.get(reason, 0) + count
         print(
             f"  {min(start + BATCH, len(pending)):>6}/{len(pending)}  "
             f"branches={built}  skipped={skipped}  no-text={textless}  "
@@ -841,8 +862,8 @@ async def seed(
             flush=True,
         )
 
-    if gaps or votes_missing or votes_late:
-        _write_gaps(repo, congress, gaps, votes_missing, votes_late)
+    if gaps or votes_missing or votes_late or derived_totals:
+        _write_gaps(repo, congress, gaps, votes_missing, votes_late, derived_totals)
 
     accounted = built + skipped + textless + unreadable + failed
     print(
@@ -851,6 +872,14 @@ async def seed(
         f"{failed} failed",
         flush=True,
     )
+    if derived_totals:
+        executed = derived_totals.get("executed", 0)
+        total = sum(derived_totals.values())
+        print(
+            f"  derived: {total:,} amendatory instructions, {executed:,} executed "
+            f"({executed / total:.1%})",
+            flush=True,
+        )
     if votes_missing or votes_late:
         print(
             f"  votes: {len(votes_missing)} named upstream and not retrievable, "
@@ -929,6 +958,7 @@ def _write_gaps(
     gaps: list[tuple[str, str, str]],
     votes_missing: list[tuple[str, str, str]] | None = None,
     votes_late: list[tuple[str, str, str]] | None = None,
+    derived_totals: dict[str, int] | None = None,
 ) -> None:
     """Record what the repository leaves out, on a ``main`` branch.
 
@@ -957,7 +987,10 @@ def _write_gaps(
     # Writing only the gap record would delete the README and license that
     # `uscongress artifacts` puts on this branch.
     existing = repo.read_tree("main")
-    merged = {**existing, **gap_documents(congress, gaps, votes_missing, votes_late)}
+    merged = {
+        **existing,
+        **gap_documents(congress, gaps, votes_missing, votes_late, derived_totals),
+    }
     if merged == existing:
         return
 
@@ -996,6 +1029,7 @@ def gap_documents(
     gaps: list[tuple[str, str, str]],
     votes_missing: list[tuple[str, str, str]] | None = None,
     votes_late: list[tuple[str, str, str]] | None = None,
+    derived_totals: dict[str, int] | None = None,
 ) -> dict[str, str]:
     """Render the record of what this repository does not hold.
 
@@ -1119,6 +1153,9 @@ def gap_documents(
             "GAPS-late-votes.tsv",
         )
 
+    if derived_totals:
+        lines += _derived_section(derived_totals)
+
     documents["GAPS.md"] = "\n".join(lines).rstrip() + "\n"
     return documents
 
@@ -1175,3 +1212,104 @@ def _vote_gap_section(
         ) + "\n"
     lines.append("")
     return lines
+
+
+def derived_documents(
+    measure: Measure,
+    version: TextVersion,
+    instructions: tuple[amendments.Instruction, ...],
+) -> dict[str, str]:
+    """Render the derived account of what this version would do to existing law.
+
+    A pure function of the bill document, deliberately. Reading the target
+    section out of ``us-congress-code`` would divide the build: the daily loop
+    runs where no copy of that corpus exists, so it would render *unapplied*
+    where a local build rendered a result and force-push the weaker version over
+    the stronger one every day, with nothing reporting an error. See
+    :mod:`uscongress.amendments`.
+
+    Nothing is written for a measure that amends nothing -- a resolution
+    congratulating a team, or an original Act that adds law without touching
+    any. An empty file saying so on 45% of branches is noise, and the count is
+    already in ``GAPS.md``.
+
+    Args:
+        measure: The measure.
+        version: The version being committed.
+        instructions: What the bill instructs, already parsed.
+
+    Returns:
+        Paths under ``derived/`` mapped to their Markdown, possibly empty.
+    """
+    if not instructions:
+        return {}
+    rendered = amendments.derived_markdown(
+        measure.citation, measure.congress, version.label, instructions
+    )
+    return {"derived/amendments.md": rendered} if rendered else {}
+
+
+def _count_instructions(
+    instructions: tuple[amendments.Instruction, ...],
+) -> tuple[tuple[str, int], ...]:
+    """Count one version's amendatory instructions by outcome.
+
+    Args:
+        instructions: What the bill instructs.
+
+    Returns:
+        ``(reason, count)`` pairs, with ``executed`` for the ones carried out.
+        Empty for a bill that amends nothing.
+    """
+    counts: dict[str, int] = {}
+    for instruction in instructions:
+        key = "executed" if instruction.applied else instruction.reason
+        counts[key] = counts.get(key, 0) + 1
+    return tuple(sorted(counts.items()))
+
+
+def _derived_section(totals: dict[str, int]) -> list[str]:
+    """Render what the derived amendment execution could and could not do.
+
+    Counts only, with the detail on each measure's own
+    ``derived/amendments.md``: there are tens of thousands of instructions in a
+    Congress, and a list of them here would be unreadable while the one that
+    matters to a given reader is already on the branch they are looking at.
+
+    Args:
+        totals: Instruction counts by outcome, ``executed`` for the ones done.
+
+    Returns:
+        Markdown lines.
+    """
+    executed = totals.get("executed", 0)
+    total = sum(totals.values())
+    reasons = sorted(
+        ((r, n) for r, n in totals.items() if r != "executed"),
+        key=lambda pair: (-pair[1], pair[0]),
+    )
+    return [
+        "## What the derived amendment execution could not do",
+        "",
+        f"{total:,} amendatory instructions were read from the measures in this",
+        f"repository, and **{executed:,} of them ({executed / total:.1%}) were",
+        "carried out**. Each measure's `derived/amendments.md` holds its own,",
+        "with the reason beside every one that was not.",
+        "",
+        "This is not a build failure and it is not going to improve much. A bill",
+        "is a list of instructions *about* law, and most of them refer to the law",
+        "by structure — *strike subsection (k)* — so the words being removed are",
+        "in the US Code and not in the bill. Nothing here guesses them. An",
+        "instruction is carried out only where the bill states both the text",
+        "removed and the text inserted, so the result follows from the bill alone",
+        "and can be checked against it.",
+        "",
+        "| Why an instruction was not carried out | Instructions |",
+        "|---|---|",
+        *(f"| {reason} | {count:,} |" for reason, count in reasons),
+        "",
+        "Counted on each measure's last committed version. An instruction",
+        "usually survives from the introduced text to the enrolled one, so",
+        "counting every version would report the same instruction several times.",
+        "",
+    ]
