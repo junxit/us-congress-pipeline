@@ -36,6 +36,18 @@ def main(argv: list[str] | None = None) -> int:
 
     subparsers.add_parser("index", help="regenerate REPOSITORIES.md")
 
+    boot = subparsers.add_parser(
+        "bootstrap",
+        help="clone the generated repositories onto a machine that lacks them",
+    )
+    boot.add_argument("--repos-path", help="override where repositories are placed")
+    boot.add_argument(
+        "--only",
+        nargs="+",
+        metavar="NAME",
+        help="bootstrap only these repositories",
+    )
+
     subparsers.add_parser(
         "releasepoints", help="list OLRC release points, oldest first"
     )
@@ -146,6 +158,20 @@ def main(argv: list[str] | None = None) -> int:
         from .jobs import index as index_job
 
         index_job.write()
+        return 0
+
+    if args.command == "bootstrap":
+        from pathlib import Path
+
+        from .jobs import bootstrap as bootstrap_job
+
+        results = bootstrap_job.run(
+            repos_dir=Path(args.repos_path) if args.repos_path else None,
+            only=args.only,
+        )
+        bootstrap_job.report(results)
+        # A repository named in the registry but not yet created is the ordinary
+        # state of a planned phase, so it is reported rather than failed on.
         return 0
 
     if args.command == "releasepoints":

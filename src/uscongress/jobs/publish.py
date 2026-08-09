@@ -222,6 +222,51 @@ def prepare(path: Path, url: str, branches: list[str]) -> GitRepo:
     return repo
 
 
+def prepare_all(path: Path, url: str) -> GitRepo:
+    """Fetch every branch of a repository, for a machine that has none of it.
+
+    :func:`prepare` names the branches it wants, which is right for the daily
+    job -- it touches ~170 measures and has no reason to pull 18,000. Bootstrapping
+    wants the opposite, and a single wildcard refspec is one round trip where
+    naming them individually is one per batch.
+
+    Blobless for the same reason as :func:`prepare`: commits and trees are what
+    make the history usable, and file contents come on demand.
+
+    Args:
+        path: Where to build the local repository.
+        url: Remote to fetch from.
+
+    Returns:
+        The prepared repository.
+    """
+    repo = GitRepo(path)
+    repo.init()
+    # git refuses to fetch into the branch that is checked out, and a fresh
+    # `git init` puts HEAD on `main` -- one of the refs being fetched.
+    _git(path, "symbolic-ref", "HEAD", PARKED_HEAD)
+
+    if "origin" not in _git(path, "remote", check=False).stdout.split():
+        _git(path, "remote", "add", "origin", url)
+    else:
+        _git(path, "remote", "set-url", "origin", url)
+
+    _git(
+        path,
+        "fetch",
+        "--quiet",
+        "--filter=blob:none",
+        "--no-tags",
+        "--prune",
+        "origin",
+        "+refs/heads/*:refs/heads/*",
+    )
+    # Tags carry the US Code's release points and the Statutes' volumes, so a
+    # repository fetched without them is missing the thing you navigate it by.
+    _git(path, "fetch", "--quiet", "--filter=blob:none", "--tags", "origin", check=False)
+    return repo
+
+
 @dataclass
 class PushReport:
     """What a push actually achieved, read back from the remote.

@@ -38,8 +38,8 @@ you to notice — the date simply stops moving. See [Staying alive](#staying-ali
 |---|---|---|---|
 | [`us-congress-code`](https://github.com/junxit/us-congress-code) | 1 | the codified US Code; one commit per OLRC release point, tagged | built |
 | `us-congress-bills-{congress}` | 2 | one repo per Congress; one branch per measure | 12 built, [108](https://github.com/junxit/us-congress-bills-108)–[119](https://github.com/junxit/us-congress-bills-119) |
-| `us-congress-statutes` | 5 | Statutes at Large, volumes 1–137 (1789–2023) | built, not yet published |
-| `us-congress-record-{congress}` | 6 | Congressional Record, sharded by Congress | job built, one shard in progress |
+| [`us-congress-statutes`](https://github.com/junxit/us-congress-statutes) | 5 | Statutes at Large, 135 volumes and 101,975 laws | built |
+| `us-congress-record-{congress}` | 6 | Congressional Record as text, 1994 to present | 17 built, [103](https://github.com/junxit/us-congress-record-103)–[119](https://github.com/junxit/us-congress-record-119) |
 
 Only repositories that exist are linked here; the rest are named but not linked, because a
 link to a repository that has not been created yet is a 404. [`REPOSITORIES.md`](REPOSITORIES.md)
@@ -77,6 +77,20 @@ pipeline emits explicit *unapplied* markers rather than guessing.
 
 Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
 
+Starting from a fresh clone, get the generated repositories rather than
+rebuilding them. `data/` is gitignored and runs to about 93 GB on a machine that
+has been building, but the repositories already exist on GitHub and cloning them
+takes minutes where a rebuild takes days — the Congressional Record alone is a
+1.37 million request crawl:
+
+```bash
+uv run uscongress bootstrap        # clone the 30 data repos into data/repos/
+```
+
+The cached upstream XML under `data/raw/` is deliberately not restored and does
+not need to be: it is an optimization, not state, and every job refetches what it
+needs. See [`CLAUDE.md`](CLAUDE.md) for the full orientation.
+
 ```bash
 uv sync
 cp .env.example .env                  # then add your govinfo key
@@ -89,8 +103,8 @@ uv run uscongress seed-code --limit 5 # build only the oldest 5
 uv run uscongress seed-bills --congress 113   # build us-congress-bills-113
 uv run uscongress seed-bills --congress 113 --limit 25   # first 25 measures only
 uv run uscongress seed-statutes       # build us-congress-statutes, volumes 1–137
-uv run uscongress seed-statutes --limit 10   # the ten oldest volumes only
 uv run uscongress seed-record --congress 115  # build us-congress-record-115
+uv run uscongress bootstrap           # clone the generated repos instead of rebuilding
 uv run uscongress seed-record --congress 115 --limit 5   # first 5 issue days per edition
 uv run uscongress index               # regenerate REPOSITORIES.md
 
