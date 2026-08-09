@@ -28,6 +28,14 @@ rest: 36.9% refer to the law by structure rather than quoting it, 21.4% name no
 machine-readable section at all, and 17.7% quote one side of a substitution and
 describe the other.
 
+**How much of that is upstream rather than inherent** is the more useful
+number, and it is most of it. An instruction can only be placed if GPO tagged
+the citation it names, and whether they did is a fact about the year: sampled
+at 1,500 documents per Congress, 64% of the 108th's carry a machine-readable US
+Code citation, 55% of the 113th's -- and 5% of the 111th's and 5% of the
+112th's. So the share of instructions carried out runs from about 1% in the
+112th to about 23% in the 108th with no change in the reading of them at all.
+
 That 78.6% of instructions *do* carry a machine-readable reference sits oddly
 beside the ~49% this project has quoted since the beginning, which came from
 seven bills. The two are not the same measurement and the older one is not
