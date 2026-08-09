@@ -274,6 +274,37 @@ PHASES: list[Phase] = [
         ),
         state=DONE,
     ),
+    Phase(
+        number=10,
+        title="A members crosswalk, so Senate votes are joinable",
+        detail=(
+            "Phase 8 left the two chambers keyed differently, because the "
+            "sources are: the House Clerk publishes bioguide IDs — the same ones "
+            "sponsors and cosponsors carry — while the Senate publishes only its "
+            "own LIS member IDs. Nothing was inferred at the time, which was "
+            "right, but it leaves the first question anyone doing analysis asks "
+            "— how one member voted across both chambers — answerable only by a "
+            "join the reader has to build themselves. **Measured before being "
+            "planned**: 246 distinct LIS IDs appear across all 4,932 Senate roll "
+            "calls in the corpus and all 246 resolve to a bioguide ID in "
+            "`unitedstates/congress-legislators` (CC0), with surname, state and "
+            "party agreeing independently for 244 — the two exceptions being a "
+            "diacritic and a name change, the same people either way. The table "
+            "is **vendored and pinned rather than fetched**: it is edited "
+            "continuously upstream, and a live read would re-render every "
+            "affected vote file the day someone corrects a spelling, breaking "
+            "the unchanged-input-unchanged-bytes rule the daily loop rests on. "
+            "246 rows is also small enough to read in review, which no feed is. "
+            "The added identifier is marked as a crosswalk rather than passed "
+            "off as something the Senate published, and a row whose name, state "
+            "and party do not agree across both sources is not used and is said "
+            "so: a vote attributed to the wrong senator is worse than a vote "
+            "with no identifier at all. Produces no new repository, and rewrites "
+            "only branches carrying a Senate vote — a subset of the 5,969 phase "
+            "8 moved."
+        ),
+        state=PLANNED,
+    ),
 ]
 
 
