@@ -54,12 +54,12 @@ ceiling, and the whole corpus packs to roughly 1–2 GB.
 It is sharded because a finished Congress never changes again, so frozen shards never rebuild
 and their clones stay valid; because a defect in recent data should not force a rebuild of
 2003; because reading the 118th should not mean downloading 6.6 GB; and because twelve
-repositories build in parallel where one serialises. Branch counts run 10,637 to 19,315 per
+repositories build in parallel where one serializes. Branch counts run 10,637 to 19,315 per
 Congress.
 
 All of these repositories are public. The federal text they carry is public domain under
 17 U.S.C. § 105; each one states its own terms in a `LICENSE` file, and the pipeline's own
-terms are separate — see [Licence](#licence).
+terms are separate — see [License](#license).
 
 ## What this is — and what it is not
 
@@ -353,11 +353,11 @@ same path advertises 13.7 MB of `application/xml`. With `Accept: application/xml
 return in full. No other volume does it, so a sampled check would never see it — which is why
 every fetch validates its payload before caching, rather than trusting the status code.
 
-## Licence
+## License
 
 This pipeline is **proprietary — © 2026 Jade Naaman, all rights reserved**; see
-[`LICENSE`](LICENSE). No licence is granted. Terms may be opened up later; nothing here is
-offered under an open-source licence today.
+[`LICENSE`](LICENSE). No license is granted. Terms may be opened up later; nothing here is
+offered under an open-source license today.
 
 The generated repositories are licensed **separately**, because they hold two different kinds
 of material. The federal text is a work of the United States Government, so 17 U.S.C. § 105
@@ -379,7 +379,7 @@ uv run uscongress check-links       # verify every link in every generated docum
 **Publishing a new repository** — after `seed-code` or `seed-bills` has built it:
 
 1. `gh repo create junxit/<name> --private`
-2. `uv run uscongress artifacts` — README and licence
+2. `uv run uscongress artifacts` — README and license
 3. `uv run uscongress describe` — GitHub description, homepage and topics
 4. push its branches, then set its default branch to `main`
 5. `uv run uscongress check-links` and `uscongress describe --check` to confirm

@@ -1,6 +1,6 @@
 """Tests for the govinfo client's pure logic.
 
-Network behaviour is not exercised here; these cover the two things most likely
+Network behavior is not exercised here; these cover the two things most likely
 to break silently -- request pacing and the bulk listing parser.
 """
 
@@ -26,7 +26,7 @@ async def test_rate_limiter_spaces_requests() -> None:
 
 
 async def test_rate_limiter_is_concurrency_safe() -> None:
-    """Concurrent callers are serialised rather than all firing at once."""
+    """Concurrent callers are serialized rather than all firing at once."""
     limiter = RateLimiter(per_second=100.0)
     start = time.perf_counter()
     await asyncio.gather(*(limiter.acquire() for _ in range(10)))

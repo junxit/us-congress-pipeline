@@ -512,7 +512,7 @@ async def update_bills(
 
         stray = sorted(moved - asked)
         if stray:
-            # `main` carries the README, the licence and GAPS.md, and the
+            # `main` carries the README, the license and GAPS.md, and the
             # measure rebuild regenerates none of them. Anything moving here
             # means a branch was written that nothing asked for.
             result.errors.append(
@@ -592,7 +592,7 @@ async def update_code(client: GovInfoClient, result: Result) -> None:
     predecessor's rendered tree. Building one without the repository would drop
     that guard, and a 90 MB archive rendered into a 2.4 GB history is not daily
     work anyway. OLRC publishes a release point every few weeks, so the honest
-    behaviour is to make the backlog visible on the heartbeat and let it be
+    behavior is to make the backlog visible on the heartbeat and let it be
     built where the history already is.
 
     Args:

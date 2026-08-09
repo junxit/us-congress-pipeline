@@ -121,7 +121,7 @@ def test_all_three_document_roots_render(root: str, form: str, body: str) -> Non
     assert "Body text." in doc.markdown
 
 
-def test_legis_num_spelling_is_normalised() -> None:
+def test_legis_num_spelling_is_normalized() -> None:
     """govinfo spells the same measure two ways across its own versions.
 
     The introduced text of H.R. 588 writes ``H. R. 588`` and its engrossed
@@ -178,9 +178,9 @@ def test_nested_levels_indent_under_their_section() -> None:
     assert "  - **(A)** inner;" in doc.markdown
 
 
-def test_unrecognised_root_is_rejected() -> None:
+def test_unrecognized_root_is_rejected() -> None:
     """A PLAW or other collection document must not render as an empty bill."""
-    with pytest.raises(ValueError, match="unrecognised bill document root"):
+    with pytest.raises(ValueError, match="unrecognized bill document root"):
         render_bill(b"<pLaw><form/></pLaw>")
 
 

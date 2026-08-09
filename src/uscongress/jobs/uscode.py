@@ -671,7 +671,7 @@ async def seed(
             table3.cache_index(index)
         else:
             index = cached
-        print(f"Table III: {table3.summarise(index)}", flush=True)
+        print(f"Table III: {table3.summarize(index)}", flush=True)
 
     repo = GitRepo(repo_path or config.REPOS_DIR / REPO_NAME)
     repo.init()

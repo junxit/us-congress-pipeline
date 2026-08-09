@@ -362,7 +362,7 @@ def test_variant_billstatus_schema_is_accepted() -> None:
     """govinfo emits two BILLSTATUS spellings.
 
     Most measures use ``<number>`` and ``<type>``; a minority -- H.R. 4200 of
-    the 113th among them -- use ``<billNumber>`` and ``<billType>``. Recognising
+    the 113th among them -- use ``<billNumber>`` and ``<billType>``. Recognizing
     only the first drops them silently, so the branch never appears and nothing
     says why.
     """
@@ -485,7 +485,7 @@ def test_the_companion_is_linked_only_when_it_is_written() -> None:
     assert ("GAPS.tsv" in large["GAPS.md"]) is ("GAPS.tsv" in large)
 
 
-def test_gaps_are_summarised_by_measure_type() -> None:
+def test_gaps_are_summarized_by_measure_type() -> None:
     """A count per type is what a reader can actually use at this scale."""
     mixed = [("hr-1", "H.R. 1", "a"), ("hres-2", "H.Res. 2", "b"), ("hres-3", "H.Res. 3", "c")]
     text = gap_documents("108", mixed)["GAPS.md"]
@@ -495,7 +495,7 @@ def test_gaps_are_summarised_by_measure_type() -> None:
     assert "| `hr` | 1 |" in text
 
 
-def test_writing_gaps_preserves_the_readme_and_licence(tmp_path) -> None:
+def test_writing_gaps_preserves_the_readme_and_license(tmp_path) -> None:
     """fast-import sets the whole tree, so main must be read before writing.
 
     Writing only the gap record would delete the artifacts that
@@ -504,7 +504,7 @@ def test_writing_gaps_preserves_the_readme_and_licence(tmp_path) -> None:
     repo = GitRepo(tmp_path / "us-congress-bills-113")
     repo.init()
     with repo.fast_import() as stream:
-        stream.commit("main", {"README.md": "readme\n", "LICENSE": "licence\n"}, "Artifacts")
+        stream.commit("main", {"README.md": "readme\n", "LICENSE": "license\n"}, "Artifacts")
 
     _write_gaps(repo, "113", _gaps(3))
 

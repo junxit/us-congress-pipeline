@@ -31,7 +31,7 @@ was considered and rejected. Four reasons, in order of weight:
 * **A per-law commit date would assert a publication that did not happen.**
   Volumes 1 to 8 were not published contemporaneously. They were compiled by
   Charles C. Little and James Brown -- the ``dc:publisher`` in volume 1 says so
-  in as many words -- under the authorising act of 3 March 1845. Dating a commit
+  in as many words -- under the authorizing act of 3 March 1845. Dating a commit
   1789 would place it 56 years before the text existed in this form.
 
 **Resumption keys on the tag**, exactly as ``uscode.seed`` does, so an

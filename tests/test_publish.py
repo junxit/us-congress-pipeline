@@ -223,7 +223,7 @@ def test_prepare_fetches_only_the_branches_asked_for(
 
     repo = prepare(tmp_path / "ci", str(origin), ["hr-2"])
 
-    # main comes too: it carries the README, the licence and GAPS.md.
+    # main comes too: it carries the README, the license and GAPS.md.
     assert repo.branches() == {"hr-2", "main"}
 
 

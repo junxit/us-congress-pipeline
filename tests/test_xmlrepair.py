@@ -29,7 +29,7 @@ def test_unmatched_end_tags_are_dropped() -> None:
 def test_self_closing_tags_do_not_drift_the_stack() -> None:
     """USLM uses <content/>, <col/>, <td/>, <num/> and <br/> heavily.
 
-    Treating a self-closing tag as an opener desynchronises the stack and turns
+    Treating a self-closing tag as an opener desynchronizes the stack and turns
     every later valid end tag into a false mismatch -- which is what made the
     first version of this repair fail 5,900 lines further into the file.
     """

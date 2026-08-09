@@ -549,7 +549,7 @@ def test_a_failed_listing_does_not_advance_the_watermark(
 def test_a_branch_nobody_asked_for_fails_the_run(monkeypatch, tmp_path: Path) -> None:
     """Nothing outside the listed measures may move.
 
-    ``main`` carries the README, the licence and GAPS.md, and the measure
+    ``main`` carries the README, the license and GAPS.md, and the measure
     rebuild regenerates none of them -- fast-import's ``deleteall`` sets a
     commit's whole tree, so a stray write there deletes all three silently. The
     check is against git rather than against the builder's own count, because a

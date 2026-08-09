@@ -202,7 +202,7 @@ def prepare(path: Path, url: str, branches: list[str]) -> GitRepo:
         _git(path, "remote", "set-url", "origin", url)
 
     published = set(remote_refs(url))
-    # `main` carries the README, the licence and GAPS.md. The rebuild never
+    # `main` carries the README, the license and GAPS.md. The rebuild never
     # writes it, but anything that later reads or amends it needs it present.
     wanted = sorted({b for b in branches if b in published} | ({"main"} & published))
     if not wanted:

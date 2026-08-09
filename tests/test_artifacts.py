@@ -1,7 +1,7 @@
 """Tests for the artifacts that let a generated repository stand alone.
 
 These repositories are published without their pipeline, so the README has to
-answer "what is this and what can I do with it" on its own, and the licence has
+answer "what is this and what can I do with it" on its own, and the license has
 to be right about two different kinds of material at once.
 """
 
@@ -35,7 +35,7 @@ def bills_repo(tmp_path: Path) -> GitRepo:
     return repo
 
 
-def test_data_licence_disclaims_the_federal_text() -> None:
+def test_data_license_disclaims_the_federal_text() -> None:
     """Federal law cannot be copyrighted, so claiming it would be a false claim.
 
     17 U.S.C. § 105 puts work of the United States Government in the public
@@ -47,13 +47,13 @@ def test_data_licence_disclaims_the_federal_text() -> None:
     assert "no rights are asserted over" in LICENSE_DATA.lower()
 
 
-def test_data_licence_still_reserves_the_authored_layer() -> None:
+def test_data_license_still_reserves_the_authored_layer() -> None:
     """The conversion, structure and prose are not federal work."""
     assert "Copyright (c) 2026 Jade Naaman" in LICENSE_DATA
     assert "All rights are reserved over that layer" in LICENSE_DATA
 
 
-def test_pipeline_licence_is_plainly_proprietary() -> None:
+def test_pipeline_license_is_plainly_proprietary() -> None:
     """The pipeline itself carries no public-domain component."""
     assert "All rights reserved" in LICENSE_PIPELINE
     assert "proprietary" in LICENSE_PIPELINE

@@ -293,7 +293,7 @@ def parse_status(xml_bytes: bytes) -> Measure:
 
     # govinfo emits two BILLSTATUS spellings. Most measures use <number> and
     # <type>; a minority -- H.R. 4200 of the 113th among them -- use
-    # <billNumber> and <billType>. Recognising only the first silently drops
+    # <billNumber> and <billType>. Recognizing only the first silently drops
     # them, which is worse than failing, because the branch simply never
     # appears and nothing says why.
     number = _text(bill, "number") or _text(bill, "billNumber")
@@ -733,7 +733,7 @@ def _write_gaps(repo: GitRepo, congress: str, gaps: list[tuple[str, str, str]]) 
         gaps: ``(branch, citation, title)`` for each omitted measure.
     """
     # fast-import sets a commit's whole tree, so main must be read first.
-    # Writing only the gap record would delete the README and licence that
+    # Writing only the gap record would delete the README and license that
     # `uscongress artifacts` puts on this branch.
     existing = repo.read_tree("main")
     merged = {**existing, **gap_documents(congress, gaps)}
@@ -799,7 +799,7 @@ def gap_documents(congress: str, gaps: list[tuple[str, str, str]]) -> dict[str, 
         "",
         "This is an upstream gap, not a build failure. It is heavily",
         "concentrated in the older Congresses: govinfo's coverage of bill text",
-        "thins out before the 111th, and House organising resolutions -- electing",
+        "thins out before the 111th, and House organizing resolutions -- electing",
         "officers, adopting rules -- generally carry no published text in any",
         "Congress.",
         "",

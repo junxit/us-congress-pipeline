@@ -13,7 +13,7 @@ So the links are checked rather than assumed:
 
 External links are listed but not fetched. Reaching out to third-party hosts
 turns a local check into a flaky one, and the failure it would catch -- a
-government site reorganising -- is not a failure this project can fix by
+government site reorganizing -- is not a failure this project can fix by
 editing a template.
 """
 

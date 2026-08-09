@@ -118,7 +118,7 @@ class GovInfoClient:
         for attempt in range(self._max_attempts):
             if attempt:
                 # Full jitter: spreads retries so a burst of 429s does not
-                # resynchronise into another burst.
+                # resynchronize into another burst.
                 await asyncio.sleep(random.uniform(0, min(30.0, 2.0**attempt)))
             async with self._semaphore:
                 await self._limiter.acquire()

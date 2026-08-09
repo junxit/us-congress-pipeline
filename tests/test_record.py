@@ -541,7 +541,7 @@ def test_a_page_break_marker_is_body_text_and_survives() -> None:
 
 
 def test_a_rendition_with_no_header_keeps_all_its_text() -> None:
-    """Guessing at where an unrecognised header ended would cut a speech short.
+    """Guessing at where an unrecognized header ended would cut a speech short.
 
     "From the" opens plenty of ordinary sentences on the floor, so the search is
     bounded to the first 8 lines and finds nothing rather than trimming on a
@@ -951,7 +951,7 @@ def test_each_section_gets_its_own_directory() -> None:
 
 
 def test_an_unknown_section_is_kept_rather_than_dropped() -> None:
-    """A granule dropped for having an unrecognised class vanishes silently.
+    """A granule dropped for having an unrecognized class vanishes silently.
 
     Nothing outside the five known classes appeared in the packages sampled,
     which is the reason to handle it rather than a reason not to: the failure
@@ -1223,7 +1223,7 @@ def test_the_bills_repository_is_linked_only_when_it_exists() -> None:
     assert "as plain text rather than as links" in unlinked
 
 
-def test_writing_gaps_preserves_the_readme_and_licence(tmp_path: Path) -> None:
+def test_writing_gaps_preserves_the_readme_and_license(tmp_path: Path) -> None:
     """fast-import sets the whole tree, so main must be read before writing.
 
     Writing only the gap record would delete the artifacts that
@@ -1232,7 +1232,7 @@ def test_writing_gaps_preserves_the_readme_and_licence(tmp_path: Path) -> None:
     repo = GitRepo(tmp_path / "us-congress-record-115")
     repo.init()
     with repo.fast_import() as stream:
-        stream.commit("main", {"README.md": "readme\n", "LICENSE": "licence\n"}, "Artifacts")
+        stream.commit("main", {"README.md": "readme\n", "LICENSE": "license\n"}, "Artifacts")
 
     _write_gaps(repo, 115, _report())
 

@@ -60,7 +60,7 @@ _WS = re.compile(r"\s+")
 _PREFIX_SPACE = re.compile(r"(?<=\.)\s+(?=[A-Z]\.)")
 
 
-def _normalise_legis_num(value: str) -> str:
+def _normalize_legis_num(value: str) -> str:
     """Collapse a measure number to one spelling.
 
     govinfo is inconsistent between versions of the same bill: the introduced
@@ -111,19 +111,19 @@ def _texts(element: ET.Element):
 
 
 def _flatten(element: ET.Element) -> str:
-    """Collapse an element's full text content to a single normalised string.
+    """Collapse an element's full text content to a single normalized string.
 
     Inline markup -- ``external-xref``, ``term``, ``short-title`` -- carries no
     meaning worth preserving as markup, so it is flattened; ``quote`` is the
     exception, see :func:`_texts`. Bill XML is hard-wrapped at inconsistent
-    widths, so whitespace is normalised to keep a reflow from registering as a
+    widths, so whitespace is normalized to keep a reflow from registering as a
     textual change.
 
     Args:
         element: Element to flatten.
 
     Returns:
-        Normalised text.
+        Normalized text.
     """
     return _WS.sub(" ", "".join(_texts(element))).strip()
 
@@ -334,7 +334,7 @@ def render_bill(xml_bytes: bytes, legis_num: str = "") -> BillDoc:
         The rendered document.
 
     Raises:
-        ValueError: If the root element is not a recognised bill document.
+        ValueError: If the root element is not a recognized bill document.
     """
     # govinfo publishes bill text that is not always well formed -- bare
     # ampersands in titles are the common case -- so the same repair pass the
@@ -342,14 +342,14 @@ def render_bill(xml_bytes: bytes, legis_num: str = "") -> BillDoc:
     repaired, _ = repair(xml_bytes)
     root = _safe_fromstring(repaired)
     if _tag(root) not in _ROOTS:
-        raise ValueError(f"unrecognised bill document root: <{_tag(root)}>")
+        raise ValueError(f"unrecognized bill document root: <{_tag(root)}>")
 
     # The three document types name their parts in parallel -- form/legis-body,
     # form/resolution-body, engrossed-amendment-form/engrossed-amendment-body --
     # so they are found by suffix rather than by an exhaustive list of names.
     form = next((c for c in root if _tag(c).endswith("form")), None)
-    stated = _normalise_legis_num(_form_field(form, "legis-num"))
-    legis_num = stated or _normalise_legis_num(legis_num)
+    stated = _normalize_legis_num(_form_field(form, "legis-num"))
+    legis_num = stated or _normalize_legis_num(legis_num)
     congress = _form_field(form, "congress")
     session = _form_field(form, "session")
     chamber = _form_field(form, "current-chamber")

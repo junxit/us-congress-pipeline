@@ -235,7 +235,7 @@ def render() -> str:
             "shards never rebuild and their clones stay valid; because a defect in",
             "recent data should not force a rebuild of 2003; because reading the 118th",
             "should not mean downloading 6.6 GB; and because twelve repositories build",
-            "in parallel where one serialises. Branch counts run 10,637 to 19,315 per",
+            "in parallel where one serializes. Branch counts run 10,637 to 19,315 per",
             "Congress.",
         ]
 

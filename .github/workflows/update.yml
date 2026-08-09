@@ -5,7 +5,7 @@
 # whether this project is still alive. A launchd job on a laptop is invisible,
 # and invisible is how every predecessor died.
 #
-# Two GitHub behaviours this file is shaped around:
+# Two GitHub behaviors this file is shaped around:
 #
 #   * A scheduled workflow is disabled automatically after 60 days without
 #     repository activity. Committing the heartbeat on every run is what keeps
@@ -37,7 +37,7 @@ permissions:
 
 concurrency:
   # Two runs rebuilding the same branches would race on the push. Queued rather
-  # than cancelled: a run that has already rebuilt should be allowed to publish.
+  # than canceled: a run that has already rebuilt should be allowed to publish.
   group: update
   cancel-in-progress: false
 

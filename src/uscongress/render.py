@@ -50,17 +50,17 @@ def _tag(element: ET.Element) -> str:
 
 
 def _flatten(element: ET.Element) -> str:
-    """Collapse an element's full text content to a single normalised string.
+    """Collapse an element's full text content to a single normalized string.
 
     Inline markup (``ref``, ``inline``, ``span``, emphasis) carries no meaning we
-    preserve, so it is flattened. Whitespace is normalised so that reflowed
+    preserve, so it is flattened. Whitespace is normalized so that reflowed
     source XML does not register as a textual change.
 
     Args:
         element: Element to flatten.
 
     Returns:
-        Normalised text.
+        Normalized text.
     """
     return _WS.sub(" ", "".join(element.itertext())).strip()
 

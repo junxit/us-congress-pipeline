@@ -406,7 +406,7 @@ class FastImport:
         The length is a byte count, not a character count, so text has to be
         encoded before it is measured or any non-ASCII content -- section signs,
         em dashes and typographic quotes, all of which occur in bill text --
-        desynchronises the stream.
+        desynchronizes the stream.
 
         Args:
             payload: Raw bytes.

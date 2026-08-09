@@ -70,7 +70,7 @@ def test_link_to_a_name_template_fails() -> None:
 
 
 def test_relative_link_to_a_present_file_passes() -> None:
-    """Each generated repository carries its own licence."""
+    """Each generated repository carries its own license."""
     assert not _check("Terms are in [`LICENSE`](LICENSE).")
 
 
@@ -104,7 +104,7 @@ def test_anchor_to_a_missing_heading_fails() -> None:
 def test_external_links_are_not_fetched() -> None:
     """Reaching third-party hosts turns a local check into a flaky one.
 
-    A government site reorganising is not a failure this project can fix by
+    A government site reorganizing is not a failure this project can fix by
     editing a template, so those links are left alone.
     """
     assert not _check("See [govinfo](https://www.govinfo.gov) and [uv](https://x.invalid).")

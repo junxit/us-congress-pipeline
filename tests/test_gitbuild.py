@@ -2,7 +2,7 @@
 
 The incremental sync is load-bearing: rewriting all ~56,000 section files per
 release point made a single commit take minutes, which across 386 release
-points is over a day. These tests pin the behaviour that makes it fast *and*
+points is over a day. These tests pin the behavior that makes it fast *and*
 still correct about repeals.
 """
 
@@ -19,7 +19,7 @@ from uscongress.gitbuild import GitRepo
 
 @pytest.fixture
 def repo(tmp_path: Path) -> GitRepo:
-    """An initialised repository in a temporary directory."""
+    """An initialized repository in a temporary directory."""
     built = GitRepo(tmp_path / "repo")
     built.init()
     return built
@@ -174,7 +174,7 @@ def test_replace_rewrites_a_branch_from_its_root(repo: GitRepo) -> None:
 def test_replace_leaves_branches_it_does_not_write_alone(repo: GitRepo) -> None:
     """A rebuild of the measures must not disturb ``main``.
 
-    ``main`` carries the README, the licence and GAPS.md, none of which the
+    ``main`` carries the README, the license and GAPS.md, none of which the
     measure rebuild regenerates. ``--force`` applies per ref, so a branch the
     stream never mentions is untouched -- worth pinning, because losing it would
     be silent until someone opened the repository.
@@ -207,7 +207,7 @@ def test_non_ascii_content_survives(repo: GitRepo) -> None:
     """Bill text carries section signs, em dashes and typographic quotes.
 
     fast-import frames payloads by byte length, so measuring characters instead
-    would desynchronise the stream on any of them.
+    would desynchronize the stream on any of them.
     """
     body = "§ 2. Amended— insert “and”, then sección.\n"
     with repo.fast_import() as stream:

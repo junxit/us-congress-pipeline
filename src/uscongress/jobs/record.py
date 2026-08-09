@@ -115,7 +115,7 @@ SECTIONS = {
     "ISSUE": "issue",
 }
 
-#: Where a granule with an unrecognised class goes. Nothing outside
+#: Where a granule with an unrecognized class goes. Nothing outside
 #: :data:`SECTIONS` appeared in the packages sampled, but a granule dropped for
 #: having an unknown class would vanish with nothing to say so.
 OTHER_SECTION = "other"
@@ -473,7 +473,7 @@ def granule_text(payload: bytes) -> str:
         The text, with the repeated govinfo header block removed. Every field in
         that block -- volume, issue, section, page -- is reproduced in the
         document's own front matter, so nothing is lost. A rendition with no
-        recognisable header keeps all of its text: guessing at where one ended
+        recognizable header keeps all of its text: guessing at where one ended
         would eventually cut a speech off at its first paragraph.
 
     Raises:
@@ -964,7 +964,7 @@ async def _fetch_cached(
             govinfo answers a missing one with its ordinary web page and HTTP
             200, measured at 44,165 bytes, so an unchecked fetch caches a web
             page under the granule's name and the document is dropped later for
-            a reason nothing records. A rendition is recognised by its ``<pre>``,
+            a reason nothing records. A rendition is recognized by its ``<pre>``,
             which the web page has not; MODS by its root element -- and note it
             carries **no XML declaration**, so the ``<?xml`` test that guards the
             bills job would reject every valid MODS document there is.
@@ -1625,7 +1625,7 @@ def _write_gaps(
         report: What each edition contributed.
     """
     # fast-import sets a commit's whole tree, so main must be read first: writing
-    # only the gap record would delete the README and licence that
+    # only the gap record would delete the README and license that
     # `uscongress artifacts` puts on this branch.
     existing = repo.read_tree("main")
     bills = f"us-congress-bills-{congress}"

@@ -50,7 +50,7 @@ def test_generated_ids_do_not_affect_output() -> None:
     assert "idac4b642b" not in first[0].markdown
 
 
-def test_whitespace_reflow_is_normalised() -> None:
+def test_whitespace_reflow_is_normalized() -> None:
     """Re-wrapped source XML must not register as a textual change."""
     reflowed = _SECTION.format(
         ns=USLM_1_0, sid='id="x"'

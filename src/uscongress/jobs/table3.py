@@ -160,7 +160,7 @@ def trailers(index: dict[str, list[Classification]], law_ids: list[str]) -> list
     return lines
 
 
-def summarise(index: dict[str, list[Classification]]) -> str:
+def summarize(index: dict[str, list[Classification]]) -> str:
     """Describe the index for logging.
 
     Args:

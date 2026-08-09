@@ -209,13 +209,13 @@ def _texts(element: ET.Element):
 
 
 def _flatten(element: ET.Element) -> str:
-    """Collapse an element's prose to a single normalised string.
+    """Collapse an element's prose to a single normalized string.
 
     Args:
         element: Element to flatten.
 
     Returns:
-        Normalised text, marginalia removed.
+        Normalized text, marginalia removed.
     """
     return _WS.sub(" ", "".join(_texts(element))).strip()
 

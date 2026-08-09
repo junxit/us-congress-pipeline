@@ -38,7 +38,7 @@ PIPELINE_URL = f"https://github.com/{OWNER}/{PIPELINE_REPO}"
 LICENSE_PIPELINE = """\
 Copyright (c) 2026 Jade Naaman. All rights reserved.
 
-This software is proprietary. No licence is granted to use, copy, modify,
+This software is proprietary. No license is granted to use, copy, modify,
 distribute or create derivative works from it, in whole or in part, by any
 means, without the prior written permission of the copyright holder.
 
@@ -68,7 +68,7 @@ This repository contains two different things, under two different terms.
      - the commit messages, and the explanatory prose in files such as
        README.md and GAPS.md
 
-   All rights are reserved over that layer. No licence is granted to use, copy,
+   All rights are reserved over that layer. No license is granted to use, copy,
    modify or distribute it without prior written permission.
 
 Nothing here is legal advice, and this repository is not an official source of
@@ -181,7 +181,7 @@ def _facts(path: Path, name: str) -> list[str]:
             return [
                 f"- **{measures:,} branches**, one per measure",
                 f"- **{versions:,} commits**, one per text version",
-                "- a `main` branch holding this README, the licence, and `GAPS.md`",
+                "- a `main` branch holding this README, the license, and `GAPS.md`",
             ]
         if name.startswith("us-congress-record-"):
             lines = []
@@ -198,7 +198,7 @@ def _facts(path: Path, name: str) -> list[str]:
                 )
             if lines:
                 lines.append(
-                    "- a `main` branch holding this README, the licence, and `GAPS.md`"
+                    "- a `main` branch holding this README, the license, and `GAPS.md`"
                 )
             return lines
         if name == "us-congress-code":
@@ -611,7 +611,7 @@ def readme(name: str, path: Path, built: set[str]) -> str:
         "",
         *_related_table(name, built),
         "",
-        "## Licence",
+        "## License",
         "",
         "The federal text here is a work of the United States Government and is not "
         "subject to copyright under 17 U.S.C. § 105 — it is public domain, and no "
@@ -660,7 +660,7 @@ def write_repo(path: Path, name: str, built: set[str]) -> bool:
         detail = "; ".join(str(link) for link in broken)
         raise ValueError(f"refusing to write a README with broken links: {detail}")
     message = (
-        "Add README and licence\n"
+        "Add README and license\n"
         "\n"
         "So the repository explains itself to anyone who finds it without\n"
         "the pipeline, and states the terms for the two different kinds of\n"
@@ -738,9 +738,9 @@ def write_all() -> list[str]:
         else:
             print(f"  {path.name}: unchanged", flush=True)
 
-    licence = config.REPO_ROOT / "LICENSE"
-    if not licence.is_file() or licence.read_text(encoding="utf-8") != LICENSE_PIPELINE:
-        licence.write_text(LICENSE_PIPELINE, encoding="utf-8")
+    license = config.REPO_ROOT / "LICENSE"
+    if not license.is_file() or license.read_text(encoding="utf-8") != LICENSE_PIPELINE:
+        license.write_text(LICENSE_PIPELINE, encoding="utf-8")
         changed.append(PIPELINE_REPO)
         print(f"  {PIPELINE_REPO}: LICENSE (commit it yourself)", flush=True)
 
