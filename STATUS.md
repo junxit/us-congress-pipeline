@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-08-07 02:46 UTC**
+**Last successful update — 2026-08-09 13:40 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,19 +14,19 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-08-07 02:46 UTC |
+| Last run attempted | 2026-08-09 13:40 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-07-31 02:46 UTC |
-| Measures govinfo reported modified | 1,183 |
-| Branches rewritten | 0 |
-| Rebuilt to the commit already published | 1,097 |
-| Modified but still carrying no text | 86 |
+| Window asked of govinfo | since 2026-08-07 01:46 UTC |
+| Measures govinfo reported modified | 544 |
+| Branches rewritten | 82 |
+| Rebuilt to the commit already published | 316 |
+| Modified but still carrying no text | 146 |
 
-No branch changed. 1,097 measures were rebuilt from freshly
-fetched upstream records and came out as the commits already
-published, so there was nothing to write. That is the ordinary
-result of a day on which nothing moved, and is not the same as the
-job having failed — the date above would show that.
+## Measures updated on the last successful run
+
+| Congress | Branches | Measures |
+|---|---|---|
+| 119 | 82 | `hjres-210`, `hjres-211`, `hjres-212`, `hr-10044`, `hr-10046`, `hr-10047`, `hr-10049`, `hr-10050`, `hr-10057`, `hr-10058`, `hr-10059`, `hr-10060`, and 70 more |
 
 ## What this does not cover
 
