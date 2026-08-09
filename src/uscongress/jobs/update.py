@@ -655,6 +655,7 @@ async def run(
     status_path: Path | None = None,
     code: bool = True,
     token: str = "",
+    publish: bool = False,
 ) -> Result:
     """Run one daily update.
 
@@ -669,6 +670,9 @@ async def run(
         token: GitHub credential. When set, the affected branches are fetched
             from GitHub before the rebuild and pushed afterwards, so the job can
             run somewhere that holds no copy of the corpus.
+        publish: Whether publishing was asked for. Kept separate from ``token``
+            so that asking to publish *without* a credential is a failure this
+            run records, rather than one it exits on.
 
     Returns:
         What the run did.
@@ -677,6 +681,21 @@ async def run(
     started = datetime.now(UTC)
     window = since or state.since
     result = Result(started=started, since=window)
+
+    if publish and not token:
+        # This used to be an argparse error, which exits before anything is
+        # written -- so the run failed, the workflow failed, and STATUS.md went
+        # on saying "Outcome | ok" from the previous day. A public heartbeat
+        # that reads healthy through a failed run is the exact thing this file
+        # exists to prevent, and it took a real CI run with an empty secret to
+        # find it. Recorded and returned instead, so the heartbeat tells the
+        # truth and the watermark stays put.
+        result.errors.append(
+            "--publish was requested but GITHUB_TOKEN is empty: the credential "
+            "is missing or the repository secret holds no value"
+        )
+        _finish(state, result, state_path, status_path)
+        return result
 
     print(
         f"update: asking govinfo for everything modified since "

@@ -615,3 +615,38 @@ def test_the_committee_fix_reaches_the_built_branch(
     metadata = repo.read_tree("hr-7283")["metadata.md"]
     assert "## Committees (1)" in metadata
     assert "House — Oversight and Government Reform Committee" in metadata
+
+
+def test_publishing_without_a_credential_is_recorded_not_exited(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """A missing token must leave the heartbeat telling the truth.
+
+    This was an argparse error, which exits before anything is written. The
+    first real CI run had an empty DATA_REPO_TOKEN secret: the run failed, the
+    workflow failed, GitHub notified -- and STATUS.md went on publishing
+    "Outcome | ok" from the previous day, because nothing had reached `_finish`.
+    A public heartbeat that reads healthy through a failed run is the one lie
+    this module exists to prevent.
+    """
+    state_path, status_path = _pinned(monkeypatch, tmp_path)
+
+    result = asyncio.run(
+        update.run(
+            _Upstream(),
+            since=datetime(2026, 8, 1, tzinfo=UTC),
+            state_path=state_path,
+            status_path=status_path,
+            code=False,
+            token="",
+            publish=True,
+        )
+    )
+
+    assert not result.ok
+    assert "GITHUB_TOKEN is empty" in result.errors[0]
+    # The watermark must not advance, so tomorrow covers this window again.
+    assert load_state(state_path).last_success is None
+    assert load_state(state_path).last_run is not None
+    # And the heartbeat must say so out loud.
+    assert "GITHUB_TOKEN is empty" in status_path.read_text(encoding="utf-8")

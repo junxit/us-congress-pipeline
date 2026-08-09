@@ -336,8 +336,6 @@ def main(argv: list[str] | None = None) -> int:
                     import os
 
                     token = os.environ.get("GITHUB_TOKEN", "").strip()
-                    if not token:
-                        parser.error("--publish needs GITHUB_TOKEN in the environment")
 
                 result = await update_job.run(
                     client,
@@ -345,6 +343,7 @@ def main(argv: list[str] | None = None) -> int:
                     state_path=state_path,
                     code=not args.no_code,
                     token=token,
+                    publish=args.publish,
                 )
 
             print(
