@@ -769,6 +769,11 @@ def test_the_gap_document_names_a_vote_category_only_when_it_occurs() -> None:
     assert "## Roll-call votes that are not published where they are named" in noisy
     assert "## Roll-call votes taken after the last published text" in noisy
     assert "`hr-1` | House 113-1-130" in noisy
+    # Each table's third column is named for what it holds. It said "Vote"
+    # twice, so the late-votes table read "| Measure | Vote | Vote |" over a
+    # column of dates -- in a document whose whole job is to be legible.
+    assert "| Measure | Vote | Reason |" in noisy
+    assert "| Measure | Vote | When |" in noisy
 
 
 def test_a_long_vote_gap_list_moves_to_its_own_companion() -> None:

@@ -1114,7 +1114,7 @@ def gap_documents(
                 "here with the address the chamber serves them from.",
             ],
             votes_late,
-            "Vote",
+            "When",
             documents,
             "GAPS-late-votes.tsv",
         )
