@@ -854,7 +854,7 @@ async def seed(
     if votes_missing or votes_late:
         print(
             f"  votes: {len(votes_missing)} named upstream and not retrievable, "
-            f"{len(votes_late)} taken after every dated version",
+            f"{len(votes_late)} taken after the last version committed",
             flush=True,
         )
     if accounted != len(measures):
