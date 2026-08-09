@@ -246,11 +246,16 @@ PHASES: list[Phase] = [
             "IDs, and that asymmetry is stated rather than crosswalked. "
             "Produces no new repository: it adds to the measures already built. "
             "Commit messages are part of what a commit hashes, so filling them "
-            "in rewrote every affected branch — 7,510 of 171,916 measures carry "
-            "a recorded vote, which is why that was a 4% rewrite and not a "
-            "whole-corpus one."
+            "in rewrote every affected branch — but only 7,510 of 172,082 "
+            "measures carry a recorded vote, so a full rebuild of all twelve "
+            "shards moved 5,969 refs and left 160,248 branches byte-identical. "
+            "19,471 roll calls were fetched and **none was missing**; what is "
+            "recorded as a gap instead is 1,949 votes taken after the last text "
+            "version their measure ever published, which therefore sit on no "
+            "commit — 128 of them in the 108th, where every voted measure with "
+            "a branch has only its introduced text."
         ),
-        state=PLANNED,
+        state=DONE,
     ),
     Phase(
         number=9,
