@@ -304,16 +304,30 @@ def _usage(name: str, path: Path) -> list[str]:
             "# who sponsored it, and where it had got to at that version",
             "git show hr-588:metadata.md",
             "",
-            "# measures with no published text",
+            "# every roll call on a measure, from the commit messages",
+            "git log --format='%s%n%b' hr-588 | grep '^Roll-Call:'",
+            "",
+            "# how each member voted",
+            "git show hr-588:votes/house-113-1-0129.md",
+            "",
+            "# what this repository does not hold, and why",
             "git show main:GAPS.md",
             "```",
             "",
-            "Each branch holds exactly two files, rewritten at every version:",
+            "Each branch holds two files plus its votes, rewritten at every version:",
             "",
             "| File | Contents |",
             "|---|---|",
             "| `bill.md` | the bill text as of that version |",
-            "| `metadata.md` | sponsor, cosponsors, committees and actions **as of that version** |",
+            "| `metadata.md` | sponsor, cosponsors, committees, actions and votes **as of that version** |",
+            "| `votes/*.md` | how each member voted, one file per roll call |",
+            "",
+            "A roll call appears on the commit for the text that was before the chamber "
+            "when it voted, and on every commit after it — never on text that predates "
+            "it. Votes come from `clerk.house.gov` and `senate.gov` directly. The House "
+            "publishes bioguide IDs, the same identifier the `Sponsored-By:` trailer "
+            "carries; the Senate publishes only its own LIS member IDs, so the two "
+            "chambers' vote files are not keyed alike and each says which it holds.",
             "",
             f"Branches are named from the citation — `hr-588`, `s-1339`, "
             f"`sconres-13` — so a measure of the {congress}th Congress can be found "

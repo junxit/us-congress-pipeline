@@ -89,6 +89,19 @@ handles them; this is the index.
   requests/hour per key; `www.govinfo.gov` — bulkdata, `/content/pkg/`,
   `/metadata/pkg/` — is unkeyed and unlimited. Over 99% of a Record crawl goes
   to the second. See `config.GOVINFO_RATE_PER_SEC`.
+- **A vote's date comes from the chamber, never from BILLSTATUS.** BILLSTATUS
+  stamps a vote as a UTC instant; the House Clerk and the Senate each date it
+  locally. A vote taken after 7pm Eastern therefore belongs to a different day
+  depending on which document is believed, and it decides which commit the vote
+  lands on. 60 of the 814 distinct vote stamps in the 113th Congress fall in
+  that window. See `votes.RecordedVote.when`.
+- **`<recordedVotes>` is repeated on every action item that mentions it.** Roll
+  129 appears twice on H.R. 588. Deduplicate on
+  `(chamber, session, number)` — number alone collides across chambers and
+  sessions. Same trap as `bills._committees`, reached another way.
+- **Nothing crosswalks members.** The House publishes bioguide IDs and the
+  Senate publishes LIS IDs; each vote file states which it carries. Do not
+  infer one from the other.
 - **Three volumes need an `Accept` header or they do not exist.** STATUTE 107,
   108 and 109 return HTTP 200 and 67 KB of error HTML without
   `Accept: application/xml`.

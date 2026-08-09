@@ -145,6 +145,32 @@ def main(argv: list[str] | None = None) -> int:
     update.add_argument(
         "--state-path", help="override where the watermark is read and written"
     )
+    update.add_argument(
+        "--status-path",
+        help="override where the heartbeat is written. Without this a local run "
+        "overwrites the tracked STATUS.md, which the next scheduled run commits",
+    )
+
+    republish = subparsers.add_parser(
+        "republish",
+        help="push branches a local rebuild changed; the force push "
+        "`seed-bills --rebuild` asks for",
+    )
+    republish.add_argument(
+        "--congress",
+        action="append",
+        help="Congress number, repeatable. Omit for every bills repository",
+    )
+    republish.add_argument(
+        "--repo",
+        action="append",
+        help="repository name, repeatable, e.g. us-congress-statutes",
+    )
+    republish.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="report what differs from the remote and push nothing",
+    )
 
     args = parser.parse_args(argv)
 
@@ -322,6 +348,7 @@ def main(argv: list[str] | None = None) -> int:
         from .jobs import update as update_job
 
         state_path = Path(args.state_path) if args.state_path else None
+        status_path = Path(args.status_path) if args.status_path else None
 
         if args.check:
             return update_job.check(state_path)
@@ -370,6 +397,7 @@ def main(argv: list[str] | None = None) -> int:
                     code=not args.no_code,
                     token=token,
                     publish=args.publish,
+                    status_path=status_path,
                 )
 
             print(
@@ -399,6 +427,27 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         return asyncio.run(_update())
+
+    if args.command == "republish":
+        import os
+
+        from .jobs import bills as bills_job
+        from .jobs import republish as republish_job
+
+        names: list[str] = []
+        if args.congress:
+            names += [f"{bills_job.REPO_PREFIX}-{c}" for c in args.congress]
+        if args.repo:
+            names += list(args.repo)
+        if not names:
+            names = [f"{bills_job.REPO_PREFIX}-{c}" for c in range(108, 120)]
+
+        token = "" if args.dry_run else os.environ.get("GITHUB_TOKEN", "").strip()
+        if not args.dry_run and not token:
+            parser.error(
+                "republish needs GITHUB_TOKEN to push; use --dry-run to compare only"
+            )
+        return republish_job.run(names, token=token, dry_run=args.dry_run)
 
     parser.error(f"unknown command: {args.command}")
     return 2

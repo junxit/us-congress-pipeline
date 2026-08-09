@@ -4,12 +4,17 @@ ETL that mirrors the workings of the US Congress as git repositories — the tex
 with its history as commits, every bill as a branch, tags marking the law at a point in time,
 and each commit carrying who sponsored the measure and where it had got to.
 
-Concretely: sponsor and cosponsor count are commit trailers, and sponsor, cosponsors,
-committees and actions are in `metadata.md` beside the text, each filtered to the version it
-sits on. **Roll-call votes are planned, not built** — phase 8 in the
-[roadmap](REPOSITORIES.md#roadmap). They need a Congress.gov API key nothing here reads yet.
-Said plainly rather than left to be discovered, which is the rule the generated repositories
-follow in their own `GAPS.md`.
+Concretely: sponsor, cosponsor count and every roll-call vote are commit trailers, and
+sponsor, cosponsors, committees, actions and votes are in `metadata.md` beside the text, each
+filtered to the version it sits on. How each member voted is a file of its own under `votes/`,
+appearing on the commit for the text that was before the chamber when it voted.
+
+Votes come from the chambers themselves — `clerk.house.gov` and `senate.gov` — not from the
+Congress.gov API, which publishes House votes only, for the 118th and 119th Congresses only,
+against a corpus that starts at the 108th and holds both. **Experimental amendment execution
+is still planned, not built** — phase 7 in the [roadmap](REPOSITORIES.md#roadmap). Said plainly
+rather than left to be discovered, which is the rule the generated repositories follow in their
+own `GAPS.md`.
 
 **This repository contains only the pipeline.** It *generates* the data repositories; it does
 not contain them.
@@ -102,6 +107,9 @@ uv run uscongress seed-code           # build us-congress-code from every releas
 uv run uscongress seed-code --limit 5 # build only the oldest 5
 uv run uscongress seed-bills --congress 113   # build us-congress-bills-113
 uv run uscongress seed-bills --congress 113 --limit 25   # first 25 measures only
+uv run uscongress seed-bills --congress 113 --rebuild    # rewrite every branch from its root
+uv run uscongress republish --congress 113 --dry-run     # what a rebuild changed vs GitHub
+uv run uscongress republish --congress 113               # force-push only what moved
 uv run uscongress seed-statutes       # build us-congress-statutes, volumes 1–137
 uv run uscongress seed-record --congress 115  # build us-congress-record-115
 uv run uscongress bootstrap           # clone the generated repos instead of rebuilding
@@ -350,7 +358,17 @@ All federal, all public domain under 17 U.S.C. § 105.
   Note it records **present-day** classification: PL 113-40 (2013) is listed under Title 54,
   which did not exist until December 2014. Trailers answer "where does this law live now",
   not "what did this commit change" — for that, read the diff.
-- **Members** — `unitedstates/congress-legislators` (CC0), the bioguide↔LIS crosswalk
+- **Roll-call votes** — the chambers themselves: `clerk.house.gov/evs/` and
+  `senate.gov/legislative/LIS/roll_call_votes/`. BILLSTATUS names every vote taken on a
+  measure and links it to the chamber that took it, so the index is already in the bill
+  metadata and only the positions are fetched. Neither host is keyed.
+
+**Not** the Congress.gov API, and **not** a members crosswalk. Both were listed here as
+sources for years and neither is read. The API's roll-call endpoint covers the House alone
+for the 118th and 119th Congresses; this corpus starts at the 108th and holds both chambers.
+`unitedstates/congress-legislators` was listed for a bioguide↔LIS crosswalk that is not
+performed: the House publishes bioguide IDs and the Senate publishes LIS IDs, and each vote
+file says which it carries rather than inventing a join this project could not check.
 
 Two mutually incompatible USLM schemas are in production: OLRC emits v1.0.15, GPO emits
 v2.0. The pipeline needs both, and GPO is not internally consistent either — the 137

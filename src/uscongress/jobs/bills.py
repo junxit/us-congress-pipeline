@@ -27,17 +27,18 @@ from __future__ import annotations
 import asyncio
 import re
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from pathlib import Path
 
 from defusedxml.ElementTree import fromstring as _safe_fromstring
 
-from .. import config
+from .. import config, votes as votes_text
 from ..billtext import render_bill
 from ..gitbuild import GitRepo
 from ..govinfo import GovInfoClient
 from ..xmlrepair import repair
+from . import votes as votes_job
 
 #: Measure types, in the order a listing walks them.
 TYPES = ("hr", "s", "hjres", "sjres", "hconres", "sconres", "hres", "sres")
@@ -115,6 +116,13 @@ class Measure:
         actions: ``(date, text)`` for each recorded action.
         law: Public law number, if the measure was enacted.
         versions: Text versions, oldest first.
+        recorded_votes: Roll calls BILLSTATUS names on this measure. This is
+            the index only; the positions live at the other end of each URL.
+        rolls: Roll calls that were fetched, filled in by
+            :func:`_build_measure`. Empty on a measure straight out of
+            :func:`parse_status`, which does no I/O.
+        votes_unavailable: Each roll call BILLSTATUS names that the chamber
+            does not publish where it says it does, paired with why.
     """
 
     congress: str
@@ -129,6 +137,9 @@ class Measure:
     actions: tuple[tuple[date | None, str], ...]
     law: str
     versions: tuple[TextVersion, ...]
+    recorded_votes: tuple[votes_text.RecordedVote, ...] = ()
+    rolls: tuple[votes_text.RollCall, ...] = ()
+    votes_unavailable: tuple[tuple[votes_text.RecordedVote, str], ...] = ()
 
     @property
     def branch(self) -> str:
@@ -354,7 +365,73 @@ def parse_status(xml_bytes: bytes) -> Measure:
         actions=actions,
         law=law,
         versions=tuple(versions),
+        recorded_votes=votes_text.references(bill),
     )
+
+
+def _votes_as_of(
+    measure: Measure, version: TextVersion
+) -> tuple[
+    tuple[votes_text.RollCall, ...], tuple[tuple[votes_text.RecordedVote, str], ...]
+]:
+    """Roll calls taken on or before a version's date, and the ones not found.
+
+    The cutoff is the same one cosponsors, committees and actions use, and it
+    is written once here so a vote cannot follow a different rule from the rest
+    of the record it sits beside. A vote must never appear on a commit for text
+    that predates it: the introduced version of a measure has not been voted
+    on, and saying otherwise on its commit would be a claim about the past that
+    the repository itself contradicts two commits later.
+
+    Votes are ordered by date rather than by roll-call number. The two chambers
+    number independently, so ordering by number interleaves a Senate vote from
+    March with a House vote from July.
+
+    Args:
+        measure: The measure, with its votes already fetched.
+        version: The version being committed.
+
+    Returns:
+        The votes as of this version, oldest first, and the unavailable ones
+        that fall in the same window.
+    """
+    cutoff = version.when
+
+    def within(when: date | None) -> bool:
+        return cutoff is None or when is None or when <= cutoff
+
+    rolls = sorted(
+        (roll for roll in measure.rolls if within(roll.when)),
+        key=lambda r: (r.when or date.min, r.chamber, r.session, r.number),
+    )
+    missing = sorted(
+        (
+            (reference, reason)
+            for reference, reason in measure.votes_unavailable
+            if within(reference.when)
+        ),
+        key=lambda pair: (
+            pair[0].when or date.min,
+            pair[0].chamber,
+            pair[0].session,
+            pair[0].number,
+        ),
+    )
+    return tuple(rolls), tuple(missing)
+
+
+def vote_documents(measure: Measure, version: TextVersion) -> dict[str, str]:
+    """Render the vote files that belong in this version's tree.
+
+    Args:
+        measure: The measure, with its votes already fetched.
+        version: The version being committed.
+
+    Returns:
+        Paths under ``votes/`` mapped to their Markdown.
+    """
+    rolls, _ = _votes_as_of(measure, version)
+    return {f"votes/{roll.key}.md": votes_text.roll_markdown(roll) for roll in rolls}
 
 
 def metadata_markdown(measure: Measure, version: TextVersion) -> str:
@@ -424,6 +501,28 @@ def metadata_markdown(measure: Measure, version: TextVersion) -> str:
         lines += [f"## Committees ({len(committees)})", ""]
         lines += [f"- {committee.label}" for committee in committees]
         lines.append("")
+    rolls, unavailable = _votes_as_of(measure, version)
+    if rolls or unavailable:
+        lines += [f"## Recorded votes ({len(rolls) + len(unavailable)})", ""]
+        for roll in rolls:
+            counted = roll.tally
+            when = roll.when.isoformat() if roll.when else "(date not recorded)"
+            lines.append(
+                f"- {when} — [{roll.citation}](votes/{roll.key}.md)"
+                f" — {roll.question or 'question not recorded'}"
+                + (f" — **{roll.result}**" if roll.result else "")
+                + f" ({counted['yea']}–{counted['nay']})"
+            )
+        for reference, reason in unavailable:
+            # Named upstream and not published where it says. Left visible
+            # rather than dropped: a measure that shows three votes where the
+            # chamber took four is indistinguishable from one that took three.
+            when = reference.when.isoformat() if reference.when else "(date unknown)"
+            lines.append(
+                f"- {when} — {reference.citation} — **not retrievable** "
+                f"([as published]({reference.url})): {reason}"
+            )
+        lines.append("")
     if actions:
         lines += ["## Actions", ""]
         lines += [
@@ -470,6 +569,22 @@ def commit_message(measure: Measure, version: TextVersion) -> str:
     ]
     if signed:
         lines.append(f"Cosponsor-Count: {len(signed)}")
+
+    # One trailer per roll call, in the same as-of-this-version window as the
+    # cosponsor count above. The tally is counted from the members listed, not
+    # copied from the totals the chamber states; where the two disagree the
+    # vote file says so.
+    rolls, unavailable = _votes_as_of(measure, version)
+    for roll in rolls:
+        when = roll.when.isoformat() if roll.when else "date-not-recorded"
+        lines.append(
+            f"Roll-Call: {roll.citation} {when}"
+            + (f" {roll.result}" if roll.result else "")
+            + f" {roll.summary}"
+        )
+    for reference, _ in unavailable:
+        when = reference.when.isoformat() if reference.when else "date-not-recorded"
+        lines.append(f"Roll-Call: {reference.citation} {when} not-retrievable")
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -583,6 +698,15 @@ async def _build_measure(
         print(f"       {name}: unreadable BILLSTATUS - {type(exc).__name__}: {exc}", flush=True)
         return None
 
+    # Votes are fetched here rather than in a pass of their own so that a build
+    # with a cold cache renders what a build with a warm one renders. A vote the
+    # chamber does not publish comes back as a marker; anything else -- a
+    # timeout, a 500 that outlived five retries -- is left to propagate, because
+    # committing the measure without a vote it actually took would publish an
+    # incomplete record as a complete one.
+    rolls, unavailable = await votes_job.load(client, measure.recorded_votes)
+    measure = replace(measure, rolls=rolls, votes_unavailable=unavailable)
+
     rendered: list[tuple[TextVersion, date | None, dict[str, str]]] = []
     carried: date | None = measure.introduced
     for version in measure.versions:
@@ -606,6 +730,11 @@ async def _build_measure(
                 {
                     "bill.md": doc.markdown,
                     "metadata.md": metadata_markdown(measure, version),
+                    # fast-import replaces the whole tree on every commit, so
+                    # the votes as of this version are re-emitted rather than
+                    # inherited. A vote that appeared two commits ago and is
+                    # not written again here would be deleted by this one.
+                    **vote_documents(measure, version),
                 },
             )
         )
@@ -647,8 +776,10 @@ async def seed(
 
     print(f"BILLS {congress}: {len(measures)} measures listed", flush=True)
 
-    built = skipped = textless = unreadable = 0
+    built = skipped = textless = unreadable = failed = 0
     gaps: list[tuple[str, str, str]] = []
+    votes_missing: list[tuple[str, str, str]] = []
+    votes_late: list[tuple[str, str, str]] = []
 
     # Drop measures already on disk before any fetching or rendering, so a
     # resume costs a listing rather than a rebuild.
@@ -666,11 +797,24 @@ async def seed(
 
     for start in range(0, len(pending), BATCH):
         batch = pending[start : start + BATCH]
+        # Exceptions are collected rather than raised. A measure whose vote
+        # fetch outlived its retries used to be able to end a rebuild of 19,315
+        # branches at branch 19,000, and a rebuild -- unlike a seed -- skips
+        # nothing on the way back, so the whole pass was lost. The measure is
+        # left unwritten either way; only the blast radius changes.
         results = await asyncio.gather(
-            *(_build_measure(client, congress, name, url) for name, url in batch)
+            *(_build_measure(client, congress, name, url) for name, url in batch),
+            return_exceptions=True,
         )
         with repo.fast_import(replace=rebuild) as stream:
-            for result in results:
+            for (name, _), result in zip(batch, results):
+                if isinstance(result, BaseException):
+                    failed += 1
+                    print(
+                        f"       {name}: {type(result).__name__}: {result}",
+                        flush=True,
+                    )
+                    continue
                 if result is None:
                     unreadable += 1
                     continue
@@ -688,22 +832,30 @@ async def seed(
                     )
                 existing.add(measure.branch)
                 built += 1
+                _account_votes(measure, votes_missing, votes_late)
         print(
             f"  {min(start + BATCH, len(pending)):>6}/{len(pending)}  "
             f"branches={built}  skipped={skipped}  no-text={textless}  "
-            f"unreadable={unreadable}",
+            f"unreadable={unreadable}  failed={failed}",
             flush=True,
         )
 
-    if gaps:
-        _write_gaps(repo, congress, gaps)
+    if gaps or votes_missing or votes_late:
+        _write_gaps(repo, congress, gaps, votes_missing, votes_late)
 
-    accounted = built + skipped + textless + unreadable
+    accounted = built + skipped + textless + unreadable + failed
     print(
         f"{repo.path.name}: {built} branches built, {skipped} already present, "
-        f"{textless} with no usable text, {unreadable} unreadable",
+        f"{textless} with no usable text, {unreadable} unreadable, "
+        f"{failed} failed",
         flush=True,
     )
+    if votes_missing or votes_late:
+        print(
+            f"  votes: {len(votes_missing)} named upstream and not retrievable, "
+            f"{len(votes_late)} taken after every dated version",
+            flush=True,
+        )
     if accounted != len(measures):
         # Every listed measure must land in exactly one bucket. A mismatch means
         # something was dropped without being counted, which is the one failure
@@ -715,14 +867,70 @@ async def seed(
     return repo
 
 
-def _write_gaps(repo: GitRepo, congress: str, gaps: list[tuple[str, str, str]]) -> None:
-    """Record measures left out of the repository, on a ``main`` branch.
+def _account_votes(
+    measure: Measure,
+    missing: list[tuple[str, str, str]],
+    late: list[tuple[str, str, str]],
+) -> None:
+    """Record the votes a built measure could not place on any of its commits.
+
+    Two different absences, and neither is a build failure.
+
+    A vote can be **named upstream and not published** where BILLSTATUS says it
+    is, which :func:`uscongress.jobs.votes.load` already turns into a marker on
+    the commit; it is collected here so the repository can state the total
+    rather than leaving it to be found one branch at a time.
+
+    A vote can also be **taken after every dated version** of its measure. The
+    record on a commit is the record as of that version, so a vote later than
+    the last text there is has nowhere to sit -- a measure whose final vote came
+    after its last published text keeps that vote nowhere. That is a real hole
+    in what this repository can express, and it is written down rather than
+    quietly dropped.
+
+    Args:
+        measure: A measure that was built.
+        missing: Accumulator of unretrievable votes.
+        late: Accumulator of votes later than every dated version.
+    """
+    for reference, reason in measure.votes_unavailable:
+        missing.append((measure.branch, reference.citation, reason))
+
+    dated = [v.when for v in measure.versions if v.when]
+    if not dated:
+        # No dated version means no cutoff, so every vote is carried; see
+        # `_votes_as_of`.
+        return
+    last = max(dated)
+    for roll in measure.rolls:
+        if roll.when and roll.when > last:
+            late.append(
+                (
+                    measure.branch,
+                    roll.citation,
+                    f"{roll.when.isoformat()}, after the last dated version "
+                    f"({last.isoformat()})",
+                )
+            )
+
+
+def _write_gaps(
+    repo: GitRepo,
+    congress: str,
+    gaps: list[tuple[str, str, str]],
+    votes_missing: list[tuple[str, str, str]] | None = None,
+    votes_late: list[tuple[str, str, str]] | None = None,
+) -> None:
+    """Record what the repository leaves out, on a ``main`` branch.
 
     A measure with no usable text gets no branch, so without this it is absent
     from the repository with nothing to say it ever existed. In the 108th
     Congress that is 8,755 of 10,667 measures -- govinfo holds their BILLSTATUS
     record but links no bill text -- and an unexplained absence at that scale
     reads as a build that quietly failed.
+
+    Votes have two absences of their own, and both are stated for the same
+    reason; see :func:`_account_votes`.
 
     This follows the same principle as ``GAPS.md`` in the US Code repository:
     what is missing is stated rather than left to be inferred.
@@ -731,23 +939,33 @@ def _write_gaps(repo: GitRepo, congress: str, gaps: list[tuple[str, str, str]]) 
         repo: Repository to write into.
         congress: Congress number.
         gaps: ``(branch, citation, title)`` for each omitted measure.
+        votes_missing: ``(branch, citation, reason)`` for each vote named
+            upstream that the chamber does not publish.
+        votes_late: ``(branch, citation, detail)`` for each vote taken after
+            every dated version of its measure.
     """
     # fast-import sets a commit's whole tree, so main must be read first.
     # Writing only the gap record would delete the README and license that
     # `uscongress artifacts` puts on this branch.
     existing = repo.read_tree("main")
-    merged = {**existing, **gap_documents(congress, gaps)}
+    merged = {**existing, **gap_documents(congress, gaps, votes_missing, votes_late)}
     if merged == existing:
         return
+
+    counts = [f"{len(gaps):,} measures with no text"]
+    if votes_missing:
+        counts.append(f"{len(votes_missing):,} votes not published")
+    if votes_late:
+        counts.append(f"{len(votes_late):,} votes after the last version")
 
     with repo.fast_import() as stream:
         stream.commit(
             "main",
             merged,
-            f"Record {len(gaps):,} measures with no text in the {congress}th Congress\n"
+            f"Record what the {congress}th Congress's repository does not hold\n"
             "\n"
-            "BILLSTATUS lists them but links no bill text, so they have no\n"
-            "branch here. Stated rather than left as an unexplained absence.\n",
+            f"{'; '.join(counts)}. Stated rather than left as an\n"
+            "unexplained absence.\n",
         )
 
 
@@ -764,8 +982,13 @@ def _branch_number(branch: str) -> int:
     return int(tail) if tail.isdigit() else 0
 
 
-def gap_documents(congress: str, gaps: list[tuple[str, str, str]]) -> dict[str, str]:
-    """Render the record of measures that have no text.
+def gap_documents(
+    congress: str,
+    gaps: list[tuple[str, str, str]],
+    votes_missing: list[tuple[str, str, str]] | None = None,
+    votes_late: list[tuple[str, str, str]] | None = None,
+) -> dict[str, str]:
+    """Render the record of what this repository does not hold.
 
     A gap list is not always small. The 108th Congress has 8,755 of them, and
     the resulting table ran to nearly a megabyte of Markdown -- past the point
@@ -776,9 +999,17 @@ def gap_documents(congress: str, gaps: list[tuple[str, str, str]]) -> dict[str, 
     The link to that companion is emitted only in the branch that also writes
     it, so the document can never point at a file that is not there.
 
+    Sections are emitted only when they have something to report, so a Congress
+    with every vote retrievable does not carry a heading saying none are
+    missing.
+
     Args:
         congress: Congress number.
         gaps: ``(branch, citation, title)`` for each omitted measure.
+        votes_missing: ``(branch, citation, reason)`` for each vote named
+            upstream that the chamber does not publish.
+        votes_late: ``(branch, citation, detail)`` for each vote taken after
+            every dated version of its measure.
 
     Returns:
         Filename to contents.
@@ -790,54 +1021,148 @@ def gap_documents(congress: str, gaps: list[tuple[str, str, str]]) -> dict[str, 
         kind = branch.rsplit("-", 1)[0]
         counts[kind] = counts.get(kind, 0) + 1
 
-    lines = [
-        f"# Measures without text — {congress}th Congress",
-        "",
-        f"{len(ordered):,} measures are recorded in BILLSTATUS but have no bill text",
-        "linked in any of their `textVersions` entries, so they have no branch in",
-        "this repository.",
-        "",
-        "This is an upstream gap, not a build failure. It is heavily",
-        "concentrated in the older Congresses: govinfo's coverage of bill text",
-        "thins out before the 111th, and House organizing resolutions -- electing",
-        "officers, adopting rules -- generally carry no published text in any",
-        "Congress.",
-        "",
-        "## By measure type",
-        "",
-        "| Type | Without text |",
-        "|---|---|",
-        *(
-            f"| `{kind}` | {count:,} |"
-            for kind, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
-        ),
-        "",
-    ]
+    lines = [f"# What this repository does not hold — {congress}th Congress", ""]
+    documents: dict[str, str] = {}
+
+    if ordered:
+        lines += [
+            f"{len(ordered):,} measures are recorded in BILLSTATUS but have no bill text",
+            "linked in any of their `textVersions` entries, so they have no branch in",
+            "this repository.",
+            "",
+            "This is an upstream gap, not a build failure. It is heavily",
+            "concentrated in the older Congresses: govinfo's coverage of bill text",
+            "thins out before the 111th, and House organizing resolutions -- electing",
+            "officers, adopting rules -- generally carry no published text in any",
+            "Congress.",
+            "",
+            "## By measure type",
+            "",
+            "| Type | Without text |",
+            "|---|---|",
+            *(
+                f"| `{kind}` | {count:,} |"
+                for kind, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+            ),
+            "",
+        ]
+
+        def row(entry: tuple[str, str, str]) -> str:
+            _, citation, title = entry
+            return f"| `{citation}` | {(title or '(untitled)').replace('|', '/')} |"
+
+        if len(ordered) <= INLINE_GAP_LIMIT:
+            lines += ["## Every measure", "", "| Measure | Title |", "|---|---|"]
+            lines += [row(entry) for entry in ordered]
+        else:
+            shown = ordered[:GAP_SAMPLE]
+            lines += [
+                f"## The first {len(shown)}",
+                "",
+                f"The complete list of {len(ordered):,} is in [`GAPS.tsv`](GAPS.tsv), which",
+                "is tab-separated so it can be grepped and diffed without a Markdown",
+                "reader.",
+                "",
+                "| Measure | Title |",
+                "|---|---|",
+            ]
+            lines += [row(entry) for entry in shown]
+            documents["GAPS.tsv"] = "\n".join(
+                ["measure\ttitle", *(f"{c}\t{t or ''}" for _, c, t in ordered)]
+            ) + "\n"
+        lines.append("")
+
+    if votes_missing:
+        lines += _vote_gap_section(
+            "Roll-call votes that are not published where they are named",
+            [
+                f"{len(votes_missing):,} roll calls are named in a measure's BILLSTATUS",
+                "record, with a link to the chamber that took them, and the chamber does",
+                "not serve a document at that address. The measure's commits carry an",
+                "explicit marker where the vote would be, so a branch showing three votes",
+                "where the chamber took four does not read as a complete record.",
+                "",
+                "This is an upstream gap, not a build failure.",
+            ],
+            votes_missing,
+            "Reason",
+            documents,
+            "GAPS-votes.tsv",
+        )
+
+    if votes_late:
+        lines += _vote_gap_section(
+            "Roll-call votes taken after the last published text",
+            [
+                f"{len(votes_late):,} roll calls were taken later than the most recent",
+                "dated text version of their measure, so there is no commit for them to",
+                "sit on. Every record in this repository is the record *as of* the version",
+                "it accompanies -- see the caveat in the README -- and a vote cannot be",
+                "written onto text that predates it.",
+                "",
+                "This is a limit of the shape of this repository, not an upstream gap and",
+                "not a build failure. The votes themselves are published; they are listed",
+                "here with the address the chamber serves them from.",
+            ],
+            votes_late,
+            "Vote",
+            documents,
+            "GAPS-late-votes.tsv",
+        )
+
+    documents["GAPS.md"] = "\n".join(lines).rstrip() + "\n"
+    return documents
+
+
+def _vote_gap_section(
+    heading: str,
+    preamble: list[str],
+    entries: list[tuple[str, str, str]],
+    detail_header: str,
+    documents: dict[str, str],
+    companion: str,
+) -> list[str]:
+    """Render one conditional vote-gap section, moving a long list to a TSV.
+
+    Args:
+        heading: Section heading, without the ``##``.
+        preamble: Explanatory lines, stating what kind of absence this is.
+        entries: ``(branch, citation, detail)`` rows.
+        detail_header: Column header for the third field.
+        documents: Companion files, added to in place when the list is long.
+        companion: Name for the companion TSV.
+
+    Returns:
+        Markdown lines for the section.
+    """
+    ordered = sorted(
+        entries, key=lambda e: (e[0].rsplit("-", 1)[0], _branch_number(e[0]), e[1])
+    )
+    lines = [f"## {heading}", "", *preamble, ""]
 
     def row(entry: tuple[str, str, str]) -> str:
-        _, citation, title = entry
-        return f"| `{citation}` | {(title or '(untitled)').replace('|', '/')} |"
+        branch, citation, detail = entry
+        return f"| `{branch}` | {citation} | {detail.replace('|', '/')} |"
 
-    documents: dict[str, str] = {}
+    header = ["| Measure | Vote | " + detail_header + " |", "|---|---|---|"]
     if len(ordered) <= INLINE_GAP_LIMIT:
-        lines += ["## Every measure", "", "| Measure | Title |", "|---|---|"]
+        lines += header
         lines += [row(entry) for entry in ordered]
     else:
         shown = ordered[:GAP_SAMPLE]
         lines += [
-            f"## The first {len(shown)}",
+            f"The complete list of {len(ordered):,} is in [`{companion}`]({companion}),",
+            "which is tab-separated so it can be grepped and diffed without a",
+            "Markdown reader. The first few:",
             "",
-            f"The complete list of {len(ordered):,} is in [`GAPS.tsv`](GAPS.tsv), which",
-            "is tab-separated so it can be grepped and diffed without a Markdown",
-            "reader.",
-            "",
-            "| Measure | Title |",
-            "|---|---|",
+            *header,
         ]
         lines += [row(entry) for entry in shown]
-        documents["GAPS.tsv"] = "\n".join(
-            ["measure\ttitle", *(f"{c}\t{t or ''}" for _, c, t in ordered)]
+        documents[companion] = "\n".join(
+            [
+                "measure\tvote\t" + detail_header.lower(),
+                *(f"{b}\t{c}\t{d}" for b, c, d in ordered),
+            ]
         ) + "\n"
-
-    documents["GAPS.md"] = "\n".join(lines).rstrip() + "\n"
-    return documents
+    lines.append("")
+    return lines

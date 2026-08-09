@@ -235,12 +235,20 @@ PHASES: list[Phase] = [
         title="Roll-call votes",
         detail=(
             "How each member voted, on the commit for the version that was voted "
-            "on. Needs a Congress.gov API key, which nothing here reads yet — "
-            "everything built so far comes from govinfo. Produces no new "
-            "repository: it adds to the measures already built. Note that commit "
-            "messages are part of what a commit hashes, so filling them in "
-            "rewrites every affected branch, which is why it is its own phase "
-            "rather than a change to phase 2."
+            "on. **Not from the Congress.gov API**, which the plan assumed for "
+            "years and which cannot serve this corpus: its roll-call endpoint "
+            "covers the 118th and 119th Congresses and the House alone, against "
+            "twelve Congresses and both chambers. The votes come from the "
+            "chambers — `clerk.house.gov` and `senate.gov` — which BILLSTATUS "
+            "already links and neither of which is keyed, so this shipped "
+            "without adding a credential. The House publishes bioguide IDs, the "
+            "same ones sponsors carry; the Senate publishes only its own LIS "
+            "IDs, and that asymmetry is stated rather than crosswalked. "
+            "Produces no new repository: it adds to the measures already built. "
+            "Commit messages are part of what a commit hashes, so filling them "
+            "in rewrote every affected branch — 7,510 of 171,916 measures carry "
+            "a recorded vote, which is why that was a 4% rewrite and not a "
+            "whole-corpus one."
         ),
         state=PLANNED,
     ),

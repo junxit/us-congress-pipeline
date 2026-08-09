@@ -23,6 +23,7 @@ import pytest
 
 from uscongress.gitbuild import GitRepo
 from uscongress.jobs import bills, update
+from uscongress.jobs import votes as votes_job
 from uscongress.jobs.update import (
     OVERLAP,
     STALE_AFTER,
@@ -650,3 +651,180 @@ def test_publishing_without_a_credential_is_recorded_not_exited(
     assert load_state(state_path).last_run is not None
     # And the heartbeat must say so out loud.
     assert "GITHUB_TOKEN is empty" in status_path.read_text(encoding="utf-8")
+
+
+# --------------------------------------------------------------------------
+# Roll-call votes in the daily loop
+# --------------------------------------------------------------------------
+
+_ROLL_URL = "https://clerk.house.gov/evs/2026/roll042.xml"
+
+#: The engrossed text, published the day after the vote that produced it.
+_ENGROSSED_URL = (
+    "https://www.govinfo.gov/content/pkg/BILLS-119hr7283eh/xml/BILLS-119hr7283eh.xml"
+)
+
+#: The same measure, carrying the recorded vote BILLSTATUS nests inside an
+#: action, and the engrossed version that vote produced. The vote is stamped
+#: ``2026-02-12T01:30:00Z`` -- 8:30pm Eastern on the 11th -- and the Clerk dates
+#: it the 11th, so the two sources disagree about which day it belongs to.
+_STATUS_VOTED = _STATUS.replace(
+    b"<textVersions>",
+    (
+        "<actions><item><actionDate>2026-02-11</actionDate>"
+        "<text>Passed the House.</text><recordedVotes><recordedVote>"
+        "<rollNumber>42</rollNumber>"
+        f"<url>{_ROLL_URL}</url>"
+        "<chamber>House</chamber><congress>119</congress>"
+        "<date>2026-02-12T01:30:00Z</date><sessionNumber>2</sessionNumber>"
+        "</recordedVote></recordedVotes></item></actions><textVersions>"
+        "<item><type>Engrossed in House</type><date>2026-02-11T05:00:00Z</date>"
+        f"<formats><item><url>{_ENGROSSED_URL}</url></item></formats></item>"
+    ).encode(),
+)
+
+#: One House roll call, trimmed. The DOCTYPE is kept because it is the trap.
+_ROLL = (
+    '<?xml version="1.0" encoding="UTF-8"?>\r\n'
+    '<!DOCTYPE rollcall-vote PUBLIC "-//US Congress//DTDs/vote v1.0 20031119 //EN"'
+    ' "../vote.dtd">\r\n'
+    "<rollcall-vote><vote-metadata>"
+    "<congress>119</congress><session>2nd</session>"
+    "<chamber>U.S. House of Representatives</chamber>"
+    "<rollcall-num>42</rollcall-num><legis-num>H R 7283</legis-num>"
+    "<vote-question>On Passage</vote-question><vote-type>YEA-AND-NAY</vote-type>"
+    "<vote-result>Passed</vote-result><action-date>11-Feb-2026</action-date>"
+    '<action-time time-etz="20:30">8:30 PM</action-time>'
+    "<vote-totals><totals-by-vote><total-stub>Totals</total-stub>"
+    "<yea-total>1</yea-total><nay-total>1</nay-total>"
+    "<present-total>0</present-total><not-voting-total>0</not-voting-total>"
+    "</totals-by-vote></vote-totals></vote-metadata><vote-data>"
+    '<recorded-vote><legislator name-id="A000055" unaccented-name="Aderholt"'
+    ' party="R" state="AL">Aderholt</legislator><vote>Yea</vote></recorded-vote>'
+    '<recorded-vote><legislator name-id="B000213" unaccented-name="Bishop"'
+    ' party="D" state="GA">Bishop</legislator><vote>Nay</vote></recorded-vote>'
+    "</vote-data></rollcall-vote>"
+).encode()
+
+
+class _UpstreamWithVote(_Upstream):
+    """govinfo and the House Clerk, serving one measure that was voted on."""
+
+    async def get_bytes(self, url: str) -> bytes:
+        self.fetched.append(url)
+        if url == _ROLL_URL:
+            return _ROLL
+        return _TEXT if "/BILLS-" in url else _STATUS_VOTED
+
+
+def test_a_measure_with_a_vote_still_reaches_a_fixed_point(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Votes must not be what makes the daily loop churn.
+
+    The window overlaps by an hour, so every measure is reprocessed constantly
+    and a rebuild of unchanged data has to land on the identical commit. Votes
+    add a second upstream and a whole directory to the tree, and any ordering
+    or timestamp that leaked in from the fetch would show up here as a
+    repository growing a commit a day for ever.
+    """
+    state_path, status_path = _pinned(monkeypatch, tmp_path)
+    monkeypatch.setattr(votes_job.config, "RAW_DIR", tmp_path / "raw")
+    upstream = _UpstreamWithVote()
+    since = datetime(2026, 8, 1, tzinfo=UTC)
+
+    first = asyncio.run(
+        update.run(
+            upstream, since=since, state_path=state_path,
+            status_path=status_path, code=False,
+        )
+    )
+    repo = GitRepo(tmp_path / "repos" / "us-congress-bills-119")
+    after_first = repo.ref_map()
+
+    second = asyncio.run(
+        update.run(
+            upstream, since=since, state_path=state_path,
+            status_path=status_path, code=False,
+        )
+    )
+
+    assert first.rebuilt == {"119": ["hr-7283"]}
+    assert second.measures_changed == 0
+    assert second.unchanged == 1
+    assert after_first == repo.ref_map()
+    # Introduced and engrossed, and no third commit from the second run.
+    assert repo._run("rev-list", "--count", "hr-7283").strip() == "2"  # noqa: SLF001
+
+
+def test_the_vote_lands_in_the_tree_and_the_commit_message(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """The daily loop is where most measures will first gain their votes."""
+    state_path, status_path = _pinned(monkeypatch, tmp_path)
+    monkeypatch.setattr(votes_job.config, "RAW_DIR", tmp_path / "raw")
+
+    asyncio.run(
+        update.run(
+            _UpstreamWithVote(), since=datetime(2026, 8, 1, tzinfo=UTC),
+            state_path=state_path, status_path=status_path, code=False,
+        )
+    )
+    repo = GitRepo(tmp_path / "repos" / "us-congress-bills-119")
+
+    assert "votes/house-119-2-0042.md" in repo.list_files("hr-7283")
+    message = repo._run("log", "-1", "--format=%B", "hr-7283")  # noqa: SLF001
+    assert "Roll-Call: House 119-2-42 2026-02-11 Passed 1-1" in message
+
+
+def test_a_vote_is_dated_by_the_chamber_not_by_the_billstatus_stamp(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """BILLSTATUS says 2026-02-12T01:30Z; the Clerk says 11 February.
+
+    Both describe the same moment -- 8:30pm Eastern on the 11th. Taking the day
+    off the UTC stamp would date the vote to the 12th, put it after a version
+    published on the 11th instead of before, and move it onto a different
+    commit. This is the live end-to-end form of the trap; 60 of 814 distinct
+    vote stamps in the 113th Congress fall in that window.
+    """
+    state_path, status_path = _pinned(monkeypatch, tmp_path)
+    monkeypatch.setattr(votes_job.config, "RAW_DIR", tmp_path / "raw")
+
+    asyncio.run(
+        update.run(
+            _UpstreamWithVote(), since=datetime(2026, 8, 1, tzinfo=UTC),
+            state_path=state_path, status_path=status_path, code=False,
+        )
+    )
+    repo = GitRepo(tmp_path / "repos" / "us-congress-bills-119")
+    message = repo._run("log", "-1", "--format=%B", "hr-7283")  # noqa: SLF001
+
+    assert "2026-02-11" in message
+    assert "2026-02-12" not in message
+
+
+def test_the_heartbeat_can_be_written_somewhere_other_than_the_tracked_copy(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """A local run must not leave the published heartbeat in the working tree.
+
+    ``STATUS.md`` is tracked, and the scheduled workflow commits whatever it
+    finds there. Before this was reachable from the command line, running the
+    job locally to refresh a cache rewrote the heartbeat with the local run's
+    outcome, and the next CI run published it as though it were the loop's.
+    """
+    state_path, status_path = _pinned(monkeypatch, tmp_path)
+    tracked = tmp_path / "tracked-STATUS.md"
+    tracked.write_text("the published heartbeat\n", encoding="utf-8")
+    monkeypatch.setattr(update, "STATUS_PATH", tracked)
+
+    asyncio.run(
+        update.run(
+            _Upstream(), since=datetime(2026, 8, 1, tzinfo=UTC),
+            state_path=state_path, status_path=status_path, code=False,
+        )
+    )
+
+    assert status_path.is_file()
+    assert tracked.read_text(encoding="utf-8") == "the published heartbeat\n"

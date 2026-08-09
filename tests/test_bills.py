@@ -14,10 +14,12 @@ from datetime import date
 
 import pytest
 
+from uscongress import votes as votes_text
 from uscongress.gitbuild import GitRepo
 from uscongress.jobs.bills import (
     Committee,
     Measure,
+    _account_votes,
     _fetch_cached,
     _write_gaps,
     branch_of,
@@ -26,6 +28,7 @@ from uscongress.jobs.bills import (
     commit_message,
     metadata_markdown,
     parse_status,
+    vote_documents,
 )
 
 _URL = "https://www.govinfo.gov/content/pkg/BILLS-113hr588{code}/xml/BILLS-113hr588{code}.xml"
@@ -509,3 +512,242 @@ def test_writing_gaps_preserves_the_readme_and_license(tmp_path) -> None:
     _write_gaps(repo, "113", _gaps(3))
 
     assert sorted(repo.read_tree("main")) == ["GAPS.md", "LICENSE", "README.md"]
+
+
+# --------------------------------------------------------------------------
+# Roll-call votes
+# --------------------------------------------------------------------------
+
+
+def _roll(
+    number: int = 129,
+    chamber: str = votes_text.HOUSE,
+    when: date | None = date(2013, 5, 6),
+    result: str = "Passed",
+    yeas: int = 2,
+    nays: int = 1,
+) -> votes_text.RollCall:
+    """One roll call, already fetched and parsed."""
+    positions = [
+        votes_text.MemberVote(f"Y{i:06d}", "bioguide", f"Yes{i}", "R", "AL", "Yea")
+        for i in range(yeas)
+    ] + [
+        votes_text.MemberVote(f"N{i:06d}", "bioguide", f"No{i}", "D", "GA", "Nay")
+        for i in range(nays)
+    ]
+    return votes_text.RollCall(
+        chamber=chamber,
+        congress="113",
+        session="1",
+        number=number,
+        when=when,
+        question="On Motion to Suspend the Rules and Pass",
+        description="Vietnam Veterans Donor Acknowledgment Act",
+        result=result,
+        vote_type="2/3 YEA-AND-NAY",
+        measure="hr-588",
+        positions=tuple(positions),
+        reported={"yea": yeas, "nay": nays, "present": 0, "not_voting": 0},
+    )
+
+
+def _reference(
+    number: int = 130, when: date | None = date(2013, 5, 7)
+) -> votes_text.RecordedVote:
+    """One vote BILLSTATUS names but the chamber does not publish."""
+    return votes_text.RecordedVote(
+        chamber=votes_text.HOUSE,
+        congress="113",
+        session="1",
+        number=number,
+        url=f"https://clerk.house.gov/evs/2013/roll{number}.xml",
+        when=when,
+    )
+
+
+def test_a_measure_with_no_votes_renders_byte_for_byte_as_it_did_before() -> None:
+    """Only 7,510 of 171,916 measures carry a recorded vote.
+
+    The other 164,406 must render to the bytes they already have on GitHub. A
+    commit's message and tree are what it hashes, so a stray space added to the
+    voteless case would change every SHA in the corpus and turn a 7,510-branch
+    correction into a 160,190-branch one -- and the daily loop would then
+    rewrite and force-push every measure it touched for months.
+    """
+    version = TextVersion(
+        "Introduced in House", date(2013, 2, 6), _URL.format(code="ih"), "ih"
+    )
+    measure = _measure(versions=(version,))
+
+    assert commit_message(measure, version) == (
+        "H.R. 588 Introduced in House\n"
+        "\n"
+        "Vietnam Veterans Donor Acknowledgment Act of 2013\n"
+        "\n"
+        "Version:  Introduced in House (ih)\n"
+        "Date:     2013-02-06\n"
+        "Congress: 113\n"
+        "\n"
+        f"Source: {_URL.format(code='ih')}\n"
+        "\n"
+        "Sponsored-By: Y000033\n"
+        "Cosponsor-Count: 1\n"
+    )
+    assert vote_documents(measure, version) == {}
+    assert "Recorded votes" not in metadata_markdown(measure, version)
+
+
+def test_a_vote_does_not_appear_on_text_that_predates_it() -> None:
+    """The introduced version of a measure has not been voted on.
+
+    Every record on a commit here is the record as of that version -- the rule
+    cosponsors, committees and actions already follow. Writing the passage vote
+    onto the introduced text would have the commit contradict the two commits
+    that come after it.
+    """
+    introduced = TextVersion("Introduced in House", date(2013, 2, 6), "u", "ih")
+    engrossed = TextVersion("Engrossed in House", date(2013, 5, 6), "u", "eh")
+    measure = _measure(versions=(introduced, engrossed), rolls=(_roll(),))
+
+    assert "Roll-Call:" not in commit_message(measure, introduced)
+    assert vote_documents(measure, introduced) == {}
+
+    assert "Roll-Call: House 113-1-129 2013-05-06 Passed 2-1" in commit_message(
+        measure, engrossed
+    )
+    assert sorted(vote_documents(measure, engrossed)) == ["votes/house-113-1-0129.md"]
+
+
+def test_a_vote_is_written_again_on_every_later_commit() -> None:
+    """fast-import's ``deleteall`` sets a commit's whole tree.
+
+    A file present two commits ago and not re-emitted here is deleted by this
+    commit, so the enrolled bill would show the measure's earlier votes
+    vanishing one at a time as it progressed.
+    """
+    engrossed = TextVersion("Engrossed in House", date(2013, 5, 6), "u", "eh")
+    enrolled = TextVersion("Enrolled Bill", date(2013, 6, 17), "u", "enr")
+    measure = _measure(versions=(engrossed, enrolled), rolls=(_roll(),))
+
+    assert vote_documents(measure, enrolled) == vote_documents(measure, engrossed)
+
+
+def test_votes_are_ordered_by_date_not_by_roll_call_number() -> None:
+    """The chambers number independently, so numbers interleave nonsensically.
+
+    Senate roll 5 in March and House roll 400 in July sort the wrong way round
+    by number, and the trailers would then contradict the dates beside them.
+    """
+    final = TextVersion("Enrolled Bill", date(2013, 8, 1), "u", "enr")
+    measure = _measure(
+        versions=(final,),
+        rolls=(
+            _roll(number=400, chamber=votes_text.HOUSE, when=date(2013, 7, 1)),
+            _roll(number=5, chamber=votes_text.SENATE, when=date(2013, 3, 1)),
+        ),
+    )
+
+    trailers = [
+        line for line in commit_message(measure, final).splitlines()
+        if line.startswith("Roll-Call:")
+    ]
+    assert trailers == [
+        "Roll-Call: Senate 113-1-5 2013-03-01 Passed 2-1",
+        "Roll-Call: House 113-1-400 2013-07-01 Passed 2-1",
+    ]
+
+
+def test_a_vote_that_cannot_be_fetched_is_marked_rather_than_dropped() -> None:
+    """A branch showing three votes where the chamber took four reads complete.
+
+    The marker is what makes the difference visible on the commit itself, which
+    matters more than the GAPS.md total: nobody reading one measure's history
+    goes and checks the repository's gap record first.
+    """
+    final = TextVersion("Enrolled Bill", date(2013, 6, 17), "u", "enr")
+    measure = _measure(
+        versions=(final,),
+        rolls=(_roll(),),
+        votes_unavailable=((_reference(), "HTTP 404"),),
+    )
+
+    message = commit_message(measure, final)
+    assert "Roll-Call: House 113-1-129 2013-05-06 Passed 2-1" in message
+    assert "Roll-Call: House 113-1-130 2013-05-07 not-retrievable" in message
+
+    text = metadata_markdown(measure, final)
+    assert "## Recorded votes (2)" in text
+    assert "**not retrievable**" in text
+
+
+def test_a_vote_taken_after_the_last_dated_version_is_recorded_as_a_gap() -> None:
+    """There is no commit for such a vote to sit on, and that has to be said.
+
+    A measure whose final vote came after its last published text keeps that
+    vote nowhere. It is a limit of the shape of this repository rather than an
+    upstream gap, and either way it is not something to leave to be discovered.
+    """
+    version = TextVersion("Engrossed in House", date(2013, 5, 6), "u", "eh")
+    measure = _measure(
+        versions=(version,),
+        rolls=(_roll(), _roll(number=400, when=date(2013, 9, 1))),
+    )
+
+    missing: list[tuple[str, str, str]] = []
+    late: list[tuple[str, str, str]] = []
+    _account_votes(measure, missing, late)
+
+    assert missing == []
+    assert [entry[1] for entry in late] == ["House 113-1-400"]
+    assert "after the last dated version" in late[0][2]
+
+
+def test_the_gap_document_names_a_vote_category_only_when_it_occurs() -> None:
+    """A Congress with every vote retrievable carries no heading saying so.
+
+    The Record's gap document established this: an empty section reads as a
+    finding, and thirteen repositories each reporting nothing missing is noise
+    that buries the ones that do.
+    """
+    quiet = gap_documents("113", _gaps(2))["GAPS.md"]
+    assert "not published where they are named" not in quiet
+    assert "taken after the last published text" not in quiet
+
+    noisy = gap_documents(
+        "113",
+        _gaps(2),
+        votes_missing=[("hr-1", "House 113-1-130", "HTTP 404")],
+        votes_late=[("hr-2", "Senate 113-2-5", "2014-01-01, after 2013-12-01")],
+    )["GAPS.md"]
+    assert "## Roll-call votes that are not published where they are named" in noisy
+    assert "## Roll-call votes taken after the last published text" in noisy
+    assert "`hr-1` | House 113-1-130" in noisy
+
+
+def test_a_long_vote_gap_list_moves_to_its_own_companion() -> None:
+    """The same threshold the measure list uses, for the same reason."""
+    documents = gap_documents(
+        "113",
+        [],
+        votes_late=[
+            (f"hr-{i}", f"House 113-1-{i}", "after the last version")
+            for i in range(1, 400)
+        ],
+    )
+
+    assert sorted(documents) == ["GAPS-late-votes.tsv", "GAPS.md"]
+    assert documents["GAPS-late-votes.tsv"].count("\n") == 400  # header + 399
+    assert "GAPS-late-votes.tsv" in documents["GAPS.md"]
+
+
+def test_the_gap_document_still_reports_measures_with_no_text() -> None:
+    """The vote sections are additions, not a replacement.
+
+    The 108th's 8,755 textless measures are still the largest thing this
+    document has to explain.
+    """
+    text = gap_documents("108", _gaps(3))["GAPS.md"]
+
+    assert "108th Congress" in text
+    assert "upstream gap, not a build failure" in text
+    assert "## By measure type" in text

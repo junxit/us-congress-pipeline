@@ -94,15 +94,17 @@ def metadata_for(name: str) -> Metadata:
     congress = _congress_of(name)
 
     if name == PIPELINE_REPO:
-        # Votes are named as planned, not as present. They were advertised here
-        # as a feature before they existed, and a description is the one thing a
-        # reader sees before deciding to click, so it is the worst place in the
-        # project to overstate what is there. Phase 8 tracks the actual work.
+        # Votes were advertised here as a feature before they existed, and a
+        # description is the one thing a reader sees before deciding to click,
+        # so it is the worst place in the project to overstate what is there.
+        # They are named as present now because phase 8 shipped and the roll
+        # calls are in the repositories; the same rule says amendment execution
+        # stays unnamed until phase 7 does.
         description = (
             "ETL that mirrors the workings of the US Congress as git repositories: "
             "federal law with its history as commits, every bill as a branch, and "
-            "sponsors, cosponsors, committees and actions recorded as of each "
-            "version. Updated daily. Roll-call votes planned."
+            "sponsors, cosponsors, committees, actions and roll-call votes recorded "
+            "as of each version. Updated daily."
         )
         topics = (*COMMON_TOPICS, "etl", "python", "data-pipeline", "uslm", "us-code")
         homepage = ""
