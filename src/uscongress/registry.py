@@ -248,17 +248,18 @@ PHASES: list[Phase] = [
         number=9,
         title="Hand the daily loop its own credentials",
         detail=(
-            "**The schedule is paused until this lands.** Phase 3 built the loop "
-            "and proved it against live data, but the token GitHub injects into a "
-            "workflow is scoped to the repository running it: enough to commit the "
-            "heartbeat here, not enough to push the thirteen data repositories. "
-            "That needs a `DATA_REPO_TOKEN` secret carrying Contents: read/write "
-            "on the `junxit` repositories, which has to be minted by hand. Then "
-            "`gh workflow enable update`. Tracked as a phase rather than a note "
-            "because an unattended loop that nobody turned on is the same silent "
-            "failure as one that stopped."
+            "The schedule is live. The token GitHub injects into a workflow run "
+            "is scoped to the repository running it — enough to commit the "
+            "heartbeat, not enough to push the 30 data repositories — so the loop "
+            "carries a `DATA_REPO_TOKEN` of its own: a fine-grained token with "
+            "Contents: read/write on the `us-congress-*` repositories and nothing "
+            "else, minted by hand because no API can create one. Proved by a real "
+            "run rather than a green tick: 544 measures checked, 82 branches "
+            "rebuilt and published, the watermark advanced and the heartbeat "
+            "written. Tracked as a phase rather than a note because an unattended "
+            "loop nobody turned on is the same silent failure as one that stopped."
         ),
-        state=PLANNED,
+        state=DONE,
     ),
 ]
 

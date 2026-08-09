@@ -3,12 +3,12 @@
 Every repository in this project, what it holds, and whether it exists yet,
 and the plan the whole thing is being built to.
 
-**Generated** 2026-08-09 07:32 UTC by `uv run uscongress index`. Do not edit by hand —
+**Generated** 2026-08-09 13:45 UTC by `uv run uscongress index`. Do not edit by hand —
 the source of truth is `src/uscongress/registry.py`.
 
 ## Roadmap
 
-7 of 10 phases shipped. Phases 3, 4, 7, 8 and 9 produce no repository
+8 of 10 phases shipped. Phases 3, 4, 7, 8 and 9 produce no repository
 of their own — they add to repositories built earlier — which is why the
 repository table below skips those numbers.
 
@@ -23,7 +23,7 @@ repository table below skips those numbers.
 | 6 | **The Congressional Record**<br>Floor proceedings, 17 shards from the 103rd to the 119th: 9,382 issue days and 1,330,322 documents, one commit per issue day, with the daily and bound editions on separate branches. **The machine-readable Record begins in 1994, not 1873**: of 2,420 bound-edition packages, the 2,083 covering 1873–1998 are scanned page images whose granules offer a PDF and no `txtLink` at all, so that century is unbuildable rather than merely unbuilt — measured against `GPO-CRECB-1947-pt1` and `GPO-CRECB-1970-pt2`. The bound edition also stops at 2018, which is why the 116th onward carry a `daily` branch and no `bound`. | **shipped** | `us-congress-record-{congress}` |
 | 7 | **Experimental amendment execution**<br>What a bill would do to existing law, under `derived/` and never authoritative. Measured across seven real bills only ~49% of amendatory instructions carry a machine-readable US Code reference, and a large bill would need ~99.99% per-instruction accuracy to come out wholly correct, so the output is marked derived and unapplied instructions are stated rather than guessed at. | planned | — |
 | 8 | **Roll-call votes**<br>How each member voted, on the commit for the version that was voted on. Needs a Congress.gov API key, which nothing here reads yet — everything built so far comes from govinfo. Produces no new repository: it adds to the measures already built. Note that commit messages are part of what a commit hashes, so filling them in rewrites every affected branch, which is why it is its own phase rather than a change to phase 2. | planned | — |
-| 9 | **Hand the daily loop its own credentials**<br>**The schedule is paused until this lands.** Phase 3 built the loop and proved it against live data, but the token GitHub injects into a workflow is scoped to the repository running it: enough to commit the heartbeat here, not enough to push the thirteen data repositories. That needs a `DATA_REPO_TOKEN` secret carrying Contents: read/write on the `junxit` repositories, which has to be minted by hand. Then `gh workflow enable update`. Tracked as a phase rather than a note because an unattended loop that nobody turned on is the same silent failure as one that stopped. | planned | — |
+| 9 | **Hand the daily loop its own credentials**<br>The schedule is live. The token GitHub injects into a workflow run is scoped to the repository running it — enough to commit the heartbeat, not enough to push the 30 data repositories — so the loop carries a `DATA_REPO_TOKEN` of its own: a fine-grained token with Contents: read/write on the `us-congress-*` repositories and nothing else, minted by hand because no API can create one. Proved by a real run rather than a green tick: 544 measures checked, 82 branches rebuilt and published, the watermark advanced and the heartbeat written. Tracked as a phase rather than a note because an unattended loop nobody turned on is the same silent failure as one that stopped. | **shipped** | — |
 
 Phases 5 and 6 are independent of everything above and of each other, so
 they can be reordered or run in parallel now that the daily loop is

@@ -232,16 +232,6 @@ what actually happened.
 
 ## Staying alive
 
-> [!IMPORTANT]
-> **The schedule is paused as of 2026-08-07**, pending a `DATA_REPO_TOKEN` repository
-> secret. The workflow token GitHub injects is scoped to the repository running it, so it
-> can commit the heartbeat here but cannot push to the thirteen data repositories; that
-> needs a credential with **Contents: read/write** on the `junxit` repositories.
->
-> Re-enable with `gh workflow enable update` once it is set. This note is here because a
-> disabled schedule raises nothing and notifies nobody — it is the exact failure the rest
-> of this section is built to prevent, so it does not get to be silent either.
-
 `uv run uscongress update` is the daily job, and it runs in
 [`.github/workflows/update.yml`](.github/workflows/update.yml) rather than on a machine
 somewhere, because the run history of a public workflow is itself a liveness record that
@@ -272,6 +262,16 @@ re-fetching is cheap while missing a bill is not.
 
 Committing the heartbeat also keeps the schedule alive: GitHub disables a scheduled workflow
 after 60 days without repository activity, and the job's own output is what prevents that.
+
+**The credential is scoped to the repositories that existed when it was made.**
+`DATA_REPO_TOKEN` is a fine-grained token carrying **Contents: read/write** on the
+`us-congress-*` repositories and nothing else, so a compromised workflow can push data and
+do nothing more. It does not expire. The one thing it cannot do is reach a repository
+created after it: when the 120th Congress convenes and `update` builds
+`us-congress-bills-120`, the push will fail until that repository is added to the token's
+list. That fails loudly — the run fails, GitHub notifies, the heartbeat records it, and the
+watermark holds so nothing is skipped — which is the intended shape of the error rather
+than a surprise to debug.
 
 **New US Code release points are reported, not built.** A release point is a full snapshot of
 ~60,000 files built against the one before it — the guard that stops a truncated archive
