@@ -203,15 +203,18 @@ PHASES: list[Phase] = [
         number=6,
         title="The Congressional Record",
         detail=(
-            "Floor proceedings, sharded by Congress and linked to bill branches "
-            "by metadata. Independent of phase 5. **The machine-readable Record "
-            "begins in 1994, not 1873**: of 2,420 bound-edition packages, the "
-            "2,083 covering 1873–1998 are scanned page images whose granules "
-            "offer a PDF and no `txtLink` at all, so that century is unbuildable "
-            "rather than merely unbuilt — measured against "
-            "`GPO-CRECB-1947-pt1` and `GPO-CRECB-1970-pt2`."
+            "Floor proceedings, 17 shards from the 103rd to the 119th: 9,382 "
+            "issue days and 1,330,322 documents, one commit per issue day, with "
+            "the daily and bound editions on separate branches. **The "
+            "machine-readable Record begins in 1994, not 1873**: of 2,420 "
+            "bound-edition packages, the 2,083 covering 1873–1998 are scanned "
+            "page images whose granules offer a PDF and no `txtLink` at all, so "
+            "that century is unbuildable rather than merely unbuilt — measured "
+            "against `GPO-CRECB-1947-pt1` and `GPO-CRECB-1970-pt2`. The bound "
+            "edition also stops at 2018, which is why the 116th onward carry a "
+            "`daily` branch and no `bound`."
         ),
-        state=PLANNED,
+        state=DONE,
         produces="us-congress-record-{congress}",
     ),
     Phase(

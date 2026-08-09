@@ -290,17 +290,25 @@ def test_the_heartbeat_leads_with_the_date(tmp_path: Path) -> None:
     "Last updated 3 weeks ago" on a public front page is legible to a stranger
     who knows nothing about this project, which is the only signal that
     survives the job's own death.
+
+    The timestamp is relative on purpose. This test first pinned an absolute
+    2026-08-07 and asserted the heartbeat read *current*, which is only true
+    while that date sits inside the two-day staleness window -- so it passed
+    when written and failed two days later, for no reason connected to the code.
+    A test of "does a recent success read as current" has to date itself
+    recently.
     """
+    recent = datetime.now(UTC) - timedelta(hours=6)
     state = State(
-        last_success=datetime(2026, 8, 7, 4, 0, tzinfo=UTC),
-        last_run=datetime(2026, 8, 7, 4, 0, tzinfo=UTC),
+        last_success=recent,
+        last_run=recent,
         last_outcome="ok",
         measures={"119": ["hr-7283", "s-1"]},
     )
     text = render_status(state, _result())
 
     assert text.startswith("# Status\n")
-    assert "**Last successful update — 2026-08-07 04:00 UTC**" in text
+    assert f"**Last successful update — {recent.strftime('%Y-%m-%d %H:%M UTC')}**" in text
     assert "| **Heartbeat** | current |" in text
     assert "`hr-7283`" in text
 

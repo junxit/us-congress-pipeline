@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from uscongress.jobs import artifacts
 from uscongress.jobs.index import _roadmap
-from uscongress.registry import PHASES, REPOSITORIES, Phase, phase_of
+from uscongress.registry import PHASES, REPOSITORIES, Phase, Repository, phase_of
 
 
 def test_every_phase_of_the_plan_is_present() -> None:
@@ -104,12 +104,35 @@ def test_repository_state_comes_from_the_roadmap_not_the_disk() -> None:
     Deriving "has this phase shipped" from what happens to be on this machine
     reports a shipped phase as planned on any machine that has not built it,
     and that answer is then published into all fourteen repositories at once.
-    """
-    shipped = next(r for r in REPOSITORIES if r.name == "us-congress-code")
-    planned = next(r for r in REPOSITORIES if "record" in r.name)
 
-    assert artifacts._status_of(shipped, built=set()) == "built"  # noqa: SLF001
-    assert artifacts._status_of(planned, built=set()) == "planned"  # noqa: SLF001
+    Both cases are constructed rather than picked out of ``REPOSITORIES``. The
+    planned one used to be whichever repository happened not to be built yet,
+    which meant the test broke every time a phase shipped -- first when the
+    Statutes at Large landed, then again when the Congressional Record did, at
+    which point no unshipped repository was left to point at. What is being
+    tested is the mapping from phase state to phrase, not the state of the
+    roadmap on the day it runs.
+    """
+    shipped = Repository(
+        name="us-congress-code", summary="s", source="x", phase=1
+    )
+    planned = Repository(
+        name="us-congress-record-{congress}", summary="s", source="x", phase=6
+    )
+    done = Phase(1, "t", "d", "done")
+    todo = Phase(6, "t", "d", "planned")
+
+    def status(repo, phase):
+        monkey = {1: done, 6: todo}[repo.phase]
+        original = artifacts.phase_of
+        artifacts.phase_of = lambda n: monkey  # noqa: ARG005
+        try:
+            return artifacts._status_of(repo, built=set())  # noqa: SLF001
+        finally:
+            artifacts.phase_of = original
+
+    assert status(shipped, done) == "built"
+    assert status(planned, todo) == "planned"
 
 
 def test_a_shard_family_reports_what_is_actually_there() -> None:
