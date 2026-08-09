@@ -18,6 +18,7 @@ The fixtures are trimmed from the real documents those facts come from:
 
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
 from datetime import date
 
 import pytest
@@ -132,7 +133,7 @@ def _senator(
     )
 
 
-def _billstatus(recorded: str) -> "object":
+def _billstatus(recorded: str) -> ET.Element:
     """A ``<bill>`` element carrying actions, for the reference reader."""
     return fromstring(f"<billStatus><bill>{recorded}</bill></billStatus>").find("bill")
 

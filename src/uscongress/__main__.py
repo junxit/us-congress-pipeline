@@ -386,9 +386,9 @@ def main(argv: list[str] | None = None) -> int:
 
                 token = ""
                 if args.publish:
-                    import os
+                    from . import config
 
-                    token = os.environ.get("GITHUB_TOKEN", "").strip()
+                    token = config.github_token()
 
                 result = await update_job.run(
                     client,
@@ -429,8 +429,7 @@ def main(argv: list[str] | None = None) -> int:
         return asyncio.run(_update())
 
     if args.command == "republish":
-        import os
-
+        from . import config
         from .jobs import bills as bills_job
         from .jobs import republish as republish_job
 
@@ -442,7 +441,7 @@ def main(argv: list[str] | None = None) -> int:
         if not names:
             names = [f"{bills_job.REPO_PREFIX}-{c}" for c in range(108, 120)]
 
-        token = "" if args.dry_run else os.environ.get("GITHUB_TOKEN", "").strip()
+        token = "" if args.dry_run else config.github_token()
         if not args.dry_run and not token:
             parser.error(
                 "republish needs GITHUB_TOKEN to push; use --dry-run to compare only"

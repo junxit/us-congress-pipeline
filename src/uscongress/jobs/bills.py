@@ -33,7 +33,8 @@ from pathlib import Path
 
 from defusedxml.ElementTree import fromstring as _safe_fromstring
 
-from .. import config, votes as votes_text
+from .. import config
+from .. import votes as votes_text
 from ..billtext import render_bill
 from ..gitbuild import GitRepo
 from ..govinfo import GovInfoClient

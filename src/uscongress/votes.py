@@ -645,8 +645,10 @@ def roll_markdown(roll: RollCall) -> str:
         f"date: {roll.when.isoformat() if roll.when else '(not recorded)'}",
         "---",
         "",
-        f"# {roll.chamber} Roll Call {roll.number}"
-        f" — {roll.congress}th Congress, session {roll.session}",
+        (
+            f"# {roll.chamber} Roll Call {roll.number}"
+            f" — {roll.congress}th Congress, session {roll.session}"
+        ),
         "",
     ]
     if roll.question:
@@ -690,16 +692,20 @@ def roll_markdown(roll: RollCall) -> str:
     kinds = {p.id_kind for p in roll.positions if p.id_kind}
     if kinds == {"bioguide"}:
         lines += [
-            "Members are identified by bioguide ID, as the Clerk publishes them"
-            " — the same identifier the `Sponsored-By:` trailer uses.",
+            (
+                "Members are identified by bioguide ID, as the Clerk publishes"
+                " them — the same identifier the `Sponsored-By:` trailer uses."
+            ),
             "",
         ]
     elif kinds == {"lis"}:
         lines += [
-            "Members are identified by the Senate's own LIS member ID, which is"
-            " what senate.gov publishes. It is **not** the bioguide ID used by"
-            " sponsors and by House votes; the Senate publishes no bioguide ID"
-            " and none is inferred here.",
+            (
+                "Members are identified by the Senate's own LIS member ID, which"
+                " is what senate.gov publishes. It is **not** the bioguide ID"
+                " used by sponsors and by House votes; the Senate publishes no"
+                " bioguide ID and none is inferred here."
+            ),
             "",
         ]
 

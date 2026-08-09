@@ -78,6 +78,27 @@ def _load_dotenv(path: Path) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip("'\""))
 
 
+def github_token() -> str:
+    """Return the GitHub credential used to push the generated repositories.
+
+    Checks the environment first, then ``.env`` at the repo root, which is the
+    same order :func:`govinfo_api_key` uses. Reading ``os.environ`` directly --
+    which is what the CLI used to do -- worked only because a ``GovInfoClient``
+    happened to be constructed first and loaded ``.env`` as a side effect. That
+    ordering was incidental, and it did not hold for a command that pushes
+    without fetching anything.
+
+    Returns:
+        The token, or an empty string when none is configured. Empty is not an
+        error here: a missing credential has to be reported by the caller that
+        knows whether publishing was actually asked for, so that the heartbeat
+        records the failure rather than the process exiting before it is
+        written. See :func:`uscongress.jobs.update.run`.
+    """
+    _load_dotenv(REPO_ROOT / ".env")
+    return os.environ.get("GITHUB_TOKEN", "").strip()
+
+
 def govinfo_api_key() -> str:
     """Return the govinfo API key.
 
