@@ -30,6 +30,8 @@ from datetime import date
 
 from defusedxml.ElementTree import fromstring as _safe_fromstring
 
+from .members import bioguide_for
+
 #: Chamber names, spelled as BILLSTATUS spells them in ``<chamber>``.
 HOUSE = "House"
 SENATE = "Senate"
@@ -191,6 +193,13 @@ class MemberVote:
         state: Two-letter state code.
         cast: The vote as published -- ``Yea``, ``Aye``, ``Not Voting`` -- kept
             verbatim rather than normalized.
+        bioguide: The bioguide identifier. For a House member this is what the
+            Clerk published, so it equals :attr:`member_id`. For a senator it is
+            **added** from the vendored crosswalk in
+            :mod:`uscongress.members`, because the Senate publishes no bioguide
+            ID -- and it is empty when that crosswalk's surname or state does
+            not agree with this document. Rendered as its own column so a
+            reader can tell what was published from what was joined.
     """
 
     member_id: str
@@ -199,6 +208,7 @@ class MemberVote:
     party: str
     state: str
     cast: str
+    bioguide: str = ""
 
     @property
     def bucket(self) -> str:
@@ -492,6 +502,7 @@ def parse_house(xml_bytes: bytes) -> RollCall:
                 # the `Sponsored-By:` trailer without a crosswalk.
                 member_id=_attr(legislator, "name-id"),
                 id_kind="bioguide" if _attr(legislator, "name-id") else "",
+                bioguide=_attr(legislator, "name-id"),
                 name=(legislator.text or "").strip()
                 or _attr(legislator, "unaccented-name"),
                 party=_attr(legislator, "party"),
@@ -554,10 +565,15 @@ def parse_senate(xml_bytes: bytes) -> RollCall:
     positions = []
     for member in root.findall(".//members/member"):
         identifier = _find_text(member, "lis_member_id")
+        full = _find_text(member, "member_full")
+        state = _find_text(member, "state")
         positions.append(
             MemberVote(
                 member_id=identifier,
                 id_kind="lis" if identifier else "",
+                # Added, not published. The gate refuses a row whose surname or
+                # state disagrees with this document; see `members.bioguide_for`.
+                bioguide=bioguide_for(identifier, full, state),
                 name=_find_text(member, "member_full")
                 or " ".join(
                     part
@@ -702,12 +718,48 @@ def roll_markdown(roll: RollCall) -> str:
         lines += [
             (
                 "Members are identified by the Senate's own LIS member ID, which"
-                " is what senate.gov publishes. It is **not** the bioguide ID"
-                " used by sponsors and by House votes; the Senate publishes no"
-                " bioguide ID and none is inferred here."
+                " is what senate.gov publishes; the Senate publishes no bioguide"
+                " ID. The `Bioguide` column is **added by this pipeline** from a"
+                " vendored crosswalk, not taken from the vote document — it is"
+                " what makes a senator's votes joinable to the `Sponsored-By:`"
+                " trailer and to House votes. A row is filled only where surname"
+                " and state agree between both sources; see"
+                " `src/uscongress/members.py`."
             ),
             "",
         ]
+        unmatched = [p for p in roll.positions if not p.bioguide]
+        if unmatched:
+            # Stated rather than left as an em dash to be noticed. An identifier
+            # that is silently absent for some members and present for others
+            # reads as an upstream inconsistency rather than a refusal here.
+            lines += [
+                f"> {len(unmatched)} of {len(roll.positions)} members could not be"
+                " matched to a bioguide ID and are left blank. A mapping whose"
+                " surname or state disagrees with this document is refused"
+                " rather than guessed: a vote attributed to the wrong senator"
+                " would be wrong in a way that reads as authoritative.",
+                "",
+            ]
+
+    # The Senate table carries a column the House table does not, so the two are
+    # built separately rather than by widening one. Adding an empty column to
+    # every House file would rewrite 12 repositories' worth of commits to say
+    # nothing.
+    senate = kinds == {"lis"}
+    header = (
+        "| Member | Party | State | LIS | Bioguide |"
+        if senate
+        else "| Member | Party | State | ID |"
+    )
+    rule = "|---|---|---|---|---|" if senate else "|---|---|---|---|"
+
+    def row(member: MemberVote) -> str:
+        cells = f"| {member.name} | {member.party or '—'} | {member.state or '—'} |"
+        cells += f" {member.member_id or '—'} |"
+        if senate:
+            cells += f" {member.bioguide or '—'} |"
+        return cells
 
     for cast in sorted(
         {p.cast for p in roll.positions if p.cast},
@@ -720,13 +772,9 @@ def roll_markdown(roll: RollCall) -> str:
         lines += [
             f"## {cast} ({len(members):,})",
             "",
-            "| Member | Party | State | ID |",
-            "|---|---|---|---|",
-            *(
-                f"| {p.name} | {p.party or '—'} | {p.state or '—'} |"
-                f" {p.member_id or '—'} |"
-                for p in members
-            ),
+            header,
+            rule,
+            *(row(p) for p in members),
             "",
         ]
     return "\n".join(lines).rstrip() + "\n"

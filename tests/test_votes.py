@@ -24,7 +24,7 @@ from datetime import date
 import pytest
 from defusedxml.ElementTree import fromstring
 
-from uscongress import votes
+from uscongress import members, votes
 from uscongress.jobs import votes as votes_job
 
 # --------------------------------------------------------------------------
@@ -102,8 +102,8 @@ def _senate(
     """
     members = members or (
         _senator("S289", "Alexander", "Lamar", "R", "TN", "Yea")
-        + _senator("S307", "Baldwin", "Tammy", "D", "WI", "Yea")
-        + _senator("S330", "Barrasso", "John", "R", "WY", "Nay")
+        + _senator("S354", "Baldwin", "Tammy", "D", "WI", "Yea")
+        + _senator("S317", "Barrasso", "John", "R", "WY", "Nay")
     )
     return (
         '<?xml version="1.0" encoding="UTF-8"?><roll_call_vote> \n'
@@ -209,7 +209,7 @@ def test_the_senate_publishes_no_bioguide_id_and_none_is_invented() -> None:
     """
     roll = votes.parse_senate(_senate())
 
-    assert [p.member_id for p in roll.positions] == ["S289", "S307", "S330"]
+    assert [p.member_id for p in roll.positions] == ["S289", "S354", "S317"]
     assert {p.id_kind for p in roll.positions} == {"lis"}
 
 
@@ -386,7 +386,7 @@ def test_the_senate_calls_not_voting_absent() -> None:
     roll = votes.parse_senate(
         _senate(
             members=_senator("S289", "Alexander", "Lamar", "R", "TN", "Yea")
-            + _senator("S307", "Baldwin", "Tammy", "D", "WI", "Not Voting"),
+            + _senator("S354", "Baldwin", "Tammy", "D", "WI", "Not Voting"),
             count="<yeas>1</yeas><nays>0</nays><present/><absent>1</absent>",
         )
     )
@@ -599,7 +599,12 @@ def test_the_rendered_vote_says_which_identifier_it_carries() -> None:
     assert "identified by bioguide ID" in house
     assert "the same identifier the `Sponsored-By:` trailer uses" in house
     assert "LIS member ID" in senate
-    assert "not** the bioguide ID" in senate
+    assert "added by this pipeline" in senate
+    assert "| Member | Party | State | LIS | Bioguide |" in senate
+    # The House table must not grow a column; that would rewrite every House
+    # vote file in twelve repositories to say nothing new.
+    assert "| Member | Party | State | ID |" in house
+    assert "Bioguide" not in house
 
 
 def test_members_are_ordered_so_the_file_is_stable() -> None:
@@ -631,3 +636,87 @@ def test_a_rendered_vote_ends_with_exactly_one_newline() -> None:
 
     assert text.endswith("\n")
     assert not text.endswith("\n\n")
+
+
+# --------------------------------------------------------------------------
+# The members crosswalk
+# --------------------------------------------------------------------------
+
+
+def test_a_senator_gains_a_bioguide_id_the_senate_never_published() -> None:
+    """This is the whole point of the crosswalk.
+
+    senate.gov publishes ``<lis_member_id>S289</lis_member_id>`` and no bioguide
+    ID, so a senator's votes could not be joined to the `Sponsored-By:` trailer
+    or to House votes without a lookup the reader had to build themselves.
+    """
+    roll = votes.parse_senate(_senate())
+
+    assert [p.member_id for p in roll.positions] == ["S289", "S354", "S317"]
+    assert [p.bioguide for p in roll.positions] == ["A000360", "B001230", "B001261"]
+    assert {p.id_kind for p in roll.positions} == {"lis"}  # what was *published*
+
+
+def test_a_mapping_that_disagrees_with_the_document_is_refused() -> None:
+    """A vote attributed to the wrong senator is worse than one with no ID.
+
+    It is wrong in a way that reads as authoritative and that nothing
+    downstream could detect. This exact pairing was a real mistake in these
+    fixtures: S330 is Bennet of Colorado, and it was written here as Barrasso
+    of Wyoming. The gate refused it, which is how the error was found.
+    """
+    roll = votes.parse_senate(
+        _senate(members=_senator("S330", "Barrasso", "John", "R", "WY", "Yea"))
+    )
+
+    (member,) = roll.positions
+    assert member.member_id == "S330"
+    assert member.bioguide == ""
+    text = votes.roll_markdown(roll)
+    assert "could not be matched to a bioguide ID" in text
+
+
+def test_a_house_member_carries_the_bioguide_the_clerk_published() -> None:
+    """No crosswalk is involved: ``name-id`` already *is* the bioguide ID."""
+    roll = votes.parse_house(_house())
+
+    assert [p.bioguide for p in roll.positions] == ["A000055", "B000213", "C001045"]
+    assert [p.bioguide for p in roll.positions] == [p.member_id for p in roll.positions]
+
+
+def test_a_name_change_and_a_diacritic_are_not_disagreements() -> None:
+    """The two sources spell the same person differently, in small ways.
+
+    senate.gov writes ``Lujan`` where the crosswalk writes ``Luján``, and
+    ``Graham`` where it records ``Graham Nordone``. Comparing raw strings
+    rejected 2 of the 246 senators in this corpus -- both of them real, both
+    correctly mapped.
+    """
+    assert members.bioguide_for("S409", "Lujan (D-NM)", "NM")
+    assert members.bioguide_for("S409", "Luján (D-NM)", "NM")
+    assert members.bioguide_for("S441", "Graham (R-SC)", "SC")
+
+
+def test_party_is_not_part_of_the_gate() -> None:
+    """Senators change party mid-career, and the record is right either way.
+
+    Specter, Jeffords and Manchin all did. Gating on party would refuse an
+    accurate vote document for being accurate.
+    """
+    assert members.bioguide_for("S289", "Alexander (R-TN)", "TN") == "A000360"
+    assert members.bioguide_for("S289", "Alexander (D-TN)", "TN") == "A000360"
+    assert members.bioguide_for("S289", "Alexander (I-TN)", "TN") == "A000360"
+
+
+def test_every_lis_id_this_corpus_uses_resolves() -> None:
+    """Measured before the phase was planned: 246 of 246, with no exceptions.
+
+    A senator missing from the table is not an error the render can recover
+    from -- their votes simply carry no joinable identifier -- so the coverage
+    is asserted rather than assumed.
+    """
+    assert len(members.SENATORS) > 300
+    for lis, (bioguide, surname, states) in members.SENATORS.items():
+        assert lis.startswith("S")
+        assert len(bioguide) == 7 and bioguide[0].isalpha()
+        assert surname and states

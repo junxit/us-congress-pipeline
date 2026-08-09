@@ -349,7 +349,7 @@ bytes, and a watermark a scheduled runner cannot carry between runs is not a wat
 
 ## Data sources
 
-All federal, all public domain under 17 U.S.C. § 105.
+Federal and public domain under 17 U.S.C. § 105, with one exception noted below.
 
 - **US Code** — OLRC release points, USLM 1.0 XML (`uscode.house.gov/download/`)
 - **Statutes at Large / PLAW / COMPS** — govinfo bulk data, USLM 2.0 XML
@@ -363,12 +363,17 @@ All federal, all public domain under 17 U.S.C. § 105.
   measure and links it to the chamber that took it, so the index is already in the bill
   metadata and only the positions are fetched. Neither host is keyed.
 
-**Not** the Congress.gov API, and **not** a members crosswalk. Both were listed here as
-sources for years and neither is read. The API's roll-call endpoint covers the House alone
-for the 118th and 119th Congresses; this corpus starts at the 108th and holds both chambers.
-`unitedstates/congress-legislators` was listed for a bioguide↔LIS crosswalk that is not
-performed: the House publishes bioguide IDs and the Senate publishes LIS IDs, and each vote
-file says which it carries rather than inventing a join this project could not check.
+- **Members** — `unitedstates/congress-legislators` (CC0), for the LIS↔bioguide crosswalk.
+  **The one source here not published by the federal government**, and the only one that is
+  *vendored rather than fetched*: it is edited continuously upstream, and reading it live
+  would re-render every affected vote file the day someone corrects a spelling. A pinned
+  extract lives in [`src/uscongress/members.py`](src/uscongress/members.py) — 328 rows, small
+  enough to read in review. A mapping whose surname and state do not agree with the vote
+  document is refused rather than guessed.
+
+**Not** the Congress.gov API. It was listed here as a source for years and is read nowhere:
+its roll-call endpoint covers the House alone for the 118th and 119th Congresses, and this
+corpus starts at the 108th and holds both chambers.
 
 Two mutually incompatible USLM schemas are in production: OLRC emits v1.0.15, GPO emits
 v2.0. The pipeline needs both, and GPO is not internally consistent either — the 137
