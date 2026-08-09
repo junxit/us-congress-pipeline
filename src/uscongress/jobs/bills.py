@@ -832,7 +832,7 @@ async def seed(
                     )
                 existing.add(measure.branch)
                 built += 1
-                _account_votes(measure, votes_missing, votes_late)
+                _account_votes(measure, rendered[-1][0], votes_missing, votes_late)
         print(
             f"  {min(start + BATCH, len(pending)):>6}/{len(pending)}  "
             f"branches={built}  skipped={skipped}  no-text={textless}  "
@@ -869,6 +869,7 @@ async def seed(
 
 def _account_votes(
     measure: Measure,
+    last: TextVersion,
     missing: list[tuple[str, str, str]],
     late: list[tuple[str, str, str]],
 ) -> None:
@@ -881,35 +882,42 @@ def _account_votes(
     the commit; it is collected here so the repository can state the total
     rather than leaving it to be found one branch at a time.
 
-    A vote can also be **taken after every dated version** of its measure. The
-    record on a commit is the record as of that version, so a vote later than
-    the last text there is has nowhere to sit -- a measure whose final vote came
-    after its last published text keeps that vote nowhere. That is a real hole
-    in what this repository can express, and it is written down rather than
-    quietly dropped.
+    A vote can also be **taken after the last version committed**. The record on
+    a commit is the record as of that version, so a vote later than the last
+    text on the branch has nowhere to sit.
+
+    Which votes those are is decided by asking :func:`_votes_as_of` rather than
+    by comparing dates again here. Written out a second time it got a different
+    answer: an undated final version carries *every* vote, because a null cutoff
+    admits them all, and 124 of the 508 voted measures in the 113th Congress end
+    on an undated version. Recomputing the rule reported those votes as having
+    nowhere to sit while they were sitting on the branch -- a false claim in the
+    one document whose whole purpose is to be trusted about absences.
+
+    The last *committed* version is the cutoff, not the last version BILLSTATUS
+    lists. A version whose text could not be fetched is not on the branch, so a
+    vote after the last one that was is genuinely unplaced.
 
     Args:
         measure: A measure that was built.
+        last: The final version actually committed to the branch.
         missing: Accumulator of unretrievable votes.
-        late: Accumulator of votes later than every dated version.
+        late: Accumulator of votes that reached no commit.
     """
     for reference, reason in measure.votes_unavailable:
         missing.append((measure.branch, reference.citation, reason))
 
-    dated = [v.when for v in measure.versions if v.when]
-    if not dated:
-        # No dated version means no cutoff, so every vote is carried; see
-        # `_votes_as_of`.
-        return
-    last = max(dated)
+    placed, _ = _votes_as_of(measure, last)
+    carried = {roll.key for roll in placed}
     for roll in measure.rolls:
-        if roll.when and roll.when > last:
+        if roll.key not in carried:
             late.append(
                 (
                     measure.branch,
                     roll.citation,
-                    f"{roll.when.isoformat()}, after the last dated version "
-                    f"({last.isoformat()})",
+                    f"{roll.when.isoformat() if roll.when else 'date not recorded'}, "
+                    f"after the last version committed"
+                    + (f" ({last.when.isoformat()})" if last.when else ""),
                 )
             )
 

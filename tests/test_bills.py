@@ -680,7 +680,7 @@ def test_a_vote_that_cannot_be_fetched_is_marked_rather_than_dropped() -> None:
     assert "**not retrievable**" in text
 
 
-def test_a_vote_taken_after_the_last_dated_version_is_recorded_as_a_gap() -> None:
+def test_a_vote_taken_after_the_last_committed_version_is_recorded_as_a_gap() -> None:
     """There is no commit for such a vote to sit on, and that has to be said.
 
     A measure whose final vote came after its last published text keeps that
@@ -695,11 +695,58 @@ def test_a_vote_taken_after_the_last_dated_version_is_recorded_as_a_gap() -> Non
 
     missing: list[tuple[str, str, str]] = []
     late: list[tuple[str, str, str]] = []
-    _account_votes(measure, missing, late)
+    _account_votes(measure, version, missing, late)
 
     assert missing == []
     assert [entry[1] for entry in late] == ["House 113-1-400"]
-    assert "after the last dated version" in late[0][2]
+    assert "after the last version committed" in late[0][2]
+
+
+def test_an_undated_final_version_carries_every_vote_and_reports_no_gap() -> None:
+    """The enrolled bill usually has no date, and a null cutoff admits them all.
+
+    Recomputing "which votes reached no commit" from the dates, instead of
+    asking the function that placed them, got this backwards: it called every
+    vote later than the last *dated* version unplaced, while those votes were
+    sitting on the undated commit after it. 124 of the 508 voted measures in the
+    113th Congress end on an undated version, so the gap record would have named
+    hundreds of votes as missing while publishing them.
+    """
+    engrossed = TextVersion("Engrossed in House", date(2013, 5, 6), "u", "eh")
+    enrolled = TextVersion("Enrolled Bill", None, "u", "enr")
+    measure = _measure(
+        versions=(engrossed, enrolled),
+        rolls=(_roll(), _roll(number=400, when=date(2013, 9, 1))),
+    )
+
+    assert len(vote_documents(measure, enrolled)) == 2
+
+    missing: list[tuple[str, str, str]] = []
+    late: list[tuple[str, str, str]] = []
+    _account_votes(measure, enrolled, missing, late)
+
+    assert late == []
+
+
+def test_a_version_whose_text_failed_is_not_treated_as_the_cutoff() -> None:
+    """The cutoff is the last version on the branch, not the last one listed.
+
+    A version whose text could not be fetched is skipped and never committed, so
+    a vote after the last one that *was* committed really has nowhere to sit --
+    and using the BILLSTATUS listing instead would report it as safely placed.
+    """
+    engrossed = TextVersion("Engrossed in House", date(2013, 5, 6), "u", "eh")
+    enrolled = TextVersion("Enrolled Bill", date(2013, 10, 1), "u", "enr")
+    measure = _measure(
+        versions=(engrossed, enrolled),
+        rolls=(_roll(number=400, when=date(2013, 9, 1)),),
+    )
+
+    missing: list[tuple[str, str, str]] = []
+    late: list[tuple[str, str, str]] = []
+    _account_votes(measure, engrossed, missing, late)  # enrolled never committed
+
+    assert [entry[1] for entry in late] == ["House 113-1-400"]
 
 
 def test_the_gap_document_names_a_vote_category_only_when_it_occurs() -> None:
