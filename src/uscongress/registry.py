@@ -299,11 +299,17 @@ PHASES: list[Phase] = [
             "off as something the Senate published, and a row whose name, state "
             "and party do not agree across both sources is not used and is said "
             "so: a vote attributed to the wrong senator is worse than a vote "
-            "with no identifier at all. Produces no new repository, and rewrites "
-            "only branches carrying a Senate vote — a subset of the 5,969 phase "
-            "8 moved."
+            "with no identifier at all. That gate earned itself before it "
+            "shipped, refusing a test fixture that paired S330 with Barrasso of "
+            "Wyoming when S330 is Bennet of Colorado. Produces no new "
+            "repository. Rewrote 534 refs — far fewer than phase 8's 5,969, "
+            "because Senate roll calls concentrate on few measures: a "
+            "vote-a-rama puts dozens of roll calls on one bill. House vote "
+            "files were left byte-identical and no House-only branch moved, "
+            "checked against the copies already on GitHub rather than against a "
+            "fixture."
         ),
-        state=PLANNED,
+        state=DONE,
     ),
 ]
 
