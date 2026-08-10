@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-08-09 19:45 UTC**
+**Last successful update — 2026-08-10 06:08 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,15 +14,14 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-08-09 19:45 UTC |
+| Last run attempted | 2026-08-10 06:08 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-08-06 00:00 UTC |
-| Measures govinfo reported modified | 727 |
+| Window asked of govinfo | since 2026-08-09 18:45 UTC |
+| Measures govinfo reported modified | 1 |
 | Branches rewritten | 0 |
-| Rebuilt to the commit already published | 554 |
-| Modified but still carrying no text | 173 |
+| Rebuilt to the commit already published | 1 |
 
-No branch changed. 554 measures were rebuilt from freshly
+No branch changed. 1 measures were rebuilt from freshly
 fetched upstream records and came out as the commits already
 published, so there was nothing to write. That is the ordinary
 result of a day on which nothing moved, and is not the same as the
