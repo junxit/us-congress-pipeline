@@ -221,14 +221,28 @@ PHASES: list[Phase] = [
         number=7,
         title="Experimental amendment execution",
         detail=(
-            "What a bill would do to existing law, under `derived/` and never "
-            "authoritative. Measured across seven real bills only ~49% of "
-            "amendatory instructions carry a machine-readable US Code reference, "
-            "and a large bill would need ~99.99% per-instruction accuracy to come "
-            "out wholly correct, so the output is marked derived and unapplied "
-            "instructions are stated rather than guessed at."
+            "What a bill would do to existing law, in `derived/amendments.md` on "
+            "every branch, never authoritative. Read 1,155,101 amendatory "
+            "instructions across the corpus and **carried out 214,139 of them "
+            "(18.5%)** — the ones where the bill states both the text removed and "
+            "the text inserted, so the result follows from the bill alone and can "
+            "be checked against it. The other 940,962 are listed with the reason, "
+            "most often that the bill names the law by structure — *strike "
+            "subsection (k)* — and the words being changed are in the US Code "
+            "rather than in the bill. **The rate is mostly a fact about the year:** "
+            "an instruction can only be placed if GPO tagged the citation it "
+            "names, and they did so in 64% of the 108th's documents against 5% of "
+            "the 112th's, so the share carried out runs from 1.3% to 23.9% by "
+            "Congress with no change in the reading of them. Nothing reads "
+            "`us-congress-code`: that would divide the build, because the daily "
+            "loop runs where no copy of it exists and would publish a weaker "
+            "answer over the better one every day. Supersedes the ~49% figure "
+            "this roadmap carried from seven bills, which is not reproducible and "
+            "does not say what it counted; measured here, 78.6% of instructions "
+            "carry a machine-readable reference, and carrying one was never the "
+            "hard part."
         ),
-        state=PLANNED,
+        state=DONE,
     ),
     Phase(
         number=8,

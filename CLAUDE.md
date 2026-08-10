@@ -138,8 +138,13 @@ handles them; this is the index.
 
 Diffing a bill branch shows how the **bill** changed, not how the **US Code**
 would change. Bills are amendatory instructions, not diffs, and executing them
-automatically is unsolved: only ~49% of instructions carry a machine-readable
-US Code reference. Anything synthesised is marked derived and unofficial.
+automatically is unsolved. `derived/amendments.md` carries out the solvable
+part: measured over the whole corpus, 214,139 of 1,155,101 instructions (18.5%)
+state both the text removed and the text inserted and are executed; the rest
+are listed with the reason. The rate is mostly a fact about the year — GPO
+tagged citations in 64% of the 108th's documents and 5% of the 112th's — so it
+runs from 1.3% to 23.9% by Congress with no change in the reading. Anything
+synthesised is marked derived and unofficial.
 
 The federal text is a work of the United States Government and public domain
 under 17 U.S.C. § 105. **Never rewrite it** — not for spelling, not for

@@ -69,14 +69,25 @@ terms are separate — see [License](#license).
 ## What this is — and what it is not
 
 Diffing across a bill branch's own commits — `hr-1234~2..hr-1234`, or against the commit that
-introduced it — shows how the **bill** changed, not how the **US Code** would change. Bills are written as amendatory instructions ("strike subsection (b) and
-insert…"), not as diffs, and executing them automatically is an unsolved problem: measured
-across seven real bills, only ~49% of amendatory instructions carry a machine-readable US Code
-reference, and a large bill would need ~99.99% per-instruction accuracy to come out wholly
-correct.
+introduced it — shows how the **bill** changed, not how the **US Code** would change. Bills are
+written as amendatory instructions ("strike subsection (b) and insert…"), not as diffs, and
+executing them automatically is an unsolved problem.
 
-Any synthesised "effect on existing law" is therefore marked derived and unofficial, and the
-pipeline emits explicit *unapplied* markers rather than guessing.
+`derived/amendments.md` on each branch does the part that is solvable and stops there. Across
+the whole corpus it read **1,155,101 amendatory instructions and carried out 214,139 of them
+(18.5%)** — the ones where the bill states both the text removed and the text inserted, so the
+result follows from the bill alone and can be checked against it. The other 940,962 are listed
+with the reason, most often that the bill names the law by structure — *strike subsection (k)*
+— and the words being changed are in the US Code rather than in the bill. Nothing guesses them.
+
+**The rate is mostly a fact about the year, not the bill.** An instruction can only be placed
+if GPO tagged the citation it names: 64% of the 108th Congress's documents carry a
+machine-readable US Code citation and 55% of the 113th's, against 5% of the 111th's and 5% of
+the 112th's. So the share carried out runs from 1.3% in the 112th to 23.9% in the 113th with
+no change in the reading of them at all.
+
+Everything under `derived/` is marked derived and unofficial, and unapplied instructions are
+stated rather than guessed at.
 
 ## Usage
 
