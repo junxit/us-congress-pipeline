@@ -130,6 +130,8 @@ uv run uscongress index               # regenerate REPOSITORIES.md
 uv run uscongress update              # the daily job: rebuild whatever changed
 uv run uscongress update --dry-run    # list what changed upstream, build nothing
 uv run uscongress update --check      # exit non-zero if the daily loop has stopped
+uv run uscongress update --state-path /tmp/x.json --status-path /tmp/x.md
+                                      # a local run that leaves the tracked heartbeat alone
 
 uv run pytest                         # tests
 ```

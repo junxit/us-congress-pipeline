@@ -39,6 +39,57 @@ state. Rebuilding a *repository* from scratch is only necessary when a rendering
 defect has to be corrected in commits that already exist — see `seed-bills
 --rebuild`.
 
+## Rewriting the corpus, and publishing it
+
+Anything that changes what a commit *contains* — a message trailer, a file in
+the tree — changes every SHA on every branch it touches, and the corpus is
+already published. This is the procedure, in this order. It has been run three
+times; the ordering is not arbitrary and getting it wrong is silent.
+
+```bash
+uv run uscongress update --since <date> --no-code \
+    --state-path /tmp/x.json --status-path /tmp/x.md   # 1. refresh the cache
+uv run uscongress seed-bills --congress N --rebuild     # 2. per shard, ~7-20 min
+uv run uscongress artifacts                             # 3. before publishing
+uv run uscongress republish --dry-run                   # 4. size it
+uv run uscongress republish                             # 5. push what moved
+uv run uscongress index && uv run uscongress describe   # 6. then the phase state
+```
+
+- **Push the pipeline code before the corpus, never after.** New code against an
+  old corpus is safe: the daily loop rewrites the measures it touches in the new
+  format, a progressive rollout. Old code against a new corpus is a regression —
+  the loop rebuilds in the *old* format and force-pushes it back over the
+  rewrite, and nothing reports an error because pushing rebuilt measures is
+  exactly that job's purpose.
+- **Do not disable the schedule for the rewrite.** A disabled schedule is the
+  silent failure this project exists to prevent, and GitHub auto-disables a
+  scheduled workflow after 60 days of repository inactivity, so pausing is the
+  worse risk. The invariant above makes it unnecessary.
+- **Step 1 is not optional.** The rebuild renders from `data/raw/`, so any
+  measure CI has rebuilt since this machine last fetched it would be
+  force-pushed backwards.
+- **Step 3 before step 5.** `artifacts` writes `main`; running it afterwards
+  means a second `republish` for twelve refs.
+- **`--status-path` is load-bearing.** Without it a local `update` overwrites the
+  tracked `STATUS.md`, and the next scheduled run commits it as though it were
+  the loop's own heartbeat.
+- Measured: a full 12-shard rebuild is ~2.5 hours; `republish` moved 534 refs in
+  minutes, 5,969 in ~15, and 90,277 in ~50. Every ref landed first attempt.
+
+`republish` computes what to push by comparing local refs against the remote, so
+it is safe to re-run and pushes nothing when nothing moved.
+
+## Maintenance that needs a person
+
+- **`data/scripts/build_members.py`** when a Congress seats new members. It
+  rewrites the vendored `src/uscongress/members.py`; read the diff, because a
+  changed bioguide ID moves votes from one senator to another. Nothing fetches
+  that table at build time and nothing should — see the module docstring.
+- **A vote that cannot be fetched has never happened.** All 19,471 roll calls
+  were retrievable, so the marker path and the matching `GAPS.md` section have
+  only ever run in tests. Their first real execution will be unattended.
+
 ## Where the truth lives
 
 Never duplicate these anywhere — memory, notes, or prose. They are the source.
@@ -99,9 +150,25 @@ handles them; this is the index.
   129 appears twice on H.R. 588. Deduplicate on
   `(chamber, session, number)` — number alone collides across chambers and
   sessions. Same trap as `bills._committees`, reached another way.
-- **Nothing crosswalks members.** The House publishes bioguide IDs and the
-  Senate publishes LIS IDs; each vote file states which it carries. Do not
-  infer one from the other.
+- **Nothing infers a member identifier.** The House publishes bioguide IDs and
+  the Senate publishes LIS IDs. The vendored table in `members.py` joins them,
+  and refuses any row whose surname and state disagree with the vote document —
+  a vote attributed to the wrong senator is wrong in a way that reads as
+  authoritative. Party is deliberately not checked; senators change party.
+- **`<amendment-instruction>` is not where amendatory instructions live.** It
+  appears in 1 document in 400 and holds an engrossed *amendment's* instruction.
+  Ordinary amendatory text is prose in `<text>`. See `amendments`.
+- **A bare "is amended" is a heading, not an operation.** Congress names the
+  target once and lists the operations beneath it, so counting the opening line
+  as an instruction adds a bogus unapplied row per amendment.
+- **A citation is inherited, and the walk up must stop at `<section>`.** A bill
+  amends many sections of law; without the boundary an instruction inherits a
+  different amendment's citation and reports it confidently.
+- **How much of a bill can be executed is mostly a fact about the year.** GPO
+  tagged machine-readable citations in 64% of the 108th Congress's documents and
+  5% of the 112th's, so the share of instructions carried out runs from 1.3% to
+  23.9% with no change in the reading. A low number is not a broken build; each
+  `GAPS.md` says so beside its own.
 - **Three volumes need an `Accept` header or they do not exist.** STATUTE 107,
   108 and 109 return HTTP 200 and 67 KB of error HTML without
   `Accept: application/xml`.
