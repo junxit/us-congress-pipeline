@@ -97,17 +97,7 @@ def _shards_of(repo: Repository) -> list[str]:
     """
     if "{" not in repo.name:
         return []
-    found = [
-        p.name
-        for p in config.REPOS_DIR.glob(repo.name.replace("{congress}", "*"))
-        if (p / ".git").is_dir() and not p.name.endswith(".pre-fix")
-    ]
-
-    def key(name: str) -> tuple[int, str]:
-        tail = name.rsplit("-", 1)[-1]
-        return (int(tail), name) if tail.isdigit() else (0, name)
-
-    return sorted(found, key=key)
+    return config.built_shards(repo.name)
 
 
 def _roadmap() -> list[str]:

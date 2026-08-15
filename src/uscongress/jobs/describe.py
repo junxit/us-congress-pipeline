@@ -3,7 +3,7 @@
 A repository's README explains it to someone already looking at it. Its
 description and topics are what decide whether anyone gets that far: they are
 what a search result shows, what the owner's repository list shows, and the only
-thing a reader sees before choosing to click. Thirteen repositories called
+thing a reader sees before choosing to click. Twelve repositories called
 ``us-congress-bills-114`` with no description between them are indistinguishable
 from each other and from an abandoned scratch directory.
 

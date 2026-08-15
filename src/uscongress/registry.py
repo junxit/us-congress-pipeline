@@ -277,7 +277,7 @@ PHASES: list[Phase] = [
         detail=(
             "The schedule is live. The token GitHub injects into a workflow run "
             "is scoped to the repository running it — enough to commit the "
-            "heartbeat, not enough to push the 30 data repositories — so the loop "
+            "heartbeat, not enough to push the 31 data repositories — so the loop "
             "carries a `DATA_REPO_TOKEN` of its own: a fine-grained token with "
             "Contents: read/write on the `us-congress-*` repositories and nothing "
             "else, minted by hand because no API can create one. Proved by a real "

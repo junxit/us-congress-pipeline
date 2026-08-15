@@ -11,7 +11,7 @@
 #     repository activity. Committing the heartbeat on every run is what keeps
 #     that from happening -- the job's own output is what keeps the job alive.
 #   * The built-in GITHUB_TOKEN cannot push to a *different* repository, and the
-#     data lives in fourteen of them. Pushing needs a credential with access to
+#     data lives in thirty-one of them. Pushing needs a credential with access to
 #     the junxit org's repositories; DATA_REPO_TOKEN below.
 #
 # The heartbeat is committed even when the run fails, because a failed run is
@@ -62,7 +62,7 @@ jobs:
         run: uv sync --frozen
 
       - name: Test
-        # Cheap, and the alternative is a defective build writing into fourteen
+        # Cheap, and the alternative is a defective build writing into twelve
         # public repositories before anyone notices.
         run: uv run pytest -q
 

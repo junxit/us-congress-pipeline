@@ -85,7 +85,7 @@ def _status_of(repo: Repository, built: set[str]) -> str:
     has shipped. Reading the second from the first would report a phase as
     planned on any machine that had not built it yet, and every generated
     repository carries this table, so a wrong answer here is published into all
-    fourteen of them at once.
+    thirty-one of them at once.
 
     Args:
         repo: The repository being described.

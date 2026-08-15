@@ -130,3 +130,34 @@ def ensure_dirs() -> None:
         STATE_DIR,
     ):
         directory.mkdir(parents=True, exist_ok=True)
+
+
+def built_shards(template: str) -> list[str]:
+    """Return the shard repositories of a family that exist on disk, in order.
+
+    Asked of the filesystem rather than of a hardcoded range, because the range
+    is what goes stale: ``republish`` defaulted to ``range(108, 120)``, so the
+    120th Congress convening would have made it skip ``us-congress-bills-120``
+    while still exiting zero -- the silent kind of failure this project is
+    shaped around preventing.
+
+    Args:
+        template: Repository name containing ``{congress}``, e.g.
+            ``us-congress-bills-{congress}``.
+
+    Returns:
+        Directory names, sorted by their trailing number rather than as text so
+        the 109th does not sort after the 110th. Empty if none are cloned.
+    """
+    found = [
+        p.name
+        for p in REPOS_DIR.glob(template.replace("{congress}", "*"))
+        # A preserved pre-fix copy is not a repository anyone consumes.
+        if (p / ".git").is_dir() and not p.name.endswith(".pre-fix")
+    ]
+
+    def key(name: str) -> tuple[int, str]:
+        tail = name.rsplit("-", 1)[-1]
+        return (int(tail), name) if tail.isdigit() else (0, name)
+
+    return sorted(found, key=key)
