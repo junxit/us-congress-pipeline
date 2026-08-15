@@ -51,6 +51,7 @@ def seeded(monkeypatch, tmp_path: Path) -> dict[str, object]:
     monkeypatch.setattr(record, "seed", fake_seed)
     monkeypatch.setattr(recordloop, "_days_held", lambda _path: 346)
     monkeypatch.setattr(recordloop.config, "REPOS_DIR", tmp_path)
+    monkeypatch.setattr(recordloop.publish, "remote_exists", lambda _url: False)
     return seen
 
 
@@ -113,3 +114,57 @@ def test_a_successful_run_moves_the_date(seeded, tmp_path: Path) -> None:
     assert state.last_outcome == "ok"
     assert state.stale_for is None
     assert state.days_present == 346
+
+
+def test_a_fresh_runner_fetches_the_shard_before_building(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Without this the loop rebuilds a whole Congress on every CI run.
+
+    A scheduled runner is a fresh machine and ``data/`` is gitignored, so the
+    shard is not there. The first version of this job asked the empty directory
+    how many issue days it held, got zero, and started re-crawling the 119th
+    from upstream -- caught only because the run was still going minutes after a
+    no-op should have finished.
+    """
+    fetched: list[str] = []
+
+    async def fake_seed(_client: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(recordloop, "GovInfoClient", _NoClient)
+    monkeypatch.setattr(record, "seed", fake_seed)
+    monkeypatch.setattr(recordloop, "_days_held", lambda _path: 346)
+    monkeypatch.setattr(recordloop.config, "REPOS_DIR", tmp_path)
+    monkeypatch.setattr(recordloop.publish, "remote_exists", lambda _url: True)
+    monkeypatch.setattr(
+        recordloop.publish, "prepare_all", lambda path, url: fetched.append(url)
+    )
+
+    asyncio.run(
+        recordloop.run(
+            congress=119, publish_changes=False, state_path=tmp_path / "record.json"
+        )
+    )
+
+    assert fetched, "the shard was never fetched; the loop would rebuild it"
+    assert fetched[0].endswith("us-congress-record-119.git")
+
+
+def test_a_congress_with_no_repository_yet_still_builds(
+    seeded, tmp_path: Path
+) -> None:
+    """The 120th convening must not be an error before the repo is created.
+
+    Nothing to fetch is the ordinary first-run state; the push is what fails
+    loudly on the missing repository, and it fails with a message about the
+    repository rather than about the fetch.
+    """
+    status = asyncio.run(
+        recordloop.run(
+            congress=120, publish_changes=False, state_path=tmp_path / "record.json"
+        )
+    )
+
+    assert status == 0
+    assert seeded["congress"] == 120

@@ -30,7 +30,7 @@ from pathlib import Path
 from .. import config
 from ..gitbuild import GitRepo
 from ..govinfo import GovInfoClient
-from . import record, republish
+from . import publish, record, republish
 from . import update as update_job
 
 
@@ -87,6 +87,18 @@ async def run(
     days_built = days_present = refs = 0
 
     try:
+        # A scheduled runner is a fresh machine every time and `data/` is
+        # gitignored, so without this the job finds no shard, concludes it holds
+        # no issue days, and rebuilds the whole Congress from upstream -- a
+        # crawl that outruns the workflow timeout and reproduces commits that
+        # already exist. Blobless: `built_days` reads trees, never file
+        # contents, so the blobs are never needed. The first run of a Congress
+        # nobody has created yet finds no remote and builds from nothing, which
+        # is correct; the push then fails loudly on the missing repository.
+        url = publish.repo_url(name, token)
+        if publish.remote_exists(url):
+            publish.prepare_all(path, url)
+
         # Measured either side of the build rather than read from the last run's
         # state, so a shard someone seeded by hand in between is still counted
         # honestly.
