@@ -82,6 +82,7 @@ from defusedxml.ElementTree import fromstring as _safe_fromstring
 from .. import config
 from ..gitbuild import GitRepo
 from ..govinfo import GovInfoClient
+from ..registry import REPOSITORIES, phase_of
 from ..xmlrepair import repair
 
 REPO_PREFIX = "us-congress-record"
@@ -1614,6 +1615,44 @@ def _record_range(repo: GitRepo, edition: str, outcome: dict[str, object]) -> No
     outcome["last"] = max(days).isoformat() if days else None
 
 
+def _sibling_published(name: str) -> bool:
+    """Report whether a sibling shard exists to be cross-linked.
+
+    What is on disk is not the question, and asking it that way published a
+    falsehood: the scheduled Record job runs on a fresh machine that fetches
+    only the shard it is building, so ``us-congress-bills-119`` was absent, and
+    ``GAPS.md`` went out saying the sibling "does not exist" for a repository
+    with 18,000 branches on it. Worse, it flip-flopped -- a local run wrote the
+    true version back, and ``main`` would have churned between the two for ever.
+
+    So disk is treated as sufficient evidence but not necessary, and the roadmap
+    answers when disk cannot. This is the same split ``artifacts._status_of``
+    makes for the same reason.
+
+    Args:
+        name: Sibling repository name, e.g. ``us-congress-bills-119``.
+
+    Returns:
+        True if it can be linked. The narrow window where this is wrong is a
+        Congress that has convened and whose bills shard nobody has created
+        yet; ``uscongress check-links`` is the backstop for that, and it refuses
+        to write a document whose links do not resolve.
+    """
+    if (config.REPOS_DIR / name / ".git").is_dir():
+        return True
+    family = next(
+        (
+            r
+            for r in REPOSITORIES
+            if "{congress}" in r.name
+            and name.startswith(r.name.replace("{congress}", ""))
+        ),
+        None,
+    )
+    phase = phase_of(family.phase) if family else None
+    return bool(phase and phase.is_done)
+
+
 def _write_gaps(
     repo: GitRepo, congress: int, report: dict[str, dict[str, object]]
 ) -> None:
@@ -1632,9 +1671,7 @@ def _write_gaps(
     merged = {
         **existing,
         **gap_documents(
-            congress,
-            report,
-            bills_repo=bills if (config.REPOS_DIR / bills / ".git").is_dir() else "",
+            congress, report, bills_repo=bills if _sibling_published(bills) else ""
         ),
     }
     if merged == existing:

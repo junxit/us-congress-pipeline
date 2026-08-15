@@ -31,6 +31,7 @@ from pathlib import Path
 import pytest
 
 from uscongress.gitbuild import GitRepo
+from uscongress.jobs import record
 from uscongress.jobs.record import (
     BOUND,
     DAILY,
@@ -1253,3 +1254,29 @@ def test_writing_gaps_twice_makes_only_one_commit(tmp_path: Path) -> None:
     _write_gaps(repo, 115, _report())
 
     assert repo.ref_map()["main"] == first
+
+
+def test_a_sibling_shard_is_not_judged_by_what_is_on_this_machine(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Reading disk alone published a falsehood to a public repository.
+
+    The scheduled Record job runs on a fresh machine and fetches only the shard
+    it is building, so `us-congress-bills-119` was not there and GAPS.md went
+    out saying the sibling "does not exist" -- of a repository carrying 18,000
+    branches. It also flip-flopped: a run from a machine that had the bills
+    shard wrote the true version back, so `main` would have churned between the
+    two for ever.
+    """
+    monkeypatch.setattr(record.config, "REPOS_DIR", tmp_path / "nothing-here")
+
+    assert record._sibling_published("us-congress-bills-119")  # noqa: SLF001
+
+
+def test_an_unknown_repository_family_is_not_linked(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Absent evidence, do not link: a 404 is repeated across every document."""
+    monkeypatch.setattr(record.config, "REPOS_DIR", tmp_path / "nothing-here")
+
+    assert not record._sibling_published("us-congress-nonesuch-119")  # noqa: SLF001
