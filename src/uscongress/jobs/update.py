@@ -41,6 +41,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -62,6 +63,16 @@ STATE_PATH = config.STATE_DIR / "update.json"
 #: The heartbeat, in the pipeline repository rather than under ``data/``,
 #: because its whole purpose is to be visible to someone who is not running it.
 STATUS_PATH = config.REPO_ROOT / "STATUS.md"
+
+#: The Congressional Record loop's own watermark, written by
+#: :mod:`uscongress.jobs.recordloop` and only ever *read* here.
+#:
+#: Two loops, two state files, one page. Whichever job runs last renders
+#: :data:`STATUS_PATH` from both, which is what makes a dead Record loop
+#: visible: this job keeps rendering the page every day, and the Record row's
+#: date simply stops moving. A second status file would go stale in a place
+#: nobody had a reason to open.
+RECORD_STATE_PATH = config.STATE_DIR / "record.json"
 
 #: How far back to look on the very first run, when there is no watermark. A
 #: daily job that has never run has no history to protect, and a week is enough
@@ -267,6 +278,51 @@ class State:
         return overdue if overdue > timedelta(0) else None
 
 
+@dataclass
+class RecordState:
+    """What the last runs of the Congressional Record loop recorded.
+
+    Deliberately thinner than :class:`State`. The Record loop has no watermark
+    to keep: it asks which issue days a branch already holds and builds the
+    rest, so what it needs to persist is only enough to show that it ran.
+
+    Attributes:
+        last_success: When it last completed without error.
+        last_run: When it last started, successful or not.
+        last_outcome: ``ok``, or a short description of what went wrong.
+        congress: The Congress it last worked on.
+        days_built: Issue days added on the last successful run.
+        days_present: Issue days the shard held afterwards.
+        refs_published: Refs pushed on the last successful run.
+    """
+
+    last_success: datetime | None = None
+    last_run: datetime | None = None
+    last_outcome: str = ""
+    congress: int = 0
+    days_built: int = 0
+    days_present: int = 0
+    refs_published: int = 0
+
+    @property
+    def stale_for(self) -> timedelta | None:
+        """How long past :data:`STALE_AFTER` the last success is.
+
+        The same two days as the bills loop, and for the same reason: what is
+        being watched is whether the *job* ran, not whether Congress sat. A run
+        that finds no new issue day during a recess is a success and moves this
+        date, so a recess never reads as a failure.
+
+        Returns:
+            The overshoot, or None if current. A loop that has never succeeded
+            is stale by definition rather than exempt.
+        """
+        if self.last_success is None:
+            return timedelta.max
+        overdue = (datetime.now(UTC) - self.last_success) - STALE_AFTER
+        return overdue if overdue > timedelta(0) else None
+
+
 def _parse_stamp(value: object) -> datetime | None:
     """Read an ISO timestamp back as an aware UTC datetime.
 
@@ -320,6 +376,80 @@ def load_state(path: Path | None = None) -> State:
         unplaceable=[str(t) for t in (payload.get("unplaceable") or [])],
         checked_since=_parse_stamp(payload.get("checked_since")),
     )
+
+
+def load_record_state(path: Path | None = None) -> RecordState:
+    """Read the Congressional Record loop's watermark.
+
+    A missing, empty or corrupt file reads as "never run", which renders as a
+    stale heartbeat rather than a healthy one -- the safe direction for a file
+    whose purpose is to reveal that something stopped.
+
+    Args:
+        path: Override the location.
+
+    Returns:
+        The recorded state.
+    """
+    target = path or RECORD_STATE_PATH
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return RecordState()
+    if not isinstance(payload, dict):
+        return RecordState()
+
+    def count(key: str) -> int:
+        try:
+            return int(payload.get(key) or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    return RecordState(
+        last_success=_parse_stamp(payload.get("last_success")),
+        last_run=_parse_stamp(payload.get("last_run")),
+        last_outcome=str(payload.get("last_outcome") or ""),
+        congress=count("congress"),
+        days_built=count("days_built"),
+        days_present=count("days_present"),
+        refs_published=count("refs_published"),
+    )
+
+
+def save_record_state(state: RecordState, path: Path | None = None) -> Path:
+    """Write the Congressional Record loop's watermark.
+
+    Args:
+        state: State to persist.
+        path: Override the location.
+
+    Returns:
+        The path written.
+    """
+    target = path or RECORD_STATE_PATH
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    def stamp(when: datetime | None) -> str:
+        return when.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ") if when else ""
+
+    target.write_text(
+        json.dumps(
+            {
+                "congress": state.congress,
+                "days_built": state.days_built,
+                "days_present": state.days_present,
+                "last_outcome": state.last_outcome,
+                "last_run": stamp(state.last_run),
+                "last_success": stamp(state.last_success),
+                "refs_published": state.refs_published,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return target
 
 
 def save_state(state: State, path: Path | None = None) -> Path:
@@ -767,7 +897,9 @@ def _finish(
     write_status(state, result, status_path)
 
 
-def render_status(state: State, result: Result | None = None) -> str:
+def render_status(
+    state: State, result: Result | None = None, record: RecordState | None = None
+) -> str:
     """Render the heartbeat.
 
     Written for someone who has never seen this project and is deciding whether
@@ -778,10 +910,14 @@ def render_status(state: State, result: Result | None = None) -> str:
     Args:
         state: State after the run.
         result: The run just completed, if there was one.
+        record: The Congressional Record loop's state. Read from
+            :data:`RECORD_STATE_PATH` when not given.
 
     Returns:
         The full document.
     """
+    if record is None:
+        record = load_record_state()
     def stamp(when: datetime | None) -> str:
         return when.strftime("%Y-%m-%d %H:%M UTC") if when else "never"
 
@@ -902,6 +1038,9 @@ def render_status(state: State, result: Result | None = None) -> str:
             "",
         ]
 
+    record_section = _record_section(stamp, record)
+    lines += record_section
+
     lines += [
         "## What this does not cover",
         "",
@@ -911,14 +1050,78 @@ def render_status(state: State, result: Result | None = None) -> str:
         "expected to sit still; see [`REPOSITORIES.md`](REPOSITORIES.md) for what",
         "exists.",
         "",
+    ]
+    if record_section:
+        lines += [
+            "The Congressional Record is built by a second loop, on its own",
+            "schedule; its heartbeat is the table above. Neither loop can report",
+            "the other's death, which is why both are rendered on this page.",
+            "",
+        ]
+    lines += [
         "Generated — do not edit by hand.",
         "",
     ]
     return "\n".join(lines)
 
 
+def _record_section(
+    stamp: Callable[[datetime | None], str], record: RecordState
+) -> list[str]:
+    """Render the Congressional Record loop's heartbeat.
+
+    Rendered here, by the bills loop, on purpose: that loop runs daily and
+    rewrites this page whether or not the Record loop is alive, so a Record
+    loop that has stopped shows up as a date that no longer moves on a page
+    something else is still writing. Neither loop can report its own death.
+
+    Args:
+        stamp: Formatter for an optional timestamp.
+        record: The Record loop's recorded state.
+
+    Returns:
+        Markdown lines, empty if the Record loop has never run at all -- a
+        heading promising a heartbeat that does not exist yet would be worse
+        than no heading.
+    """
+    if record.last_run is None:
+        return []
+    healthy = record.stale_for is None
+    lines = [
+        "## Congressional Record",
+        "",
+        f"**Last successful run — {stamp(record.last_success)}**",
+        "",
+        "| | |",
+        "|---|---|",
+        f"| **Heartbeat** | {'current' if healthy else '**stale**'} |",
+        f"| Last run attempted | {stamp(record.last_run)} |",
+        f"| Outcome | {record.last_outcome or 'never run'} |",
+    ]
+    if record.congress:
+        lines.append(f"| Congress | {record.congress} |")
+    lines += [
+        f"| Issue days added | {record.days_built:,} |",
+        f"| Issue days held | {record.days_present:,} |",
+        f"| Refs published | {record.refs_published:,} |",
+        "",
+    ]
+    if not record.days_built and record.last_success is not None:
+        lines += [
+            "No issue day was added on the last successful run. Congress does not",
+            "sit every day, and the Record is published only for the days it does,",
+            "so an unchanged shard is the ordinary result of a recess rather than a",
+            "sign the job failed — the date above would show that.",
+            "",
+        ]
+    return lines
+
+
 def write_status(
-    state: State, result: Result | None = None, path: Path | None = None
+    state: State,
+    result: Result | None = None,
+    path: Path | None = None,
+    record: RecordState | None = None,
 ) -> Path:
     """Write the heartbeat to disk.
 
@@ -926,12 +1129,14 @@ def write_status(
         state: State after the run.
         result: The run just completed, if there was one.
         path: Override the destination.
+        record: The Congressional Record loop's state. Read from
+            :data:`RECORD_STATE_PATH` when not given.
 
     Returns:
         The path written.
     """
     target = path or STATUS_PATH
-    target.write_text(render_status(state, result), encoding="utf-8")
+    target.write_text(render_status(state, result, record), encoding="utf-8")
     return target
 
 

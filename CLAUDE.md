@@ -5,10 +5,10 @@ Orientation for anyone — human or agent — picking this repository up cold.
 ## What this is
 
 An ETL that mirrors the workings of the US Congress as git repositories. This
-repository is **only the pipeline**; it *generates* 30 data repositories and
+repository is **only the pipeline**; it *generates* 31 data repositories and
 contains none of them.
 
-It owns **31 public repositories** under `github.com/junxit`:
+It owns **32 public repositories** under `github.com/junxit`:
 
 | Repository | Count | Holds |
 |---|---|---|
@@ -30,11 +30,11 @@ crawling a rebuild would cost:
 ```bash
 uv sync
 cp .env.example .env          # add your govinfo key
-uv run uscongress bootstrap   # clone the 30 data repos into data/repos/
+uv run uscongress bootstrap   # clone the 31 data repos into data/repos/
 ```
 
 The cached XML under `data/raw/` does not need restoring at all. Every job
-refetches what it needs and caches it again; the cache is an optimisation, not
+refetches what it needs and caches it again; the cache is an optimization, not
 state. Rebuilding a *repository* from scratch is only necessary when a rendering
 defect has to be corrected in commits that already exist — see `seed-bills
 --rebuild`.
@@ -80,6 +80,27 @@ uv run uscongress index && uv run uscongress describe   # 6. then the phase stat
 `republish` computes what to push by comparing local refs against the remote, so
 it is safe to re-run and pushes nothing when nothing moved.
 
+## Two loops, one page
+
+There are two scheduled jobs, and they are separate on purpose.
+
+| Workflow | When | Runs | Writes |
+|---|---|---|---|
+| `update.yml` | 05:00 UTC | `update --publish` — bills, and reports US Code release points | `STATUS.md`, `state/update.json` |
+| `record.yml` | 07:00 UTC | `update-record --publish` — the current Congress's Record shard | `state/record.json` |
+
+Only `update.yml` renders `STATUS.md`, and it renders **both** heartbeats from
+the two state files. That is what makes a stopped Record loop visible: the
+bills loop redraws that row every morning on a page it is still writing, so the
+Record date simply stops moving. Neither loop can report its own death, which
+is why each is rendered by something other than itself. The Record row
+therefore lags by up to a day, which the two-day staleness threshold absorbs.
+
+**The Record loop is append-only and must stay that way.** It asks which issue
+days a branch already holds and builds the rest; it never passes `--rebuild`.
+The Record is one cumulative branch, so rewriting a day in the middle rewrites
+every commit after it. See the trap below about restamping.
+
 ## Maintenance that needs a person
 
 - **`data/scripts/build_members.py`** when a Congress seats new members. It
@@ -99,6 +120,7 @@ Never duplicate these anywhere — memory, notes, or prose. They are the source.
 | What phase is the project in? | `src/uscongress/registry.py` → `PHASES` |
 | Which repositories exist, and are they live? | `uv run uscongress index` → `REPOSITORIES.md` |
 | Is the daily loop still alive? | `STATUS.md`, or `uscongress update --check` |
+| Is the Record loop still alive? | the Congressional Record table on `STATUS.md` |
 | What is missing from a corpus, and why? | `GAPS.md` on that repository's `main` |
 
 Phase state is deliberately in-repo rather than in anyone's head. A phase is
@@ -136,6 +158,15 @@ handles them; this is the index.
 - **The `<?xml` guard is not enough.** 51 of 137 Statutes volumes carry a UTF-8
   BOM, which `bytes.lstrip()` does not strip; MODS documents carry no XML
   declaration at all. See `statutes._is_xml` and `record` for the two shapes.
+- **govinfo restamps `lastModified` in bulk, with no content change.** On
+  2026-08-12 it restamped nine already-published CREC days, two of them from
+  2025: 1,469 documents before, 1,469 after, granule titles unchanged. Anything
+  that decides what to rebuild from `lastModified` will see those and rebuild
+  them. For bills that is merely wasted work the daily loop already reports as
+  "rebuilt to the commit already published". For the **Record** it is far worse:
+  one cumulative branch, so a day in the middle rewrites everything after it and
+  force-pushes the whole history to produce byte-identical trees. Drive the
+  Record by issue date, never by modification stamp — see `recordloop`.
 - **Two hosts, two rate regimes.** `api.govinfo.gov` is limited to 36,000
   requests/hour per key; `www.govinfo.gov` — bulkdata, `/content/pkg/`,
   `/metadata/pkg/` — is unkeyed and unlimited. Over 99% of a Record crawl goes

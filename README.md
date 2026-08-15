@@ -11,10 +11,11 @@ appearing on the commit for the text that was before the chamber when it voted.
 
 Votes come from the chambers themselves — `clerk.house.gov` and `senate.gov` — not from the
 Congress.gov API, which publishes House votes only, for the 118th and 119th Congresses only,
-against a corpus that starts at the 108th and holds both. **Experimental amendment execution
-is still planned, not built** — phase 7 in the [roadmap](REPOSITORIES.md#roadmap). Said plainly
-rather than left to be discovered, which is the rule the generated repositories follow in their
-own `GAPS.md`.
+against a corpus that starts at the 108th and holds both. **Experimental amendment execution is
+built, and carries out 18.5% of the instructions it reads** — phase 7 in the
+[roadmap](REPOSITORIES.md#roadmap); the rest are listed with the reason rather than guessed at.
+Said plainly rather than left to be discovered, which is the rule the generated repositories
+follow in their own `GAPS.md`.
 
 **This repository contains only the pipeline.** It *generates* the data repositories; it does
 not contain them.
@@ -100,7 +101,7 @@ takes minutes where a rebuild takes days — the Congressional Record alone is a
 1.37 million request crawl:
 
 ```bash
-uv run uscongress bootstrap        # clone the 30 data repos into data/repos/
+uv run uscongress bootstrap        # clone the 31 data repos into data/repos/
 ```
 
 The cached upstream XML under `data/raw/` is deliberately not restored and does
@@ -132,6 +133,9 @@ uv run uscongress update --dry-run    # list what changed upstream, build nothin
 uv run uscongress update --check      # exit non-zero if the daily loop has stopped
 uv run uscongress update --state-path /tmp/x.json --status-path /tmp/x.md
                                       # a local run that leaves the tracked heartbeat alone
+
+uv run uscongress update-record       # the second daily job: the current Congress's Record
+uv run uscongress update-record --publish    # …and push the issue days it added
 
 uv run pytest                         # tests
 ```
@@ -298,6 +302,21 @@ re-fetching is cheap while missing a bill is not.
 Committing the heartbeat also keeps the schedule alive: GitHub disables a scheduled workflow
 after 60 days without repository activity, and the job's own output is what prevents that.
 
+**The Congressional Record has a loop of its own**, in
+[`.github/workflows/record.yml`](.github/workflows/record.yml), two hours behind the first.
+It is separate because the two fail differently and one of them is the liveness signal: a
+Record fetch error must not be able to take the bills heartbeat down with it. Only the bills
+loop renders `STATUS.md`, and it renders **both** heartbeats — from `state/update.json` and
+`state/record.json`. That is the point. A Record loop that has stopped shows up as a date that
+no longer moves on a page something else is still writing every morning, because neither loop
+can be trusted to report its own death.
+
+That loop is **append-only**: it asks which issue days a shard already holds and builds the
+rest, never `--rebuild`. The Record is one cumulative branch, so rewriting a day in the middle
+rewrites every commit after it — and govinfo restamps already-published days in bulk without
+changing them, nine of them on 2026-08-12 with 1,469 documents before and after. Reacting to
+those stamps would force-push the entire history to produce identical trees.
+
 **The credential is scoped to the repositories that existed when it was made.**
 `DATA_REPO_TOKEN` is a fine-grained token carrying **Contents: read/write** on the
 `us-congress-*` repositories and nothing else, so a compromised workflow can push data and
@@ -345,13 +364,15 @@ src/uscongress/
     ├── statutes.py  → us-congress-statutes
     ├── record.py    → us-congress-record-{congress}
     ├── table3.py    per-law attribution trailers
-    ├── update.py    the daily loop and its heartbeat
+    ├── update.py    the daily loop, and both loops' heartbeats
+    ├── recordloop.py the Congressional Record's own daily loop, append-only
     ├── publish.py   fetching and pushing refs, with GitHub's real failure modes
     ├── index.py     REPOSITORIES.md
     ├── artifacts.py README and LICENSE into each generated repo
     ├── describe.py  GitHub description and topics
     └── links.py     check-links
 state/update.json    the watermark — committed, so the loop survives a fresh runner
+state/record.json    the Record loop's watermark, rendered onto STATUS.md by the bills loop
 data/                gitignored — corpora and generated repos (~50 GB)
 ```
 

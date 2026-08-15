@@ -828,3 +828,92 @@ def test_the_heartbeat_can_be_written_somewhere_other_than_the_tracked_copy(
 
     assert status_path.is_file()
     assert tracked.read_text(encoding="utf-8") == "the published heartbeat\n"
+
+
+def test_a_never_run_record_loop_adds_nothing_to_the_heartbeat() -> None:
+    """The page must render exactly as before until the Record loop first runs.
+
+    A heading promising a heartbeat that does not exist yet is worse than no
+    heading, and the prose that points at the table has to disappear with it or
+    it refers to something that is not on the page.
+    """
+    page = render_status(State(last_success=datetime(2026, 8, 15, tzinfo=UTC)),
+                         record=update.RecordState())
+
+    assert "## Congressional Record" not in page
+    assert "second loop" not in page
+
+
+def test_the_record_row_is_rendered_by_the_bills_loop() -> None:
+    """Neither loop can report its own death, so each renders the other's.
+
+    This is the whole reason the Record heartbeat lives on the page the bills
+    loop rewrites daily rather than in a file of its own.
+    """
+    fresh = update.RecordState(
+        last_success=datetime.now(UTC), last_run=datetime.now(UTC),
+        last_outcome="ok", congress=119, days_built=2, days_present=346,
+    )
+
+    page = render_status(State(last_success=datetime.now(UTC)), record=fresh)
+
+    assert "## Congressional Record" in page
+    assert "| Congress | 119 |" in page
+    assert "| Issue days held | 346 |" in page
+    assert "**Heartbeat** | current" in page
+
+
+def test_a_stopped_record_loop_goes_stale_on_its_own() -> None:
+    """The inverted signal: nothing fires, the date simply stops moving."""
+    stopped = datetime.now(UTC) - STALE_AFTER - timedelta(days=1)
+    state = update.RecordState(
+        last_success=stopped, last_run=stopped, last_outcome="ok", congress=119
+    )
+
+    assert state.stale_for is not None
+    assert "**stale**" in render_status(State(), record=state)
+
+
+def test_a_record_loop_that_never_succeeded_is_stale_not_exempt() -> None:
+    """A loop that has never worked must not read as healthy."""
+    assert update.RecordState().stale_for is not None
+
+
+def test_the_record_watermark_round_trips(tmp_path: Path) -> None:
+    """What is written must read back identically, or the row lies."""
+    state = update.RecordState(
+        last_success=datetime(2026, 8, 15, 22, 10, tzinfo=UTC),
+        last_run=datetime(2026, 8, 15, 22, 10, tzinfo=UTC),
+        last_outcome="ok", congress=119, days_built=2, days_present=346,
+        refs_published=2,
+    )
+    path = update.save_record_state(state, tmp_path / "record.json")
+
+    assert update.load_record_state(path) == state
+
+
+def test_a_corrupt_record_watermark_reads_as_never_run(tmp_path: Path) -> None:
+    """Damaged reads as stale, which is the direction that stays visible."""
+    broken = tmp_path / "record.json"
+    broken.write_text("{not json", encoding="utf-8")
+
+    assert update.load_record_state(broken).last_success is None
+    assert update.load_record_state(broken).stale_for is not None
+
+
+def test_a_recess_reads_as_success_not_failure() -> None:
+    """Congress does not sit every day, and that must not look like a fault.
+
+    The staleness threshold watches whether the *job* ran, not whether new text
+    appeared, so a run that adds nothing still moves the date.
+    """
+    page = render_status(
+        State(last_success=datetime.now(UTC)),
+        record=update.RecordState(
+            last_success=datetime.now(UTC), last_run=datetime.now(UTC),
+            last_outcome="ok", congress=119, days_built=0, days_present=346,
+        ),
+    )
+
+    assert "ordinary result of a recess" in page
+    assert "**stale**" not in page

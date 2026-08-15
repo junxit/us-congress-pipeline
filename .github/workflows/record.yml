@@ -1,0 +1,123 @@
+# The Congressional Record's daily loop.
+#
+# Separate from update.yml on purpose. The bills heartbeat is this project's
+# liveness signal, and folding the Record into that job would let a Record
+# fetch error take the signal down with it. Two schedules, two state files,
+# one STATUS.md -- whichever job runs last renders the page from both, so a
+# Record loop that stops shows up as a date that no longer moves while the
+# bills loop keeps publishing the page. Neither loop can report its own death;
+# that is why the other one renders it.
+#
+# The Record was 8 days stale when this was written, because nothing scheduled
+# built it: `update` handles bills and reports US Code release points, and
+# never touched the Record at all.
+#
+# This job is append-only by construction. `update-record` builds issue days a
+# branch does not hold yet and never passes --rebuild, so every push is a
+# fast-forward. That matters more here than for bills: the Record is one
+# cumulative branch, so rewriting a day in the middle rewrites everything after
+# it. govinfo restamps already-published days in bulk -- nine of them on
+# 2026-08-12, with identical contents -- and a modification-driven job would
+# have force-pushed the whole history to produce the same trees.
+
+name: record
+
+on:
+  schedule:
+    # 07:00 UTC daily, two hours after update.yml so the two never contend for
+    # the same push credential, and late enough that the previous day's issue
+    # has settled on govinfo.
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+    inputs:
+      congress:
+        description: "Override the Congress, e.g. 119. Blank for the sitting one"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  # Its own group: this must never queue behind or cancel the bills loop.
+  group: record
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        # Pinned exactly, matching update.yml: astral-sh stopped publishing
+        # floating major tags after v7, so `@v9` does not resolve. Bump both
+        # files together and deliberately.
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --frozen
+
+      - name: Test
+        # Cheap, and the alternative is a defective build writing into a public
+        # repository before anyone notices.
+        run: uv run pytest -q
+
+      - name: Build and publish the Record
+        id: record
+        # Failure is handled below: the heartbeat has to be written and pushed
+        # first, or a run that failed leaves no public trace that it ran at all.
+        continue-on-error: true
+        env:
+          GOVINFO_API_KEY: ${{ secrets.GOVINFO_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
+          # Through the environment, never interpolated into the command. A
+          # workflow_dispatch input is free text, and `${{ }}` inside `run:` is
+          # substituted before the shell sees it, so a value containing shell
+          # metacharacters would execute rather than be parsed as a number.
+          CONGRESS: ${{ inputs.congress }}
+        run: |
+          if [ -n "$CONGRESS" ]; then
+            uv run uscongress update-record --publish --congress "$CONGRESS"
+          else
+            uv run uscongress update-record --publish
+          fi
+
+      - name: Publish the heartbeat
+        # Runs even when the build failed. A failed run is exactly the one whose
+        # outcome most needs to be visible.
+        if: always()
+        run: |
+          git config user.name "us-congress-pipeline"
+          git config user.email "pipeline@junxit.invalid"
+          # Only the watermark. STATUS.md is rendered from it by the bills loop
+          # at 05:00, which is what makes a stopped Record loop visible on a
+          # page something else is still writing -- see recordloop's docstring.
+          git add state/record.json || true
+          if git diff --cached --quiet; then
+            echo "heartbeat unchanged"
+            exit 0
+          fi
+          git commit -m "chore: update Record heartbeat
+
+          Written by the Congressional Record job. The date in STATUS.md is the
+          signal: it goes stale on its own if this stops running, which is the
+          failure mode that raises no error."
+          # Retry once against anything that landed while this ran -- the bills
+          # loop commits to the same branch, and losing this push would leave
+          # the heartbeat reading stale when the job in fact worked.
+          git push || {
+            git pull --rebase --autostash
+            git push
+          }
+
+      - name: Fail if the build did not succeed
+        if: steps.record.outcome == 'failure'
+        run: |
+          echo "The Record build failed; nothing was published and the"
+          echo "heartbeat records the failure. See the build step for detail."
+          exit 1

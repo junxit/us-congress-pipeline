@@ -101,7 +101,11 @@ def main(argv: list[str] | None = None) -> int:
         "seed-record", help="build a us-congress-record-{congress} repo"
     )
     record.add_argument(
-        "--congress", required=True, type=int, help="Congress number, e.g. 115"
+        "--congress",
+        type=int,
+        help="Congress number, e.g. 115. Omit for the one sitting today, which "
+        "is what a scheduled run wants: a hardcoded number would go stale on "
+        "the day the next Congress convenes and skip it in silence",
     )
     record.add_argument(
         "--limit", type=int, help="build only the first N issue days of each edition"
@@ -149,6 +153,28 @@ def main(argv: list[str] | None = None) -> int:
         "--status-path",
         help="override where the heartbeat is written. Without this a local run "
         "overwrites the tracked STATUS.md, which the next scheduled run commits",
+    )
+
+    update_record = subparsers.add_parser(
+        "update-record",
+        help="build the current Congress's Record shard and publish what moved",
+    )
+    update_record.add_argument(
+        "--congress",
+        type=int,
+        help="Congress number. Omit for the one sitting today, which is what a "
+        "scheduled run wants",
+    )
+    update_record.add_argument(
+        "--publish",
+        action="store_true",
+        help="push what the build moved; needs GITHUB_TOKEN. Without it the "
+        "shard is built locally and nothing leaves this machine",
+    )
+    update_record.add_argument(
+        "--state-path",
+        help="override where the watermark is read and written. This job does "
+        "not write STATUS.md at all; the daily bills loop renders it from here",
     )
 
     republish = subparsers.add_parser(
@@ -312,16 +338,21 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "seed-record":
+        from datetime import UTC, datetime
         from pathlib import Path
 
         from .govinfo import GovInfoClient
         from .jobs import record as record_job
 
+        # UTC rather than local time, so a scheduled run and a run from a laptop
+        # west of Greenwich agree on which Congress is sitting.
+        congress = args.congress or record_job.congress_of(datetime.now(UTC).date())
+
         async def _seed_record() -> None:
             async with GovInfoClient() as client:
                 repo = await record_job.seed(
                     client,
-                    congress=args.congress,
+                    congress=congress,
                     limit=args.limit,
                     repo_path=Path(args.repo_path) if args.repo_path else None,
                     rebuild=args.rebuild,
@@ -428,6 +459,24 @@ def main(argv: list[str] | None = None) -> int:
 
         return asyncio.run(_update())
 
+    if args.command == "update-record":
+        from pathlib import Path
+
+        from . import config
+        from .jobs import recordloop as recordloop_job
+
+        # Reported through the heartbeat rather than argparse, for the same
+        # reason `update --publish` does it: a run that exits before writing
+        # STATUS.md leaves no public trace that it ran at all.
+        return asyncio.run(
+            recordloop_job.run(
+                args.congress,
+                token=config.github_token() if args.publish else "",
+                publish_changes=args.publish,
+                state_path=Path(args.state_path) if args.state_path else None,
+            )
+        )
+
     if args.command == "republish":
         from . import config
         from .jobs import bills as bills_job
@@ -439,7 +488,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.repo:
             names += list(args.repo)
         if not names:
-            names = [f"{bills_job.REPO_PREFIX}-{c}" for c in range(108, 120)]
+            names = config.built_shards(f"{bills_job.REPO_PREFIX}-{{congress}}")
 
         token = "" if args.dry_run else config.github_token()
         if not args.dry_run and not token:
