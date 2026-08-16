@@ -168,6 +168,7 @@ def token_can_publish(token: str) -> list[Condition]:
         saying the question could not be asked.
     """
     if not token:
+        print("  push access: not checked, no credential here", flush=True)
         return []
 
     names = [
@@ -223,6 +224,16 @@ def token_can_publish(token: str) -> list[Condition]:
                 "the list does not change the token, so the secret stays as is",
             )
         )
+    # Said out loud because "nothing needs a person" cannot distinguish a
+    # question answered no from a question never asked -- which is the exact
+    # failure this whole check exists to prevent, and it would be absurd for the
+    # check to commit it. A run that skipped this because it found no credential
+    # says so above instead.
+    print(
+        f"  push access: {len(names) - len(due)} of {len(names)} repositories "
+        "writable",
+        flush=True,
+    )
     return due
 
 
