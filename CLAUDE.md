@@ -156,6 +156,7 @@ Never duplicate these anywhere — memory, notes, or prose. They are the source.
 | Is the daily loop still alive? | `STATUS.md`, or `uscongress update --check` |
 | Is the Record loop still alive? | the Congressional Record table on `STATUS.md` |
 | What needs a person right now? | `uv run uscongress attention`, or the **Needs a person** section on `STATUS.md` |
+| Can the loop still publish where it must? | the same check — it asks `git-receive-pack`, per repository |
 | What is missing from a corpus, and why? | `GAPS.md` on that repository's `main` |
 
 Phase state is deliberately in-repo rather than in anyone's head. A phase is
@@ -193,6 +194,15 @@ handles them; this is the index.
 - **The `<?xml` guard is not enough.** 51 of 137 Statutes volumes carry a UTF-8
   BOM, which `bytes.lstrip()` does not strip; MODS documents carry no XML
   declaration at all. See `statutes._is_xml` and `record` for the two shapes.
+- **`ls-remote` says nothing about whether you can push.** It speaks to
+  `git-upload-pack`, the read service, which a public repository serves to
+  anyone — so a credential with no write access reads a repository perfectly and
+  then fails on the push. `us-congress-comps` was created, public and readable
+  for an afternoon while `DATA_REPO_TOKEN` could not write to it, and nothing
+  could say so until a scheduled run went red. The write service advertises refs
+  at the same path under `?service=git-receive-pack`, and GitHub requires push
+  permission to answer: 200 may push, 403 valid credential without write, 401
+  unrecognised, 404 not on a fine-grained token's list. See `publish.can_push`.
 - **govinfo restamps `lastModified` in bulk, with no content change.** On
   2026-08-12 it restamped nine already-published CREC days, two of them from
   2025: 1,469 documents before, 1,469 after, granule titles unchanged. Anything

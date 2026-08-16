@@ -327,15 +327,19 @@ def main(argv: list[str] | None = None) -> int:
         from .jobs import attention as attention_job
 
         async def _attention() -> int:
+            # Empty off a laptop, which is right: this machine does not publish,
+            # so there is no push access to check. In CI it is DATA_REPO_TOKEN,
+            # which is the credential the answer is about.
+            token = config.github_token()
             # Without a key the upstream questions go unasked, and the check
             # says so rather than counting them as answered no.
             try:
                 config.govinfo_api_key()
             except RuntimeError:
-                due = await attention_job.check()
+                due = await attention_job.check(None, None, token)
             else:
                 async with GovInfoClient() as client:
-                    due = await attention_job.check(client)
+                    due = await attention_job.check(client, None, token)
             if not args.check:
                 attention_job.save(
                     due, Path(args.state_path) if args.state_path else None

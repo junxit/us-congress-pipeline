@@ -29,7 +29,7 @@ from pathlib import Path
 
 from .. import config
 from ..govinfo import GovInfoClient
-from ..registry import OWNER, PIPELINE_REPO
+from ..registry import OWNER, PIPELINE_REPO, REPOSITORIES
 from . import publish, record
 from . import update as update_job
 
@@ -120,8 +120,6 @@ def registry_repos_exist() -> list[Condition]:
     Returns:
         One condition per repository built locally and absent from GitHub.
     """
-    from ..registry import REPOSITORIES
-
     due = []
     for entry in REPOSITORIES:
         if entry.is_pipeline or "{" in entry.name:
@@ -138,6 +136,91 @@ def registry_repos_exist() -> list[Condition]:
                 action=f"`gh repo create junxit/{entry.name} --public`, add it "
                 "to DATA_REPO_TOKEN's repository list by hand, then run "
                 "`uscongress artifacts` and `uscongress describe`",
+            )
+        )
+    return due
+
+
+def token_can_publish(token: str) -> list[Condition]:
+    """Check the publishing credential can actually write where it must.
+
+    :func:`registry_repos_exist` asks whether a repository is there, which is a
+    different question and was not enough. ``us-congress-comps`` existed, was
+    public, and read perfectly through ``ls-remote`` -- while the credential the
+    daily job pushes with could not write to it, because a fine-grained token
+    reaches only the repositories on its list and no API can add one. Nothing
+    could say so; the signal was a scheduled run going red the next morning.
+
+    ``DATA_REPO_TOKEN`` is scoped deliberately, so this recurs by design every
+    time a repository is created: the 120th Congress convening will add two.
+
+    Asked of every repository the pipeline publishes, because the answer is
+    per-repository -- that is the whole nature of the scoping.
+
+    Args:
+        token: The credential to test. Empty means this machine does not
+            publish, and nothing is checked: the case that matters, a scheduled
+            run holding an empty secret, is already a loud failure in
+            :func:`uscongress.jobs.update.run` and is on the heartbeat.
+
+    Returns:
+        One condition per repository the credential cannot push to, or one
+        saying the question could not be asked.
+    """
+    if not token:
+        return []
+
+    names = [
+        entry.name
+        for entry in REPOSITORIES
+        if not entry.is_pipeline and "{" not in entry.name
+    ]
+    for entry in REPOSITORIES:
+        if "{" in entry.name:
+            names += config.built_shards(entry.name)
+
+    due = []
+    for name in sorted(names):
+        status = publish.can_push(publish.repo_url(name, token))
+        if status == 200:
+            continue
+        # 401 and 0 are facts about the credential or the network, not about
+        # this repository, so they are reported once and the sweep stops.
+        # Emitting them per-repository would turn one expired token into
+        # thirty-two identical lines and bury whatever else was due.
+        if status == 401:
+            return [
+                Condition(
+                    key="push-credential-rejected",
+                    summary="GitHub does not recognise `DATA_REPO_TOKEN`; "
+                    "nothing can be published at all",
+                    action="Mint a replacement at "
+                    "https://github.com/settings/personal-access-tokens with "
+                    "Contents: read/write on the `us-congress-*` repositories, "
+                    "then update the DATA_REPO_TOKEN secret",
+                )
+            ]
+        if status == 0:
+            return [
+                Condition(
+                    key="push-access-unknown",
+                    summary="whether the publishing credential can still write "
+                    "could not be determined",
+                    action="Check network access to github.com, then re-run",
+                )
+            ]
+        reason = {
+            403: "the credential is valid but has no write access to it",
+            404: "GitHub will not show it to this credential, which for a "
+            "fine-grained token means it is not on the token's list",
+        }.get(status, f"GitHub answered {status}")
+        due.append(
+            Condition(
+                key=f"push-denied:{name}",
+                summary=f"`DATA_REPO_TOKEN` cannot push to `{name}` — {reason}",
+                action="Add it under Repository access at "
+                "https://github.com/settings/personal-access-tokens . Editing "
+                "the list does not change the token, so the secret stays as is",
             )
         )
     return due
@@ -357,7 +440,9 @@ async def upstream_editions(client: GovInfoClient) -> list[Condition]:
 
 
 async def check(
-    client: GovInfoClient | None = None, state_path: Path | None = None
+    client: GovInfoClient | None = None,
+    state_path: Path | None = None,
+    token: str = "",
 ) -> list[Condition]:
     """Collect everything that needs a person right now.
 
@@ -365,6 +450,8 @@ async def check(
         client: HTTP client for the upstream checks. Without one they are
             skipped and said to be skipped, rather than counted as passing.
         state_path: Override the bills loop's watermark location.
+        token: The publishing credential, for the push-access check. Empty
+            means this machine does not publish and that check is skipped.
 
     Returns:
         Every condition that is due, in a stable order.
@@ -375,6 +462,7 @@ async def check(
     due: list[Condition] = []
     due += shards_exist(congress)
     due += registry_repos_exist()
+    due += token_can_publish(token)
     due += schedules_enabled()
     due += backlog(state)
     due += members_current(congress)

@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from uscongress.gitbuild import GitRepo
+from uscongress.jobs import publish
 from uscongress.jobs.publish import (
     PARKED_HEAD,
     prepare,
@@ -311,3 +312,48 @@ def test_an_empty_repository_is_distinguished_from_a_missing_one(
     assert remote_exists(str(origin)) is True  # exists, and has no refs yet
     assert remote_refs(str(origin)) == {}
     assert remote_exists(str(tmp_path / "nope.git")) is False
+
+
+def test_the_write_service_is_what_answers_whether_a_push_would_work(
+    monkeypatch,
+) -> None:
+    """`ls-remote` cannot answer this, which is why it exists.
+
+    That speaks to `git-upload-pack`, the read service, which a public
+    repository serves to anyone -- so a credential with no write access reads a
+    repository perfectly and then fails on the push. Asking the *write* service
+    to advertise its refs is the permission check, and it transfers nothing.
+    """
+    asked = {}
+
+    class _Response:
+        status_code = 200
+
+    def fake_get(url, params=None, **_kwargs):
+        asked["url"] = url
+        asked["params"] = params
+        return _Response()
+
+    import httpx
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    assert publish.can_push("https://github.com/junxit/x.git") == 200
+    assert asked["url"].endswith("/info/refs")
+    assert asked["params"] == {"service": "git-receive-pack"}
+
+
+def test_an_unreachable_remote_is_zero_not_a_refusal(monkeypatch) -> None:
+    """A network failure and a refusal are different facts.
+
+    Reporting the first as the second is how a check starts lying: it would say
+    the credential had lost access when nothing about the credential changed.
+    """
+    import httpx
+
+    def fake_get(*_args, **_kwargs):
+        raise httpx.ConnectError("no route to host")
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    assert publish.can_push("https://github.com/junxit/x.git") == 0

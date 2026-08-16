@@ -201,3 +201,74 @@ def test_a_repository_never_built_here_is_not_owed(monkeypatch, tmp_path: Path) 
     monkeypatch.setattr(attention.publish, "remote_exists", lambda _url: False)
 
     assert attention.registry_repos_exist() == []
+
+
+def test_a_repository_the_credential_cannot_write_is_due(monkeypatch) -> None:
+    """The gap this closes, reproduced.
+
+    `us-congress-comps` existed, was public, and read perfectly through
+    `ls-remote` -- while the credential the daily job pushes with could not
+    write to it, because a fine-grained token reaches only the repositories on
+    its list. Nothing could say so; the signal was a scheduled run going red the
+    next morning.
+    """
+    monkeypatch.setattr(
+        attention.publish,
+        "can_push",
+        lambda url, **_: 403 if "comps" in url else 200,
+    )
+
+    due = attention.token_can_publish("a-token")
+
+    assert _keys(due) == ["push-denied:us-congress-comps"]
+    assert "no write access" in due[0].summary
+
+
+def test_a_writable_credential_is_not_due(monkeypatch) -> None:
+    """The ordinary day stays quiet."""
+    monkeypatch.setattr(attention.publish, "can_push", lambda url, **_: 200)
+
+    assert attention.token_can_publish("a-token") == []
+
+
+def test_a_rejected_credential_is_reported_once_not_per_repository(
+    monkeypatch,
+) -> None:
+    """One expired token is one problem, not thirty-two.
+
+    Reporting it per repository would bury whatever else was due under
+    identical lines, and the remedy is different too: re-mint the token rather
+    than widen its list.
+    """
+    monkeypatch.setattr(attention.publish, "can_push", lambda url, **_: 401)
+
+    due = attention.token_can_publish("a-token")
+
+    assert _keys(due) == ["push-credential-rejected"]
+    assert "Mint a replacement" in due[0].action
+
+
+def test_an_unreachable_github_is_due_not_silent(monkeypatch) -> None:
+    """A network failure and a refusal are different facts.
+
+    Folding the first into the second is how a check starts lying.
+    """
+    monkeypatch.setattr(attention.publish, "can_push", lambda url, **_: 0)
+
+    assert _keys(attention.token_can_publish("a-token")) == ["push-access-unknown"]
+
+
+def test_no_credential_here_checks_nothing(monkeypatch) -> None:
+    """A laptop does not publish, so it has no push access to check.
+
+    The case that matters -- a scheduled run holding an empty secret -- is
+    already a loud failure in `update.run` and is on the heartbeat, so this
+    would be a second, noisier copy of a signal that already exists.
+    """
+    called = []
+    monkeypatch.setattr(
+        attention.publish, "can_push", lambda url, **_: called.append(url) or 200
+    )
+
+    assert attention.token_can_publish("") == []
+    assert not called, "a machine with no credential must not probe GitHub"

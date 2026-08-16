@@ -142,6 +142,55 @@ def remote_exists(url: str) -> bool:
     return result.returncode in (0, 2)
 
 
+def can_push(url: str, timeout: float = 30.0) -> int:
+    """Ask the remote whether this credential may push, without pushing.
+
+    ``ls-remote`` cannot answer this. It speaks to ``git-upload-pack``, the read
+    service, which a public repository serves to anyone -- so a credential with
+    no write access at all reads a repository perfectly and then fails on the
+    push. That gap is how ``us-congress-comps`` came to exist, be readable, and
+    be unpushable by the daily job for an afternoon, with nothing able to say so
+    until a scheduled run went red.
+
+    The write service advertises its refs at the same path under a different
+    ``service`` parameter, and GitHub requires push permission to answer it. So
+    asking for that advertisement *is* the permission check, and it transfers
+    nothing: no objects, no refs written, no side effect of any kind.
+
+    Measured against GitHub, which distinguishes all four cases:
+
+    ==== ===========================================================
+    200  the credential may push
+    403  a valid credential without write access to this repository
+    401  no credential, or one GitHub does not recognise
+    404  no such repository -- or, for a fine-grained token, one that
+         is not on its list, which GitHub hides rather than refuses
+    ==== ===========================================================
+
+    Args:
+        url: Repository URL, with a credential embedded; see :func:`repo_url`.
+        timeout: Seconds to wait.
+
+    Returns:
+        The HTTP status, or 0 if the question could not be asked at all. Zero is
+        deliberately not folded into "no": a network failure and a refusal are
+        different facts, and reporting the first as the second is how a check
+        starts lying.
+    """
+    import httpx
+
+    try:
+        response = httpx.get(
+            f"{url}/info/refs",
+            params={"service": "git-receive-pack"},
+            timeout=timeout,
+            follow_redirects=True,
+        )
+    except httpx.HTTPError:
+        return 0
+    return response.status_code
+
+
 def remote_tags(url: str) -> set[str]:
     """Read every tag on the remote.
 

@@ -86,7 +86,17 @@ jobs:
         continue-on-error: true
         env:
           GOVINFO_API_KEY: ${{ secrets.GOVINFO_API_KEY }}
+          # Two credentials, because two different questions are being asked.
+          # `gh` uses GH_TOKEN and needs the built-in one: it reads this
+          # repository's own workflow states and maintains the issue, neither of
+          # which DATA_REPO_TOKEN can do. `config.github_token()` reads
+          # GITHUB_TOKEN, and the push check is *about* DATA_REPO_TOKEN -- the
+          # credential the loops publish with -- so testing any other would
+          # answer a question nobody asked. Without this line the check finds no
+          # credential, decides this machine does not publish, and skips the one
+          # thing it was added for.
           GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
         run: uv run uscongress attention --announce || true
 
       - name: Update
