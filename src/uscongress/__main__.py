@@ -101,7 +101,12 @@ def main(argv: list[str] | None = None) -> int:
     bills = subparsers.add_parser(
         "seed-bills", help="build a us-congress-bills-{congress} repo"
     )
-    bills.add_argument("--congress", required=True, help="Congress number, e.g. 113")
+    bills.add_argument(
+        "--congress",
+        help="Congress number, e.g. 113. Omit for the one sitting today, which "
+        "is what a scheduled rebuild wants: a hardcoded number would go stale "
+        "on the day the next Congress convenes and rebuild the wrong shard",
+    )
     bills.add_argument("--limit", type=int, help="build only the first N measures")
     bills.add_argument("--repo-path", help="override the repository location")
     bills.add_argument(
@@ -334,16 +339,24 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "seed-bills":
+        from datetime import UTC, datetime
         from pathlib import Path
 
         from .govinfo import GovInfoClient
         from .jobs import bills as bills_job
+        from .jobs import record as record_job
+
+        # UTC rather than local time, so a scheduled run and a run from a laptop
+        # west of Greenwich agree on which Congress is sitting.
+        congress = args.congress or str(
+            record_job.congress_of(datetime.now(UTC).date())
+        )
 
         async def _seed_bills() -> None:
             async with GovInfoClient() as client:
                 repo = await bills_job.seed(
                     client,
-                    congress=args.congress,
+                    congress=congress,
                     limit=args.limit,
                     repo_path=Path(args.repo_path) if args.repo_path else None,
                     rebuild=args.rebuild,

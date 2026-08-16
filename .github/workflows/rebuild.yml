@@ -1,0 +1,130 @@
+# The monthly rebuild of the sitting Congress's bills shard.
+#
+# It exists for one artifact: GAPS.md. The daily loop rebuilds the measures
+# govinfo reports as changed and deliberately never writes `main`, and a
+# resumable `seed-bills` refuses to write GAPS.md at all -- it skips the built
+# branches, so it measures no votes and no amendment totals, and writing that
+# out would delete those sections. Both refusals are right. The consequence is
+# that the gap record freezes at the last full rebuild while the corpus moves:
+# `us-congress-bills-119` claimed 224 measures had no branch when the true
+# figure was 61, because 163 of them had gained text over the year and been
+# built by the loop.
+#
+# So the only thing that can refresh it honestly is a run that walks every
+# measure, and this is that run, once a month.
+#
+# It force-pushes, which is why it is monthly, separate, and reads back what
+# landed with `ls-remote` rather than trusting git's exit code. The render is a
+# pure function of the source documents and the commit timestamps come from the
+# version dates, so an unchanged measure rebuilds to byte-identical commits with
+# the same SHAs: a rebuild of a shard nothing has touched moves `main` alone.
+#
+# It deliberately does NOT run `uscongress artifacts`. That job builds its
+# cross-reference set from what is on disk, and this runner holds exactly one
+# repository -- running it here would strip every sibling link out of the README
+# it writes. The rewrite procedure in CLAUDE.md calls for `artifacts` because it
+# assumes a machine that has the whole corpus. This one does not.
+
+name: rebuild
+
+on:
+  schedule:
+    # 03:00 UTC on the 1st. Before both daily loops, so if this over-runs it
+    # contends with nothing; and monthly because it is an hours-long crawl on a
+    # runner that starts with no cache.
+    - cron: "0 3 1 * *"
+  workflow_dispatch:
+    inputs:
+      congress:
+        description: "Override the Congress, e.g. 119. Blank for the sitting one"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  # Its own group. This must never queue behind or cancel a daily loop, and two
+  # rebuilds of one shard would race on the force push.
+  group: rebuild
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    # The runner starts with an empty cache, so every measure of the Congress is
+    # fetched: roughly 18,000 status documents and their text versions.
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        # Pinned exactly, matching the other two workflows: astral-sh stopped
+        # publishing floating major tags after v7. Bump all three together.
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --frozen
+
+      - name: Test
+        # This one force-pushes a published corpus. The gate matters most here.
+        run: uv run pytest -q
+
+      - name: Rebuild the sitting Congress
+        id: rebuild
+        continue-on-error: true
+        env:
+          GOVINFO_API_KEY: ${{ secrets.GOVINFO_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
+          # Through the environment, never interpolated into the command: a
+          # dispatch input is free text, and `${{ }}` inside `run:` is
+          # substituted before the shell sees it.
+          CONGRESS: ${{ inputs.congress }}
+        run: |
+          if [ -n "$CONGRESS" ]; then
+            uv run uscongress seed-bills --congress "$CONGRESS" --rebuild
+          else
+            uv run uscongress seed-bills --rebuild
+          fi
+          # No target needed: `republish` defaults to the bills shards that
+          # exist on disk, and this runner holds exactly the one just rebuilt.
+          # Naming it would mean recomputing the sitting Congress in shell.
+          uv run uscongress republish
+
+      - name: Record that it ran
+        # Same reason as the daily loops: a failure before the work step leaves
+        # no repository activity at all, and GitHub disables a schedule after 60
+        # days of that. Written in shell because the thing being guarded against
+        # is the Python job never starting.
+        if: always()
+        run: |
+          git config user.name "us-congress-pipeline"
+          git config user.email "pipeline@junxit.invalid"
+          printf 'run %s\nstarted %s\nrebuild step: %s\n' \
+            "${{ github.run_id }}" \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${{ steps.rebuild.outcome || 'did not run' }}" \
+            > state/ci-rebuild.txt
+          git add state/ci-rebuild.txt || true
+          if git diff --cached --quiet; then
+            echo "unchanged"
+            exit 0
+          fi
+          git commit -m "chore: record the monthly rebuild
+
+          Written by the rebuild job. It refreshes GAPS.md on the sitting
+          Congress's shard, which nothing else can do honestly."
+          git push || {
+            git pull --rebase --autostash
+            git push
+          }
+
+      - name: Fail if the rebuild did not succeed
+        if: steps.rebuild.outcome == 'failure'
+        run: |
+          echo "The rebuild failed. Nothing was force-pushed unless republish"
+          echo "reported refs landing; see the rebuild step for detail."
+          exit 1

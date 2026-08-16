@@ -82,12 +82,24 @@ it is safe to re-run and pushes nothing when nothing moved.
 
 ## Two loops, one page
 
-There are two scheduled jobs, and they are separate on purpose.
+There are three scheduled jobs, and they are separate on purpose.
 
 | Workflow | When | Runs | Writes |
 |---|---|---|---|
-| `update.yml` | 05:00 UTC | `update --publish` — bills, and reports US Code release points | `STATUS.md`, `state/update.json` |
-| `record.yml` | 07:00 UTC | `update-record --publish` — the current Congress's Record shard | `state/record.json` |
+| `update.yml` | 05:00 UTC daily | `attention --announce`, then `update --publish` — bills, and reports US Code release points | `STATUS.md`, `state/update.json`, `state/attention.json` |
+| `record.yml` | 07:00 UTC daily | `update-record --publish` — the current Congress's Record shard | `state/record.json` |
+| `rebuild.yml` | 03:00 UTC monthly | `seed-bills --rebuild` then `republish` — the only thing that can refresh `GAPS.md` honestly | `state/ci-rebuild.txt` |
+
+`attention` runs **before** `update`, not after, because `update` is what renders
+`STATUS.md` and it renders that list from the file `attention` writes. Run it
+afterwards and every reader sees yesterday's answer.
+
+Each job also writes `state/ci-*.txt` in shell from a step that always runs.
+That is not decoration: a failure early enough to skip the Python job — a broken
+lockfile, a failing test — leaves nothing to commit, and GitHub disables a
+scheduled workflow after 60 days without repository activity. Without those
+files the mechanism that keeps the schedules alive is the first thing a
+persistent failure takes down.
 
 Only `update.yml` renders `STATUS.md`, and it renders **both** heartbeats from
 the two state files. That is what makes a stopped Record loop visible: the
@@ -100,6 +112,12 @@ therefore lags by up to a day, which the two-day staleness threshold absorbs.
 days a branch already holds and builds the rest; it never passes `--rebuild`.
 The Record is one cumulative branch, so rewriting a day in the middle rewrites
 every commit after it. See the trap below about restamping.
+
+**`rebuild.yml` never runs `artifacts`.** That job builds its cross-reference
+set from what is on disk, and a runner holds only the shard it just rebuilt —
+running it there would strip every sibling link out of the README it writes.
+The rewrite procedure above calls for `artifacts` because it assumes a machine
+holding the whole corpus.
 
 ## Maintenance that needs a person
 
