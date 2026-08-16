@@ -171,14 +171,24 @@ def token_can_publish(token: str) -> list[Condition]:
         print("  push access: not checked, no credential here", flush=True)
         return []
 
-    names = [
-        entry.name
-        for entry in REPOSITORIES
-        if not entry.is_pipeline and "{" not in entry.name
-    ]
-    for entry in REPOSITORIES:
-        if "{" in entry.name:
-            names += config.built_shards(entry.name)
+    # Asked of GitHub, not of the filesystem. Deriving the shards from
+    # `built_shards` reads `data/repos`, which is empty on a scheduled runner --
+    # so the first CI run of this check reported "3 of 3 repositories writable"
+    # and had silently skipped all 29 shards, the ones the January failure will
+    # actually land on. `bootstrap.remote_repositories` documents this exact
+    # trap; the authority for what exists is the place the repositories are.
+    from . import bootstrap
+
+    names = [n for n in bootstrap.remote_repositories() if n != PIPELINE_REPO]
+    if not names:
+        return [
+            Condition(
+                key="push-access-unknown",
+                summary="the repository list could not be read, so whether the "
+                "publishing credential can still write is unknown",
+                action="Check `gh auth status`, then re-run",
+            )
+        ]
 
     due = []
     for name in sorted(names):

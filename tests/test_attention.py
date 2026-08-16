@@ -203,6 +203,18 @@ def test_a_repository_never_built_here_is_not_owed(monkeypatch, tmp_path: Path) 
     assert attention.registry_repos_exist() == []
 
 
+def _fixed_repo_list(monkeypatch, names: list[str]) -> None:
+    """Pin the repository list so no test reaches GitHub.
+
+    Args:
+        monkeypatch: Pytest fixture.
+        names: Repository names the listing should return.
+    """
+    from uscongress.jobs import bootstrap
+
+    monkeypatch.setattr(bootstrap, "remote_repositories", lambda: names)
+
+
 def test_a_repository_the_credential_cannot_write_is_due(monkeypatch) -> None:
     """The gap this closes, reproduced.
 
@@ -212,6 +224,7 @@ def test_a_repository_the_credential_cannot_write_is_due(monkeypatch) -> None:
     its list. Nothing could say so; the signal was a scheduled run going red the
     next morning.
     """
+    _fixed_repo_list(monkeypatch, ["us-congress-code", "us-congress-comps"])
     monkeypatch.setattr(
         attention.publish,
         "can_push",
@@ -226,6 +239,7 @@ def test_a_repository_the_credential_cannot_write_is_due(monkeypatch) -> None:
 
 def test_a_writable_credential_is_not_due(monkeypatch) -> None:
     """The ordinary day stays quiet."""
+    _fixed_repo_list(monkeypatch, ["us-congress-code", "us-congress-comps"])
     monkeypatch.setattr(attention.publish, "can_push", lambda url, **_: 200)
 
     assert attention.token_can_publish("a-token") == []
@@ -240,6 +254,7 @@ def test_a_rejected_credential_is_reported_once_not_per_repository(
     identical lines, and the remedy is different too: re-mint the token rather
     than widen its list.
     """
+    _fixed_repo_list(monkeypatch, [f"us-congress-bills-{n}" for n in range(108, 120)])
     monkeypatch.setattr(attention.publish, "can_push", lambda url, **_: 401)
 
     due = attention.token_can_publish("a-token")
@@ -253,6 +268,7 @@ def test_an_unreachable_github_is_due_not_silent(monkeypatch) -> None:
 
     Folding the first into the second is how a check starts lying.
     """
+    _fixed_repo_list(monkeypatch, ["us-congress-code"])
     monkeypatch.setattr(attention.publish, "can_push", lambda url, **_: 0)
 
     assert _keys(attention.token_can_publish("a-token")) == ["push-access-unknown"]
@@ -272,3 +288,38 @@ def test_no_credential_here_checks_nothing(monkeypatch) -> None:
 
     assert attention.token_can_publish("") == []
     assert not called, "a machine with no credential must not probe GitHub"
+
+
+def test_the_shards_are_asked_of_github_not_of_this_disk(monkeypatch) -> None:
+    """The first CI run of this check reported "3 of 3 repositories writable".
+
+    It derived the shard names from `data/repos`, which is empty on a scheduled
+    runner, so it silently skipped all 29 shards -- the ones the next missing
+    repository will actually be. `bootstrap.remote_repositories` documents this
+    exact trap; the authority for what exists is the place the repositories are.
+    """
+    _fixed_repo_list(
+        monkeypatch,
+        ["us-congress-pipeline", "us-congress-code", "us-congress-bills-119"],
+    )
+    asked: list[str] = []
+    monkeypatch.setattr(
+        attention.publish,
+        "can_push",
+        lambda url, **_: asked.append(url) or 200,
+    )
+    monkeypatch.setattr(attention.config, "REPOS_DIR", Path("/nonexistent"))
+
+    attention.token_can_publish("a-token")
+
+    assert len(asked) == 2, "an empty data/ must not shrink what is checked"
+    assert not any("us-congress-pipeline" in u for u in asked), (
+        "the pipeline is pushed with a different credential"
+    )
+
+
+def test_an_unreadable_repository_list_is_due_not_silent(monkeypatch) -> None:
+    """Not knowing what exists must not read as everything being fine."""
+    _fixed_repo_list(monkeypatch, [])
+
+    assert _keys(attention.token_can_publish("a-token")) == ["push-access-unknown"]
