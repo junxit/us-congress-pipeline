@@ -16,6 +16,7 @@ import pytest
 
 from uscongress import votes as votes_text
 from uscongress.gitbuild import GitRepo
+from uscongress.jobs import bills
 from uscongress.jobs.bills import (
     Committee,
     Measure,
@@ -803,3 +804,29 @@ def test_the_gap_document_still_reports_measures_with_no_text() -> None:
     assert "108th Congress" in text
     assert "upstream gap, not a build failure" in text
     assert "## By measure type" in text
+
+
+def test_a_resumable_seed_does_not_strip_the_gap_record(tmp_path: Path) -> None:
+    """Skipping branches measures no votes, so it must not rewrite GAPS.md.
+
+    Votes and derived amendment totals are accumulated only for measures a run
+    builds. A resumable run over an already-built shard builds none, so those
+    two sections render empty -- and writing that out deletes them. It happened
+    on `us-congress-bills-119`: a plain `seed-bills` published a GAPS.md with
+    the roll-call and amendment-execution sections gone, while the textless
+    list it did measure was correct, so the document looked healthy.
+    """
+    full = bills.gap_documents(
+        "119",
+        [("hr-1", "H.R. 1", "A bill")],
+        votes_missing=[("hr-2", "H.R. 2", "not published")],
+        votes_late=[("hr-3", "H.R. 3", "after the last version")],
+        derived_totals={"no citation": 5},
+    )["GAPS.md"]
+    partial = bills.gap_documents("119", [("hr-1", "H.R. 1", "A bill")])["GAPS.md"]
+
+    assert "Roll-call votes" in full
+    assert "Roll-call votes" not in partial, (
+        "a partial render drops the vote section, which is why seed must not "
+        "write it after skipping branches"
+    )

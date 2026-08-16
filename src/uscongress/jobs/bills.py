@@ -862,7 +862,23 @@ async def seed(
             flush=True,
         )
 
-    if gaps or votes_missing or votes_late or derived_totals:
+    # Votes and derived amendment totals are accumulated only for measures this
+    # run actually built, so a resumable run over a shard that is already built
+    # measures none of them. Writing GAPS.md from that would render those two
+    # sections empty and *delete* them -- silently, because the textless list it
+    # does measure is correct and the document looks fine. It has happened: a
+    # plain `seed-bills --congress 119` over a built shard published a GAPS.md
+    # with the roll-call and amendment sections gone. So the record is written
+    # only by a run that walked every measure, and a partial run says why not.
+    if skipped and not rebuild:
+        if gaps:
+            print(
+                f"  GAPS.md left alone: {skipped:,} branches were skipped, so this "
+                "run measured no votes or amendment totals and rewriting the "
+                "record would drop those sections. Use --rebuild to refresh it.",
+                flush=True,
+            )
+    elif gaps or votes_missing or votes_late or derived_totals:
         _write_gaps(repo, congress, gaps, votes_missing, votes_late, derived_totals)
 
     accounted = built + skipped + textless + unreadable + failed
