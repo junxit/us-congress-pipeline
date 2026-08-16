@@ -43,10 +43,6 @@ STATE_PATH = config.STATE_DIR / "attention.json"
 #: unlike every other job here, a missed day is not recoverable.
 COMPS_STALE_AFTER = timedelta(days=2)
 
-#: How far ahead to warn about a date bound that will start rejecting real data.
-#: A year is enough notice for something nobody is watching for.
-DATE_BOUND_NOTICE = timedelta(days=365)
-
 #: ``Extracted YYYY-MM-DD`` in the vendored crosswalk's module docstring.
 _EXTRACTED = re.compile(r"^Extracted (\d{4}-\d{2}-\d{2})", re.MULTILINE)
 
@@ -272,36 +268,6 @@ def comps_current(now: datetime | None = None) -> list[Condition]:
     ]
 
 
-def date_bounds(now: datetime | None = None) -> list[Condition]:
-    """Warn before a hardcoded date bound starts rejecting real data.
-
-    ``statutetext._LATEST`` rejects implausible enactment dates. Once today
-    passes it, every genuinely enacted law in a newly published volume is
-    rejected too and silently loses its ``approved:`` date -- the same shape of
-    failure the bound was added to prevent, in the other direction.
-
-    Args:
-        now: Override the clock, for tests.
-
-    Returns:
-        One condition if the bound is within :data:`DATE_BOUND_NOTICE`.
-    """
-    from .. import statutetext
-
-    bound: date = statutetext._LATEST  # noqa: SLF001
-    today = (now or datetime.now(UTC)).date()
-    if bound - today > DATE_BOUND_NOTICE:
-        return []
-    return [
-        Condition(
-            key="date-bound",
-            summary=f"`statutetext._LATEST` is {bound}, which is near enough "
-            "to start rejecting real enactment dates",
-            action="Widen `_LATEST` in src/uscongress/statutetext.py",
-        )
-    ]
-
-
 async def upstream_editions(client: GovInfoClient) -> list[Condition]:
     """Check upstream for editions this corpus does not carry.
 
@@ -374,7 +340,6 @@ async def check(
     due += backlog(state)
     due += members_current(congress)
     due += comps_current()
-    due += date_bounds()
 
     if client is None:
         due.append(

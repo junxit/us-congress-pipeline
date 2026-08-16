@@ -3,7 +3,7 @@
 Every repository in this project, what it holds, and whether it exists yet,
 and the plan the whole thing is being built to.
 
-**Generated** 2026-08-15 22:13 UTC by `uv run uscongress index`. Do not edit by hand —
+**Generated** 2026-08-16 15:22 UTC by `uv run uscongress index`. Do not edit by hand —
 the source of truth is `src/uscongress/registry.py`.
 
 ## Roadmap
@@ -38,7 +38,7 @@ one states its own terms in a `LICENSE` file.
 
 | Repository | Phase | Contents | Status |
 |---|---|---|---|
-| [`us-congress-pipeline`](https://github.com/junxit/us-congress-pipeline) ← you are here | 0 | The ETL itself. Generates every repository below. | live, **public**, pushed 2026-08-15 |
+| [`us-congress-pipeline`](https://github.com/junxit/us-congress-pipeline) ← you are here | 0 | The ETL itself. Generates every repository below. | live, **public**, pushed 2026-08-16 |
 | [`us-congress-code`](https://github.com/junxit/us-congress-code) | 1 | The codified US Code. One commit per OLRC release point, tagged, with per-law attribution from Table III. | live, **public**, pushed 2026-08-09 |
 | `us-congress-bills-{congress}` | 2 | One branch per measure; one commit per bill text version. | 12 shards live, **public** |
 | [`us-congress-statutes`](https://github.com/junxit/us-congress-statutes) | 5 | Statutes at Large — session laws as enacted, volumes 1–137. | live, **public**, pushed 2026-08-09 |
@@ -65,7 +65,7 @@ repositories it actually stands for.
 
 ## Sharding
 
-- `us-congress-bills-{congress}` — one repo per Congress, 108 through 119
+- `us-congress-bills-{congress}` — one repo per Congress, from the 108th
 - `us-congress-record-{congress}` — one repo per Congress
 
 Sharding by Congress is a deliberate choice, not a capacity limit. The

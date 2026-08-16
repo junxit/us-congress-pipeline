@@ -149,23 +149,6 @@ def test_a_fresh_comps_snapshot_is_not_due(monkeypatch, tmp_path: Path) -> None:
     assert attention.comps_current(datetime(2026, 8, 16, tzinfo=UTC)) == []
 
 
-def test_a_date_bound_about_to_reject_real_data_is_due() -> None:
-    """`_LATEST` rejects implausible enactment dates -- until it rejects real ones.
-
-    Past that date every genuinely enacted law in a new Statutes volume loses
-    its `approved:` date silently, which is the same failure the bound was added
-    to prevent, in the other direction.
-    """
-    from uscongress import statutetext
-
-    just_inside = statutetext._LATEST - timedelta(days=30)  # noqa: SLF001
-
-    assert _keys(
-        attention.date_bounds(datetime(just_inside.year, just_inside.month, 1, tzinfo=UTC))
-    ) == ["date-bound"]
-    assert attention.date_bounds(datetime(2026, 8, 16, tzinfo=UTC)) == []
-
-
 def test_the_list_round_trips(tmp_path: Path) -> None:
     """STATUS.md renders from this file, so what is written must read back."""
     due = [Condition("a-key", "something is true", "do something")]

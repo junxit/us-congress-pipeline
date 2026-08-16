@@ -81,7 +81,11 @@ REPOSITORIES: list[Repository] = [
         summary="One branch per measure; one commit per bill text version.",
         source="govinfo BILLS + BILLSTATUS",
         phase=2,
-        shards="one repo per Congress, 108 through 119",
+        # Not "108 through 119": that names a range which stops being true the
+        # day the next Congress convenes, and it renders verbatim into
+        # REPOSITORIES.md, whose own repository table is derived from what
+        # exists. The two would then contradict each other on the same page.
+        shards="one repo per Congress, from the 108th",
     ),
     Repository(
         name="us-congress-statutes",

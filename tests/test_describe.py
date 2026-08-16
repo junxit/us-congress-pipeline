@@ -102,3 +102,29 @@ def test_an_unknown_repository_still_gets_something() -> None:
 
     assert meta.description
     assert meta.topics
+
+
+@pytest.mark.parametrize(
+    ("congress", "expected"),
+    [
+        ("108", "108th"),
+        ("111", "111th"),
+        ("112", "112th"),
+        ("113", "113th"),
+        ("119", "119th"),
+        ("121", "121st"),
+        ("122", "122nd"),
+        ("123", "123rd"),
+        ("124", "124th"),
+    ],
+)
+def test_a_congress_number_reads_as_an_ordinal(congress: str, expected: str) -> None:
+    """`f"{congress}th"` is right for every Congress held so far and wrong soon.
+
+    It would also have been invisible: `describe --check` compares GitHub
+    against this same function, so both sides would have said "121th" and
+    agreed that nothing had drifted.
+    """
+    from uscongress.jobs.describe import _ordinal
+
+    assert _ordinal(congress) == expected

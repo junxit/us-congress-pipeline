@@ -157,8 +157,25 @@ _WS = re.compile(r"\s+")
 #: across the whole corpus -- ``1110-04-16`` in volume 32 and three ``1007-..``
 #: in volume 34, both volumes covering the 1900s -- and an unfiltered maximum or
 #: minimum over a volume would take them as fact.
+#:
+#: The upper bound is relative to today rather than a fixed year, because a
+#: fixed one eventually rejects the very data it exists to protect: a law
+#: enacted after it would be dropped as implausible and silently lose its
+#: ``approved:`` date -- the same failure, from the other side, and invisible
+#: because a missing date looks like a volume that never carried one. Two years
+#: of slack absorbs a volume published ahead of its nominal year while still
+#: catching a transposed century.
 _EARLIEST = date(1776, 1, 1)
-_LATEST = date(2030, 1, 1)
+
+
+def _latest() -> date:
+    """Return the newest enactment date treated as plausible.
+
+    Returns:
+        Two years past today.
+    """
+    today = date.today()  # noqa: DTZ011 - a calendar bound, not an instant
+    return today.replace(year=today.year + 2, month=1, day=1)
 
 
 def _tag(element: ET.Element) -> str:
@@ -698,7 +715,7 @@ def _approved(law: ET.Element) -> date | None:
             parsed = date.fromisoformat(stamp[:10])
         except ValueError:
             continue
-        if _EARLIEST <= parsed < _LATEST:
+        if _EARLIEST <= parsed < _latest():
             return parsed
     return None
 

@@ -77,6 +77,27 @@ def _congress_of(name: str) -> str:
     return tail if name.startswith("us-congress-bills-") and tail.isdigit() else ""
 
 
+def _ordinal(number: str) -> str:
+    """Render a Congress number as an English ordinal.
+
+    ``f"{congress}th"`` is right for every Congress this corpus has held and
+    wrong for the 121st, 122nd and 123rd. It would also be invisible: ``check``
+    compares GitHub against this same function, so both sides would say "121th"
+    and agree.
+
+    Args:
+        number: Congress number as digits, e.g. ``"119"``.
+
+    Returns:
+        The ordinal, e.g. ``"119th"`` or ``"121st"``.
+    """
+    value = int(number)
+    # 11th, 12th and 13th, and every hundred after them, break the units rule.
+    if value % 100 in (11, 12, 13):
+        return f"{value}th"
+    return f"{value}{ {1: 'st', 2: 'nd', 3: 'rd'}.get(value % 10, 'th') }"
+
+
 def metadata_for(name: str) -> Metadata:
     """Build the description and topics for one repository.
 
@@ -126,7 +147,7 @@ def metadata_for(name: str) -> Metadata:
         homepage = PIPELINE_URL
     elif congress:
         description = (
-            f"Bills of the {congress}th Congress as a git repository: one branch per "
+            f"Bills of the {_ordinal(congress)} Congress as a git repository: one branch per "
             "measure, one commit per text version, with sponsors and actions as of "
             "each version. Public domain federal text."
         )
