@@ -45,6 +45,7 @@ you to notice — the date simply stops moving. See [Staying alive](#staying-ali
 | [`us-congress-code`](https://github.com/junxit/us-congress-code) | 1 | the codified US Code; one commit per OLRC release point, tagged | built |
 | `us-congress-bills-{congress}` | 2 | one repo per Congress; one branch per measure | 12 built, [108](https://github.com/junxit/us-congress-bills-108)–[119](https://github.com/junxit/us-congress-bills-119) |
 | [`us-congress-statutes`](https://github.com/junxit/us-congress-statutes) | 5 | Statutes at Large, 135 volumes and 101,975 laws | built |
+| [`us-congress-comps`](https://github.com/junxit/us-congress-comps) | 11 | Statute Compilations, one commit per daily snapshot | built |
 | `us-congress-record-{congress}` | 6 | Congressional Record as text, 1994 to present | 17 built, [103](https://github.com/junxit/us-congress-record-103)–[119](https://github.com/junxit/us-congress-record-119) |
 
 Only repositories that exist are linked here; the rest are named but not linked, because a
@@ -101,7 +102,7 @@ takes minutes where a rebuild takes days — the Congressional Record alone is a
 1.37 million request crawl:
 
 ```bash
-uv run uscongress bootstrap        # clone the 31 data repos into data/repos/
+uv run uscongress bootstrap        # clone the 32 data repos into data/repos/
 ```
 
 The cached upstream XML under `data/raw/` is deliberately not restored and does

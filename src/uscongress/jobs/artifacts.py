@@ -85,7 +85,7 @@ def _status_of(repo: Repository, built: set[str]) -> str:
     has shipped. Reading the second from the first would report a phase as
     planned on any machine that had not built it yet, and every generated
     repository carries this table, so a wrong answer here is published into all
-    thirty-one of them at once.
+    thirty-two of them at once.
 
     Args:
         repo: The repository being described.
@@ -201,6 +201,19 @@ def _facts(path: Path, name: str) -> list[str]:
                     "- a `main` branch holding this README, the license, and `GAPS.md`"
                 )
             return lines
+        if name == "us-congress-comps":
+            snapshots = int(repo._run("rev-list", "--count", "snapshots").strip())  # noqa: SLF001
+            # Counted off the snapshots branch, never off main: main carries this
+            # README, and counting a file this commit writes would change the
+            # number, which changes the file, which changes the number.
+            names = repo._run("ls-tree", "--name-only", "snapshots").splitlines()  # noqa: SLF001
+            compilations = sum(1 for n in names if n.endswith(".xml"))
+            return [
+                f"- **{snapshots:,} daily snapshots** on `snapshots`, one commit each",
+                f"- **{compilations:,} compilations** as govinfo published them, "
+                "one file per compilation, so a diff shows what changed",
+                "- a `main` branch holding this README and the license",
+            ]
         if name == "us-congress-code":
             tags = len([t for t in repo._run("tag").splitlines() if t.strip()])  # noqa: SLF001
             return [
@@ -385,6 +398,30 @@ def _usage(name: str, path: Path) -> list[str]:
             "replaces the whole tree, and it is right here because the Record is "
             "a serial: an issue succeeds its predecessor rather than revising it.",
         ]
+    if name == "us-congress-comps":
+        return [
+            "```bash",
+            f"git clone {url}",
+            f"cd {name}",
+            "git checkout snapshots",
+            "",
+            "# what changed in the collection on a given day",
+            "git show --stat HEAD",
+            "",
+            "# the history of one compilation, across every snapshot",
+            "git log --follow -p -- COMPS-10653.xml",
+            "",
+            "# the collection as it stood on a date",
+            "git checkout \"$(git rev-list -1 --before=2026-08-04 snapshots)\"",
+            "```",
+            "",
+            "Each commit is one day's snapshot of the whole collection, and its "
+            "message records how many compilations changed and how many were "
+            "withdrawn. `snapshot.json` at the root carries the date and the "
+            "package count, so a day on which nothing changed still leaves a "
+            "commit — the difference between *checked, and identical* and *never "
+            "checked* is the whole point of the repository.",
+        ]
     if name == "us-congress-code":
         return [
             "```bash",
@@ -519,6 +556,27 @@ def _caveats(name: str) -> list[str]:
             "Record rather than delivered on the floor is marked ● in the source "
             "and kept as ● here, because the distinction is the whole reason the "
             "mark exists.",
+        ]
+    if name == "us-congress-comps":
+        return common + [
+            "",
+            "**This exists because the source does not keep its own history.** "
+            "govinfo replaces a Statute Compilation in place when it is amended "
+            "and keeps no version archive, so once a compilation is superseded "
+            "the previous text is gone from the internet. These commits are the "
+            "only remaining record of what the collection held on the days they "
+            "were taken.",
+            "",
+            "**A gap between commit dates is a gap in the record, not a quiet "
+            "period.** Every snapshot day is committed, including days on which "
+            "nothing changed, so a missing date means no snapshot was taken and "
+            "whatever changed that day cannot be recovered from anywhere.",
+            "",
+            "**These are compilations, not codified law.** A compilation states "
+            "an act as amended through a given public law — the Social Security "
+            "Act, for instance — which is a different thing from the US Code's "
+            "arrangement of the same material. For the codified text see "
+            f"[`us-congress-code`](https://github.com/{OWNER}/us-congress-code).",
         ]
     if name == "us-congress-code":
         return common + [

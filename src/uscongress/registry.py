@@ -290,7 +290,7 @@ PHASES: list[Phase] = [
         detail=(
             "The schedule is live. The token GitHub injects into a workflow run "
             "is scoped to the repository running it — enough to commit the "
-            "heartbeat, not enough to push the 31 data repositories — so the loop "
+            "heartbeat, not enough to push the 32 data repositories — so the loop "
             "carries a `DATA_REPO_TOKEN` of its own: a fine-grained token with "
             "Contents: read/write on the `us-congress-*` repositories and nothing "
             "else, minted by hand because no API can create one. Proved by a real "
@@ -360,15 +360,14 @@ PHASES: list[Phase] = [
             "snapshots; git already does that, so hash-named files would buy "
             "nothing and cost the only question these snapshots exist to "
             "answer — what changed in this compilation, and when. One commit "
-            "per snapshot day, so a diff reads."
+            "per snapshot day, so a diff reads. Measured on the first three "
+            "snapshots: 633 MB of XML packs to 84 MB, and the 2026-08-15 commit "
+            "diffs as three new compilations and seven amended ones. A day on "
+            "which nothing changed still commits, because *checked and "
+            "identical* has to be distinguishable from *never checked* in a "
+            "repository whose whole purpose is to be the surviving record."
         ),
-        # Built and verified locally — 3 snapshots, 633 MB of XML packing to 84
-        # MB, and a readable diff — but the repository does not exist on GitHub
-        # yet, because creating one and widening `DATA_REPO_TOKEN` to reach it
-        # are both deliberately a person's job. `PLANNED` until it is pushed: a
-        # roadmap saying *shipped* beside a repository table saying *not created
-        # yet* is the contradiction this roadmap exists to prevent.
-        state=PLANNED,
+        state=DONE,
         produces="us-congress-comps",
     ),
 ]

@@ -5,10 +5,10 @@ Orientation for anyone — human or agent — picking this repository up cold.
 ## What this is
 
 An ETL that mirrors the workings of the US Congress as git repositories. This
-repository is **only the pipeline**; it *generates* 31 data repositories and
+repository is **only the pipeline**; it *generates* 32 data repositories and
 contains none of them.
 
-It owns **32 public repositories** under `github.com/junxit`:
+It owns **33 public repositories** under `github.com/junxit`:
 
 | Repository | Count | Holds |
 |---|---|---|
@@ -16,6 +16,7 @@ It owns **32 public repositories** under `github.com/junxit`:
 | `us-congress-code` | 1 | the US Code, 383 release points, tagged |
 | `us-congress-bills-{108..119}` | 12 | 160,190 branches, one per measure |
 | `us-congress-statutes` | 1 | 135 volumes, 101,975 session laws |
+| `us-congress-comps` | 1 | Statute Compilations, one commit per daily snapshot |
 | `us-congress-record-{103..119}` | 17 | 9,382 issue days, 1,330,322 documents |
 
 ## Starting from a fresh clone
@@ -30,7 +31,7 @@ crawling a rebuild would cost:
 ```bash
 uv sync
 cp .env.example .env          # add your govinfo key
-uv run uscongress bootstrap   # clone the 31 data repos into data/repos/
+uv run uscongress bootstrap   # clone the 32 data repos into data/repos/
 ```
 
 The cached XML under `data/raw/` does not need restoring at all. Every job
