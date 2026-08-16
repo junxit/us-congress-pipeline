@@ -145,6 +145,20 @@ def metadata_for(name: str) -> Metadata:
             "public-domain",
         )
         homepage = PIPELINE_URL
+    elif name == "us-congress-comps":
+        description = (
+            "Statute Compilations as a git repository: non-codified law as "
+            "amended, one commit per daily snapshot. govinfo overwrites these "
+            "in place and keeps no archive. Public domain federal text."
+        )
+        topics = (
+            *COMMON_TOPICS,
+            "statutes",
+            "statute-compilations",
+            "public-domain",
+            "web-archiving",
+        )
+        homepage = PIPELINE_URL
     elif congress:
         description = (
             f"Bills of the {_ordinal(congress)} Congress as a git repository: one branch per "

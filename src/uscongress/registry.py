@@ -94,6 +94,15 @@ REPOSITORIES: list[Repository] = [
         phase=5,
     ),
     Repository(
+        name="us-congress-comps",
+        summary=(
+            "Statute Compilations — non-codified law as amended, snapshotted "
+            "daily because govinfo overwrites it in place and keeps no archive."
+        ),
+        source="govinfo COMPS",
+        phase=11,
+    ),
+    Repository(
         name="us-congress-record-{congress}",
         summary=(
             "Congressional Record floor proceedings as text, 1994 to present, "
@@ -328,6 +337,39 @@ PHASES: list[Phase] = [
             "fixture."
         ),
         state=DONE,
+    ),
+    Phase(
+        number=11,
+        title="Publish the Statute Compilations, so they stop living on one disk",
+        detail=(
+            "Phase 0 has snapshotted COMPS since the first day of the project, "
+            "for a reason stated there and nowhere acted on: **govinfo replaces "
+            "these packages in place and keeps no version archive**, so a "
+            "superseded compilation is gone from the internet and a day without "
+            "a snapshot is history that cannot be recovered. The snapshots then "
+            "sat under `data/`, which is gitignored — 633 MB across 2,681 "
+            "packages, with no copy anywhere else and nothing that would report "
+            "their loss. The one irreplaceable thing here was the one thing not "
+            "published. It was also the only job with no schedule, because "
+            "there was nowhere for a scheduled run to put its output: a runner "
+            "is destroyed minutes after it finishes. Publishing it fixes all "
+            "three at once — an off-machine copy, something CI can check "
+            "freshness against, and a schedule that finally has somewhere to "
+            "write. **Named by compilation, not by hash.** The local store is "
+            "content-addressed because it has to deduplicate 633 MB across "
+            "snapshots; git already does that, so hash-named files would buy "
+            "nothing and cost the only question these snapshots exist to "
+            "answer — what changed in this compilation, and when. One commit "
+            "per snapshot day, so a diff reads."
+        ),
+        # Built and verified locally — 3 snapshots, 633 MB of XML packing to 84
+        # MB, and a readable diff — but the repository does not exist on GitHub
+        # yet, because creating one and widening `DATA_REPO_TOKEN` to reach it
+        # are both deliberately a person's job. `PLANNED` until it is pushed: a
+        # roadmap saying *shipped* beside a repository table saying *not created
+        # yet* is the contradiction this roadmap exists to prevent.
+        state=PLANNED,
+        produces="us-congress-comps",
     ),
 ]
 

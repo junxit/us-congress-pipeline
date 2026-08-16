@@ -70,6 +70,11 @@ def main(argv: list[str] | None = None) -> int:
         "check-links", help="verify every link in every generated document resolves"
     )
 
+    seed_comps = subparsers.add_parser(
+        "seed-comps", help="build us-congress-comps from the local snapshot store"
+    )
+    seed_comps.add_argument("--repo-path", help="override the repository location")
+
     attention = subparsers.add_parser(
         "attention", help="report what currently needs a person, not a schedule"
     )
@@ -301,6 +306,18 @@ def main(argv: list[str] | None = None) -> int:
         from .jobs import links as links_job
 
         return 1 if links_job.report() else 0
+
+    if args.command == "seed-comps":
+        from pathlib import Path
+
+        from .jobs import compsrepo as compsrepo_job
+
+        repo = compsrepo_job.seed(
+            Path(args.repo_path) if args.repo_path else None
+        )
+        size = repo.size_bytes(repack=True)
+        print(f"\n{repo.commit_count()} snapshots, {size / 1e6:.0f} MB packed")
+        return 0
 
     if args.command == "attention":
         from pathlib import Path

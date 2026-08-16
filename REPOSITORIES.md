@@ -3,12 +3,12 @@
 Every repository in this project, what it holds, and whether it exists yet,
 and the plan the whole thing is being built to.
 
-**Generated** 2026-08-16 15:22 UTC by `uv run uscongress index`. Do not edit by hand —
+**Generated** 2026-08-16 15:58 UTC by `uv run uscongress index`. Do not edit by hand —
 the source of truth is `src/uscongress/registry.py`.
 
 ## Roadmap
 
-11 of 11 phases shipped. Phases 3, 4, 7, 8, 9 and 10 produce no repository
+11 of 12 phases shipped. Phases 3, 4, 7, 8, 9 and 10 produce no repository
 of their own — they add to repositories built earlier — which is why the
 repository table below skips those numbers.
 
@@ -25,6 +25,7 @@ repository table below skips those numbers.
 | 8 | **Roll-call votes**<br>How each member voted, on the commit for the version that was voted on. **Not from the Congress.gov API**, which the plan assumed for years and which cannot serve this corpus: its roll-call endpoint covers the 118th and 119th Congresses and the House alone, against twelve Congresses and both chambers. The votes come from the chambers — `clerk.house.gov` and `senate.gov` — which BILLSTATUS already links and neither of which is keyed, so this shipped without adding a credential. The House publishes bioguide IDs, the same ones sponsors carry; the Senate publishes only its own LIS IDs, and that asymmetry is stated rather than crosswalked. Produces no new repository: it adds to the measures already built. Commit messages are part of what a commit hashes, so filling them in rewrote every affected branch — but only 7,510 of 172,082 measures carry a recorded vote, so a full rebuild of all twelve shards moved 5,969 refs and left 160,248 branches byte-identical. 19,471 roll calls were fetched and **none was missing**; what is recorded as a gap instead is 1,949 votes taken after the last text version their measure ever published, which therefore sit on no commit — 128 of them in the 108th, where every voted measure with a branch has only its introduced text. | **shipped** | — |
 | 9 | **Hand the daily loop its own credentials**<br>The schedule is live. The token GitHub injects into a workflow run is scoped to the repository running it — enough to commit the heartbeat, not enough to push the 31 data repositories — so the loop carries a `DATA_REPO_TOKEN` of its own: a fine-grained token with Contents: read/write on the `us-congress-*` repositories and nothing else, minted by hand because no API can create one. Proved by a real run rather than a green tick: 544 measures checked, 82 branches rebuilt and published, the watermark advanced and the heartbeat written. Tracked as a phase rather than a note because an unattended loop nobody turned on is the same silent failure as one that stopped. | **shipped** | — |
 | 10 | **A members crosswalk, so Senate votes are joinable**<br>Phase 8 left the two chambers keyed differently, because the sources are: the House Clerk publishes bioguide IDs — the same ones sponsors and cosponsors carry — while the Senate publishes only its own LIS member IDs. Nothing was inferred at the time, which was right, but it leaves the first question anyone doing analysis asks — how one member voted across both chambers — answerable only by a join the reader has to build themselves. **Measured before being planned**: 246 distinct LIS IDs appear across all 4,932 Senate roll calls in the corpus and all 246 resolve to a bioguide ID in `unitedstates/congress-legislators` (CC0), with surname, state and party agreeing independently for 244 — the two exceptions being a diacritic and a name change, the same people either way. The table is **vendored and pinned rather than fetched**: it is edited continuously upstream, and a live read would re-render every affected vote file the day someone corrects a spelling, breaking the unchanged-input-unchanged-bytes rule the daily loop rests on. 246 rows is also small enough to read in review, which no feed is. The added identifier is marked as a crosswalk rather than passed off as something the Senate published, and a row whose name, state and party do not agree across both sources is not used and is said so: a vote attributed to the wrong senator is worse than a vote with no identifier at all. That gate earned itself before it shipped, refusing a test fixture that paired S330 with Barrasso of Wyoming when S330 is Bennet of Colorado. Produces no new repository. Rewrote 534 refs — far fewer than phase 8's 5,969, because Senate roll calls concentrate on few measures: a vote-a-rama puts dozens of roll calls on one bill. House vote files were left byte-identical and no House-only branch moved, checked against the copies already on GitHub rather than against a fixture. | **shipped** | — |
+| 11 | **Publish the Statute Compilations, so they stop living on one disk**<br>Phase 0 has snapshotted COMPS since the first day of the project, for a reason stated there and nowhere acted on: **govinfo replaces these packages in place and keeps no version archive**, so a superseded compilation is gone from the internet and a day without a snapshot is history that cannot be recovered. The snapshots then sat under `data/`, which is gitignored — 633 MB across 2,681 packages, with no copy anywhere else and nothing that would report their loss. The one irreplaceable thing here was the one thing not published. It was also the only job with no schedule, because there was nowhere for a scheduled run to put its output: a runner is destroyed minutes after it finishes. Publishing it fixes all three at once — an off-machine copy, something CI can check freshness against, and a schedule that finally has somewhere to write. **Named by compilation, not by hash.** The local store is content-addressed because it has to deduplicate 633 MB across snapshots; git already does that, so hash-named files would buy nothing and cost the only question these snapshots exist to answer — what changed in this compilation, and when. One commit per snapshot day, so a diff reads. | planned | `us-congress-comps` |
 
 Phases 5 and 6 are independent of everything above and of each other, so
 they can be reordered or run in parallel now that the daily loop is
@@ -43,6 +44,7 @@ one states its own terms in a `LICENSE` file.
 | `us-congress-bills-{congress}` | 2 | One branch per measure; one commit per bill text version. | 12 shards live, **public** |
 | [`us-congress-statutes`](https://github.com/junxit/us-congress-statutes) | 5 | Statutes at Large — session laws as enacted, volumes 1–137. | live, **public**, pushed 2026-08-09 |
 | `us-congress-record-{congress}` | 6 | Congressional Record floor proceedings as text, 1994 to present, sharded by Congress and linked to bills by metadata. | 17 shards live, **public** |
+| `us-congress-comps` | 11 | Statute Compilations — non-codified law as amended, snapshotted daily because govinfo overwrites it in place and keeps no archive. | not created yet |
 
 ### The sharded repositories
 
@@ -62,6 +64,7 @@ repositories it actually stands for.
 | `us-congress-bills-{congress}` | govinfo BILLS + BILLSTATUS |
 | `us-congress-statutes` | govinfo STATUTE (USLM 2.0 XML) |
 | `us-congress-record-{congress}` | govinfo CREC + CRECB |
+| `us-congress-comps` | govinfo COMPS |
 
 ## Sharding
 

@@ -1,0 +1,112 @@
+# The Statute Compilations snapshot, daily.
+#
+# This is the only genuinely irrecoverable job in the project, and until now the
+# only one with no schedule. govinfo replaces COMPS packages in place and keeps
+# no version archive: once a compilation is superseded the previous text is gone
+# from the internet. Every day without a snapshot is history nobody can rebuild,
+# and the snapshots taken so far show an eleven-day hole because taking them
+# depended on somebody remembering.
+#
+# It could not be scheduled before `us-congress-comps` existed. `data/` is
+# gitignored and a runner is destroyed minutes after it finishes, so a scheduled
+# `comps` had nowhere to put 633 MB. Phase 11 gave it somewhere.
+#
+# Runs first of the day, at 01:00 UTC, because it is the one whose missed run
+# cannot be made up tomorrow.
+
+name: comps
+
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: comps
+  cancel-in-progress: false
+
+jobs:
+  comps:
+    runs-on: ubuntu-latest
+    # ~2,700 packages and 633 MB fetched from the unkeyed host, then a
+    # blobless-cloned repository to commit them into.
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        # Pinned exactly, matching the other three workflows. Bump all four
+        # together and deliberately.
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --frozen
+
+      - name: Test
+        run: uv run pytest -q
+
+      - name: Snapshot and publish
+        id: comps
+        continue-on-error: true
+        env:
+          GOVINFO_API_KEY: ${{ secrets.GOVINFO_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
+        run: |
+          # The repository has to be here before the snapshot is committed into
+          # it, and a runner starts with nothing. Fetched in full rather than
+          # blobless: `sync_tree` compares file contents, so the blobs are
+          # exactly what it needs.
+          uv run python -c "
+          from uscongress import config
+          from uscongress.jobs import compsrepo, publish
+          url = publish.repo_url(compsrepo.REPO_NAME, config.github_token())
+          if publish.remote_exists(url):
+              publish.prepare_all(config.REPOS_DIR / compsrepo.REPO_NAME, url)
+              print('fetched the existing repository')
+          else:
+              print('no remote yet; building from nothing')
+          "
+          uv run uscongress comps
+          uv run uscongress seed-comps
+          uv run uscongress republish --repo us-congress-comps
+
+      - name: Record that it ran
+        # Same reason as the other three: a failure before the work step leaves
+        # no repository activity, and GitHub disables a schedule after 60 days
+        # of that.
+        if: always()
+        run: |
+          git config user.name "us-congress-pipeline"
+          git config user.email "pipeline@junxit.invalid"
+          printf 'run %s\nstarted %s\nsnapshot step: %s\n' \
+            "${{ github.run_id }}" \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${{ steps.comps.outcome || 'did not run' }}" \
+            > state/ci-comps.txt
+          git add state/ci-comps.txt || true
+          if git diff --cached --quiet; then
+            echo "unchanged"
+            exit 0
+          fi
+          git commit -m "chore: record the COMPS snapshot
+
+          Written by the daily snapshot job. govinfo keeps no archive of these
+          packages, so a missed day is not recoverable and this record is how a
+          missed day becomes visible."
+          git push || {
+            git pull --rebase --autostash
+            git push
+          }
+
+      - name: Fail if the snapshot did not succeed
+        if: steps.comps.outcome == 'failure'
+        run: |
+          echo "The COMPS snapshot failed. This is the one job whose missed run"
+          echo "cannot be made up tomorrow; see the snapshot step for detail."
+          exit 1

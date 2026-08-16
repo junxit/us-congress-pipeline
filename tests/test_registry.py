@@ -26,7 +26,7 @@ def test_every_phase_of_the_plan_is_present() -> None:
     while phases 4, 5 and 6 were considered -- the exact reordering the plan's
     numbering existed to prevent.
     """
-    assert [p.number for p in PHASES] == list(range(11))
+    assert [p.number for p in PHASES] == list(range(12))
 
 
 def test_the_phases_that_produce_no_repository_are_the_expected_six() -> None:
