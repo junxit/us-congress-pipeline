@@ -917,3 +917,41 @@ def test_a_recess_reads_as_success_not_failure() -> None:
 
     assert "ordinary result of a recess" in page
     assert "**stale**" not in page
+
+
+def test_the_attention_section_is_absent_until_something_is_due(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """A standing "nothing to do" box is a box readers stop seeing.
+
+    The section has to be absent both when the check has never run and when it
+    ran and found nothing, so its presence always means something.
+    """
+    from uscongress.jobs import attention
+
+    path = tmp_path / "attention.json"
+    monkeypatch.setattr(attention, "STATE_PATH", path)
+
+    assert "## Needs a person" not in render_status(State())
+
+    attention.save([], path)
+    assert "## Needs a person" not in render_status(State())
+
+
+def test_the_attention_section_names_the_action_not_just_the_problem(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Whoever reads this may never have seen the project before."""
+    from uscongress.jobs import attention
+
+    path = tmp_path / "attention.json"
+    monkeypatch.setattr(attention, "STATE_PATH", path)
+    attention.save(
+        [attention.Condition("k", "the 120th has no repository", "Create it")], path
+    )
+
+    page = render_status(State())
+
+    assert "## Needs a person" in page
+    assert "1 thing a schedule cannot do" in page
+    assert "| the 120th has no repository | Create it |" in page

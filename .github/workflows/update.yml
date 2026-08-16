@@ -66,6 +66,29 @@ jobs:
         # public repositories before anyone notices.
         run: uv run pytest -q
 
+      - name: What needs a person
+        # Runs *before* the update, which is what keeps the page honest: the
+        # update step is what renders STATUS.md, and it renders this list from
+        # the file written here. Run it afterwards and every reader sees
+        # yesterday's answer to "what needs a person".
+        #
+        # Separate from the update step, and allowed to fail on its own: this
+        # answers "is there something a schedule cannot do", which is not the
+        # same question as "did today's rebuild work". Neither should be able
+        # to mask the other.
+        #
+        # `--announce` keeps one issue in step with the list -- opened when
+        # something comes due, edited while it stays due, closed when it clears.
+        # A condition that persists for a month therefore costs one
+        # notification. Deliberately not a job failure: intervention being due
+        # is not the loop breaking, and a run that is red every day for a month
+        # teaches you to stop reading it.
+        continue-on-error: true
+        env:
+          GOVINFO_API_KEY: ${{ secrets.GOVINFO_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: uv run uscongress attention --announce || true
+
       - name: Update
         id: update
         # Failure is handled below: the heartbeat has to be written and pushed
@@ -94,13 +117,28 @@ jobs:
         run: |
           git config user.name "us-congress-pipeline"
           git config user.email "pipeline@junxit.invalid"
+          # Written in shell, by a step that always runs, and deliberately not
+          # by the Python job -- because the failure this guards against is the
+          # Python job never starting. `uv sync` or `pytest` failing aborts
+          # before the work step, so no state is written, nothing is staged and
+          # nothing is committed. That is daily red runs with *zero repository
+          # activity*, and GitHub disables a scheduled workflow after 60 days of
+          # that. The mechanism at the top of this file -- the job's own output
+          # is what keeps the job alive -- would have taken itself down.
+          printf 'run %s\nstarted %s\nwork step: %s\n' \
+            "${{ github.run_id }}" \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${{ steps.update.outcome || 'did not run' }}" \
+            > state/ci-update.txt
           # Staged one at a time on purpose. `git add A B` with B missing is
           # fatal and stages *neither* -- so a crash before the watermark was
           # written would also drop STATUS.md, losing the heartbeat on exactly
           # the run whose outcome most needs recording. `|| true` because a
           # missing file here is a thing to survive, not a second failure.
+          git add state/ci-update.txt || true
           git add STATUS.md || true
           git add state/update.json || true
+          git add state/attention.json || true
           if git diff --cached --quiet; then
             echo "heartbeat unchanged"
             exit 0

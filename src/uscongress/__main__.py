@@ -70,6 +70,25 @@ def main(argv: list[str] | None = None) -> int:
         "check-links", help="verify every link in every generated document resolves"
     )
 
+    attention = subparsers.add_parser(
+        "attention", help="report what currently needs a person, not a schedule"
+    )
+    attention.add_argument(
+        "--check",
+        action="store_true",
+        help="report what is due and write nothing, like `describe --check`. "
+        "Without it the list is also persisted for STATUS.md to render",
+    )
+    attention.add_argument(
+        "--state-path", help="override where the computed list is written"
+    )
+    attention.add_argument(
+        "--announce",
+        action="store_true",
+        help="open, update or close the single GitHub issue that carries this "
+        "list. Off by default so a local run notifies nobody",
+    )
+
     describe = subparsers.add_parser(
         "describe", help="set each repo's GitHub description and topics"
     )
@@ -277,6 +296,33 @@ def main(argv: list[str] | None = None) -> int:
         from .jobs import links as links_job
 
         return 1 if links_job.report() else 0
+
+    if args.command == "attention":
+        from pathlib import Path
+
+        from . import config
+        from .govinfo import GovInfoClient
+        from .jobs import attention as attention_job
+
+        async def _attention() -> int:
+            # Without a key the upstream questions go unasked, and the check
+            # says so rather than counting them as answered no.
+            try:
+                config.govinfo_api_key()
+            except RuntimeError:
+                due = await attention_job.check()
+            else:
+                async with GovInfoClient() as client:
+                    due = await attention_job.check(client)
+            if not args.check:
+                attention_job.save(
+                    due, Path(args.state_path) if args.state_path else None
+                )
+                if args.announce:
+                    print(f"  {attention_job.announce(due)}", flush=True)
+            return 1 if attention_job.report(due) else 0
+
+        return asyncio.run(_attention())
 
     if args.command == "describe":
         from .jobs import describe as describe_job

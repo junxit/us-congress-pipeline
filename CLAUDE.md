@@ -103,10 +103,25 @@ every commit after it. See the trap below about restamping.
 
 ## Maintenance that needs a person
 
-- **`data/scripts/build_members.py`** when a Congress seats new members. It
-  rewrites the vendored `src/uscongress/members.py`; read the diff, because a
-  changed bioguide ID moves votes from one senator to another. Nothing fetches
-  that table at build time and nothing should — see the module docstring.
+**Ask, do not remember: `uv run uscongress attention`.** It computes what a
+schedule cannot do from live state — a missing shard for the sitting Congress, a
+disabled workflow, a stale COMPS snapshot, a crosswalk older than the Congress
+it describes, a release-point backlog, a date bound about to start rejecting
+real data. It exits non-zero when anything is due, renders a **Needs a person**
+section on `STATUS.md`, and the daily loop keeps one GitHub issue in step with
+the list. On an ordinary day it prints `nothing needs a person` and the section
+is absent.
+
+A check that cannot answer a question reports that, rather than counting it as
+answered no. An empty list means every question was asked.
+
+Two things it deliberately cannot judge for you:
+
+- **`data/scripts/build_members.py`** when a Congress seats new members. The
+  check tells you the table predates the sitting Congress; it cannot tell you
+  the diff is right. Read it, because a changed bioguide ID moves votes from one
+  senator to another. Nothing fetches that table at build time and nothing
+  should — see the module docstring.
 - **A vote that cannot be fetched has never happened.** All 19,471 roll calls
   were retrievable, so the marker path and the matching `GAPS.md` section have
   only ever run in tests. Their first real execution will be unattended.
@@ -121,6 +136,7 @@ Never duplicate these anywhere — memory, notes, or prose. They are the source.
 | Which repositories exist, and are they live? | `uv run uscongress index` → `REPOSITORIES.md` |
 | Is the daily loop still alive? | `STATUS.md`, or `uscongress update --check` |
 | Is the Record loop still alive? | the Congressional Record table on `STATUS.md` |
+| What needs a person right now? | `uv run uscongress attention`, or the **Needs a person** section on `STATUS.md` |
 | What is missing from a corpus, and why? | `GAPS.md` on that repository's `main` |
 
 Phase state is deliberately in-repo rather than in anyone's head. A phase is

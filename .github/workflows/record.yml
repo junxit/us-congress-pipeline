@@ -94,9 +94,23 @@ jobs:
         run: |
           git config user.name "us-congress-pipeline"
           git config user.email "pipeline@junxit.invalid"
-          # Only the watermark. STATUS.md is rendered from it by the bills loop
-          # at 05:00, which is what makes a stopped Record loop visible on a
-          # page something else is still writing -- see recordloop's docstring.
+          # Written in shell, by a step that always runs, because the failure
+          # this guards against is the Python job never starting: `uv sync` or
+          # `pytest` failing aborts before the work step, so nothing is written,
+          # nothing is staged and nothing is committed. Daily red runs with zero
+          # repository activity, and GitHub disables a scheduled workflow after
+          # 60 days of that. Its own file, not a shared one, so the two loops
+          # never collide on the same line during the rebase-retry below.
+          printf 'run %s\nstarted %s\nwork step: %s\n' \
+            "${{ github.run_id }}" \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${{ steps.record.outcome || 'did not run' }}" \
+            > state/ci-record.txt
+          git add state/ci-record.txt || true
+          # Only the watermark otherwise. STATUS.md is rendered from it by the
+          # bills loop at 05:00, which is what makes a stopped Record loop
+          # visible on a page something else is still writing -- see
+          # recordloop's docstring.
           git add state/record.json || true
           if git diff --cached --quiet; then
             echo "heartbeat unchanged"

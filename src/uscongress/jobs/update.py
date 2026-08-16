@@ -1040,6 +1040,7 @@ def render_status(
 
     record_section = _record_section(stamp, record)
     lines += record_section
+    lines += _attention_section(stamp)
 
     lines += [
         "## What this does not cover",
@@ -1063,6 +1064,49 @@ def render_status(
         "",
     ]
     return "\n".join(lines)
+
+
+def _attention_section(stamp: Callable[[datetime | None], str]) -> list[str]:
+    """Render what currently needs a person.
+
+    Read from the file :mod:`uscongress.jobs.attention` writes rather than
+    computed here, for the same reason the Record heartbeat is: rendering this
+    page must never make a network call, and this section has to appear whether
+    or not the job that computed it is the job drawing the page.
+
+    Args:
+        stamp: Formatter for an optional timestamp.
+
+    Returns:
+        Markdown lines. Empty both when the check has never run -- a heading
+        promising an answer nobody computed is worse than no heading -- and
+        when it ran and found nothing, because a standing "nothing to do" box
+        is the kind of thing readers stop seeing.
+    """
+    # Imported here: `attention` imports this module for its State, and at
+    # module scope that is a cycle.
+    from . import attention
+
+    checked, due = attention.load()
+    if checked is None or not due:
+        return []
+    things = "thing" if len(due) == 1 else "things"
+    lines = [
+        "## Needs a person",
+        "",
+        f"**{len(due)} {things} a schedule cannot do — checked {stamp(checked)}**",
+        "",
+        "| What | What to do |",
+        "|---|---|",
+    ]
+    lines += [f"| {item.summary} | {item.action} |" for item in due]
+    lines += [
+        "",
+        "This list is computed, not remembered. It is empty on an ordinary day,",
+        "and this section is absent when it is empty.",
+        "",
+    ]
+    return lines
 
 
 def _record_section(

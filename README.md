@@ -137,6 +137,9 @@ uv run uscongress update --state-path /tmp/x.json --status-path /tmp/x.md
 uv run uscongress update-record       # the second daily job: the current Congress's Record
 uv run uscongress update-record --publish    # …and push the issue days it added
 
+uv run uscongress attention           # what needs a person, computed from live state
+uv run uscongress attention --check   # …and change nothing; exits non-zero if due
+
 uv run pytest                         # tests
 ```
 
@@ -298,6 +301,8 @@ re-fetching is cheap while missing a bill is not.
 | `update --check` | exits non-zero once the last success is more than two days old, like `check-links` and `describe --check` |
 | the workflow | raises a GitHub notification on failure by itself |
 | `state/update.json` | the watermark, committed rather than gitignored — a scheduled runner is a fresh machine every time, so `git log state/update.json` is the history of the loop |
+| `state/ci-*.txt` | written in shell by a step that always runs, so a failure early enough to skip the Python job still commits. Without it a broken dependency produces red runs and *no repository activity*, and GitHub disables a schedule after 60 days of that — the mechanism taking itself down |
+| `uscongress attention` | what a schedule cannot do, computed rather than remembered. Renders a **Needs a person** section on `STATUS.md` and keeps one GitHub issue in step with it |
 
 Committing the heartbeat also keeps the schedule alive: GitHub disables a scheduled workflow
 after 60 days without repository activity, and the job's own output is what prevents that.
@@ -366,6 +371,7 @@ src/uscongress/
     ├── table3.py    per-law attribution trailers
     ├── update.py    the daily loop, and both loops' heartbeats
     ├── recordloop.py the Congressional Record's own daily loop, append-only
+    ├── attention.py what needs a person, computed rather than remembered
     ├── publish.py   fetching and pushing refs, with GitHub's real failure modes
     ├── index.py     REPOSITORIES.md
     ├── artifacts.py README and LICENSE into each generated repo
