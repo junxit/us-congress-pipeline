@@ -175,3 +175,29 @@ def test_upstream_is_reported_unchecked_rather_than_passing() -> None:
     due = asyncio.run(attention.check(None, Path("/nonexistent/update.json")))
 
     assert "upstream-unchecked" in _keys(due)
+
+
+def test_a_repository_built_here_and_absent_from_github_is_due(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """The other way a repository comes to be owed.
+
+    The pipeline learns to build something new, it is verified locally, and then
+    it waits on the two steps no API can take. Without this the job that
+    publishes it just fails every day with nothing saying why.
+    """
+    (tmp_path / "us-congress-comps" / ".git").mkdir(parents=True)
+    monkeypatch.setattr(attention.config, "REPOS_DIR", tmp_path)
+    monkeypatch.setattr(attention.publish, "remote_exists", lambda _url: False)
+
+    assert _keys(attention.registry_repos_exist()) == [
+        "repo-unpublished:us-congress-comps"
+    ]
+
+
+def test_a_repository_never_built_here_is_not_owed(monkeypatch, tmp_path: Path) -> None:
+    """Not yet written is not the same as waiting on somebody."""
+    monkeypatch.setattr(attention.config, "REPOS_DIR", tmp_path)
+    monkeypatch.setattr(attention.publish, "remote_exists", lambda _url: False)
+
+    assert attention.registry_repos_exist() == []

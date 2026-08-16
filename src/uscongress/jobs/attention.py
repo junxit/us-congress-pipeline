@@ -105,6 +105,44 @@ def shards_exist(congress: int) -> list[Condition]:
     return due
 
 
+def registry_repos_exist() -> list[Condition]:
+    """Check every repository this project claims to produce is on GitHub.
+
+    Distinct from :func:`shards_exist`, which watches the sitting Congress. This
+    catches the other way a repository comes to be owed: the pipeline learns to
+    build something new, it is built and verified locally, and then it waits on
+    the two steps no API can take -- creating the repository and adding it to a
+    fine-grained token's list.
+
+    Only repositories that exist *here* are asked about. One that has never been
+    built is not owed to anybody; it is simply not written yet.
+
+    Returns:
+        One condition per repository built locally and absent from GitHub.
+    """
+    from ..registry import REPOSITORIES
+
+    due = []
+    for entry in REPOSITORIES:
+        if entry.is_pipeline or "{" in entry.name:
+            continue
+        if not (config.REPOS_DIR / entry.name / ".git").is_dir():
+            continue
+        if publish.remote_exists(publish.repo_url(entry.name)):
+            continue
+        due.append(
+            Condition(
+                key=f"repo-unpublished:{entry.name}",
+                summary=f"`{entry.name}` is built here and does not exist on "
+                "GitHub, so nothing it produces is being published",
+                action=f"`gh repo create junxit/{entry.name} --public`, add it "
+                "to DATA_REPO_TOKEN's repository list by hand, then run "
+                "`uscongress artifacts` and `uscongress describe`",
+            )
+        )
+    return due
+
+
 def schedules_enabled() -> list[Condition]:
     """Check that every scheduled workflow is still enabled.
 
@@ -336,6 +374,7 @@ async def check(
 
     due: list[Condition] = []
     due += shards_exist(congress)
+    due += registry_repos_exist()
     due += schedules_enabled()
     due += backlog(state)
     due += members_current(congress)
