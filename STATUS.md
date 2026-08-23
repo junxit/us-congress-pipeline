@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-08-22 05:23 UTC**
+**Last successful update — 2026-08-23 05:25 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,38 +14,32 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-08-22 05:23 UTC |
+| Last run attempted | 2026-08-23 05:25 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-08-21 04:29 UTC |
-| Measures govinfo reported modified | 273 |
-| Branches rewritten | 11 |
-| Rebuilt to the commit already published | 243 |
-| Modified but still carrying no text | 19 |
+| Window asked of govinfo | since 2026-08-22 04:23 UTC |
+| Measures govinfo reported modified | 27 |
+| Branches rewritten | 13 |
+| Rebuilt to the commit already published | 14 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 11 | `hr-10125`, `hr-2406`, `hr-2827`, `hr-309`, `hr-3276`, `hr-3925`, `hr-6893`, `hr-7889`, `hr-8476`, `hres-1485`, `s-2` |
+| 119 | 13 | `hr-10118`, `hr-10119`, `hr-10120`, `hr-10121`, `hr-10123`, `hr-10124`, `hr-10126`, `hr-10131`, `hr-10134`, `hr-10135`, `hr-10136`, `hr-10137`, and 1 more |
 
 ## Congressional Record
 
-**Last successful run — 2026-08-21 07:34 UTC**
+**Last successful run — 2026-08-22 07:23 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-08-21 07:34 UTC |
+| Last run attempted | 2026-08-22 07:23 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 0 |
-| Issue days held | 347 |
-| Refs published | 0 |
-
-No issue day was added on the last successful run. Congress does not
-sit every day, and the Record is published only for the days it does,
-so an unchanged shard is the ordinary result of a recess rather than a
-sign the job failed — the date above would show that.
+| Issue days added | 1 |
+| Issue days held | 348 |
+| Refs published | 2 |
 
 ## What this does not cover
 
