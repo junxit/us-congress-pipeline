@@ -1,25 +1,9 @@
 {
-  "checked_since": "2026-08-22T04:23:19Z",
+  "checked_since": "2026-08-23T04:25:42Z",
   "last_outcome": "ok",
-  "last_run": "2026-08-23T05:25:42Z",
-  "last_success": "2026-08-23T05:25:42Z",
-  "measures": {
-    "119": [
-      "hr-10118",
-      "hr-10119",
-      "hr-10120",
-      "hr-10121",
-      "hr-10123",
-      "hr-10124",
-      "hr-10126",
-      "hr-10131",
-      "hr-10134",
-      "hr-10135",
-      "hr-10136",
-      "hr-10137",
-      "s-2"
-    ]
-  },
+  "last_run": "2026-08-24T05:35:10Z",
+  "last_success": "2026-08-24T05:35:10Z",
+  "measures": {},
   "pending_release_points": [],
   "release_points": [],
   "unplaceable": []
