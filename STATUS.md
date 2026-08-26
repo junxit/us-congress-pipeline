@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-08-25 05:28 UTC**
+**Last successful update — 2026-08-26 05:31 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,27 +14,28 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-08-25 05:28 UTC |
+| Last run attempted | 2026-08-26 05:31 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-08-24 04:35 UTC |
-| Measures govinfo reported modified | 101 |
-| Branches rewritten | 0 |
-| Rebuilt to the commit already published | 101 |
+| Window asked of govinfo | since 2026-08-25 04:28 UTC |
+| Measures govinfo reported modified | 191 |
+| Branches rewritten | 25 |
+| Rebuilt to the commit already published | 164 |
+| Modified but still carrying no text | 2 |
 
-No branch changed. 101 measures were rebuilt from freshly
-fetched upstream records and came out as the commits already
-published, so there was nothing to write. That is the ordinary
-result of a day on which nothing moved, and is not the same as the
-job having failed — the date above would show that.
+## Measures updated on the last successful run
+
+| Congress | Branches | Measures |
+|---|---|---|
+| 119 | 25 | `hr-10122`, `hr-10127`, `hr-10128`, `hr-10129`, `hr-10130`, `hr-10132`, `hr-10133`, `hr-10139`, `hr-10140`, `hr-10141`, `hr-10142`, `hr-10143`, and 13 more |
 
 ## Congressional Record
 
-**Last successful run — 2026-08-24 07:49 UTC**
+**Last successful run — 2026-08-25 07:35 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-08-24 07:49 UTC |
+| Last run attempted | 2026-08-25 07:35 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 0 |
