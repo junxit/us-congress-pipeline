@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-08-26 05:31 UTC**
+**Last successful update — 2026-08-27 16:04 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,38 +14,33 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-08-26 05:31 UTC |
+| Last run attempted | 2026-08-27 16:04 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-08-25 04:28 UTC |
-| Measures govinfo reported modified | 191 |
-| Branches rewritten | 25 |
-| Rebuilt to the commit already published | 164 |
-| Modified but still carrying no text | 2 |
+| Window asked of govinfo | since 2026-08-26 04:31 UTC |
+| Measures govinfo reported modified | 81 |
+| Branches rewritten | 2 |
+| Rebuilt to the commit already published | 78 |
+| Modified but still carrying no text | 1 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 25 | `hr-10122`, `hr-10127`, `hr-10128`, `hr-10129`, `hr-10130`, `hr-10132`, `hr-10133`, `hr-10139`, `hr-10140`, `hr-10141`, `hr-10142`, `hr-10143`, and 13 more |
+| 119 | 2 | `hr-10138`, `hr-9857` |
 
 ## Congressional Record
 
-**Last successful run — 2026-08-25 07:35 UTC**
+**Last successful run — 2026-08-26 07:37 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-08-25 07:35 UTC |
+| Last run attempted | 2026-08-26 07:37 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 0 |
-| Issue days held | 348 |
-| Refs published | 0 |
-
-No issue day was added on the last successful run. Congress does not
-sit every day, and the Record is published only for the days it does,
-so an unchanged shard is the ordinary result of a recess rather than a
-sign the job failed — the date above would show that.
+| Issue days added | 1 |
+| Issue days held | 349 |
+| Refs published | 2 |
 
 ## What this does not cover
 
