@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-08-27 16:04 UTC**
+**Last successful update — 2026-08-28 17:08 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,33 +14,38 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-08-27 16:04 UTC |
+| Last run attempted | 2026-08-28 17:08 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-08-26 04:31 UTC |
-| Measures govinfo reported modified | 81 |
-| Branches rewritten | 2 |
-| Rebuilt to the commit already published | 78 |
-| Modified but still carrying no text | 1 |
+| Window asked of govinfo | since 2026-08-27 15:04 UTC |
+| Measures govinfo reported modified | 291 |
+| Branches rewritten | 37 |
+| Rebuilt to the commit already published | 223 |
+| Modified but still carrying no text | 31 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 2 | `hr-10138`, `hr-9857` |
+| 119 | 37 | `hr-10162`, `hr-10164`, `hr-10174`, `hr-10177`, `hr-10183`, `hr-1693`, `hr-1869`, `hr-2555`, `hr-4219`, `hr-4795`, `hr-5063`, `hr-5576`, and 25 more |
 
 ## Congressional Record
 
-**Last successful run — 2026-08-26 07:37 UTC**
+**Last successful run — 2026-08-27 17:58 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-08-26 07:37 UTC |
+| Last run attempted | 2026-08-27 17:58 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 1 |
+| Issue days added | 0 |
 | Issue days held | 349 |
-| Refs published | 2 |
+| Refs published | 0 |
+
+No issue day was added on the last successful run. Congress does not
+sit every day, and the Record is published only for the days it does,
+so an unchanged shard is the ordinary result of a recess rather than a
+sign the job failed — the date above would show that.
 
 ## What this does not cover
 
