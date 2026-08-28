@@ -1,9 +1,9 @@
 {
   "congress": 119,
-  "days_built": 0,
-  "days_present": 349,
+  "days_built": 1,
+  "days_present": 350,
   "last_outcome": "ok",
-  "last_run": "2026-08-27T17:58:16Z",
-  "last_success": "2026-08-27T17:58:16Z",
-  "refs_published": 0
+  "last_run": "2026-08-28T19:08:28Z",
+  "last_success": "2026-08-28T19:08:28Z",
+  "refs_published": 2
 }
