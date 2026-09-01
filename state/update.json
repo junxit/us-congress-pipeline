@@ -1,9 +1,18 @@
 {
-  "checked_since": "2026-08-30T09:15:01Z",
+  "checked_since": "2026-08-31T10:20:12Z",
   "last_outcome": "ok",
-  "last_run": "2026-08-31T11:20:12Z",
-  "last_success": "2026-08-31T11:20:12Z",
-  "measures": {},
+  "last_run": "2026-09-01T09:43:52Z",
+  "last_success": "2026-09-01T09:43:52Z",
+  "measures": {
+    "119": [
+      "hr-10157",
+      "hr-10184",
+      "hres-1499",
+      "hres-1500",
+      "hres-1501",
+      "hres-1503"
+    ]
+  },
   "pending_release_points": [],
   "release_points": [],
   "unplaceable": []
