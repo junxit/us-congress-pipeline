@@ -194,6 +194,17 @@ handles them; this is the index.
 - **The `<?xml` guard is not enough.** 51 of 137 Statutes volumes carry a UTF-8
   BOM, which `bytes.lstrip()` does not strip; MODS documents carry no XML
   declaration at all. See `statutes._is_xml` and `record` for the two shapes.
+- **A scheduled runner has no `data/`, so anything that reads it there is
+  silently answering a different question.** This has bitten three times in one
+  week, each time quietly: the push check derived its repository list from
+  `built_shards` and reported "3 of 3 writable" while skipping all 29 shards;
+  the COMPS staleness check read `data/comps/snapshots` and so never ran on the
+  only machine that runs it daily; and `compsrepo` counted changes against a
+  `sync_tree` manifest kept beside the repository, so nineteen commits claimed
+  all 2,682 compilations had changed when one file had. None of them failed —
+  they returned confident, wrong answers. If a job runs in CI, its state must
+  come from something that survives the runner: the published repository, the
+  GitHub API, or `state/`. `data/` is a cache, and on a runner it is empty.
 - **`ls-remote` says nothing about whether you can push.** It speaks to
   `git-upload-pack`, the read service, which a public repository serves to
   anyone — so a credential with no write access reads a repository perfectly and

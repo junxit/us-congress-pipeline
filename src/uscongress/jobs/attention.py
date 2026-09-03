@@ -377,26 +377,58 @@ def comps_current(now: datetime | None = None) -> list[Condition]:
     """Check a COMPS snapshot has been taken recently.
 
     govinfo replaces Statute Compilations in place and keeps no archive, so a
-    day without a snapshot is history that cannot be recovered. This is checked
-    against the local store, which is the only place it exists.
+    day without a snapshot is history that cannot be recovered. This is the one
+    staleness here that is permanent rather than something the next run catches
+    up on, which makes it the one most worth asking about.
+
+    Asked of the published repository, not of ``data/comps``. The local store is
+    gitignored and a scheduled runner has none of it, so reading it meant this
+    check silently did nothing on the only machine that runs it daily -- the
+    monitor for the irrecoverable job, absent from the loop that reports. Giving
+    the snapshots a repository is what made them checkable from anywhere; this
+    is the check finally using it.
 
     Args:
         now: Override the clock, for tests.
 
     Returns:
-        One condition if the newest snapshot is older than
-        :data:`COMPS_STALE_AFTER`, or if there is no store here at all.
+        One condition if the newest published snapshot is older than
+        :data:`COMPS_STALE_AFTER`, or if the question could not be answered.
     """
-    directory = config.COMPS_SNAPSHOTS_DIR
-    if not directory.is_dir():
-        return []
-    stamps = sorted(p.stem for p in directory.glob("*.json"))
-    if not stamps:
-        return []
+    result = subprocess.run(
+        [
+            "gh",
+            "api",
+            f"repos/{OWNER}/us-congress-comps/commits?sha=snapshots&per_page=1",
+            "--jq",
+            ".[0].commit.committer.date",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return [
+            Condition(
+                key="comps-unknown",
+                summary="when the Statute Compilations were last snapshotted "
+                "could not be determined",
+                action="Check `gh auth status`, then look at "
+                f"https://github.com/{OWNER}/us-congress-comps",
+            )
+        ]
     try:
-        newest = date.fromisoformat(stamps[-1])
+        newest = date.fromisoformat(result.stdout.strip()[:10])
     except ValueError:
-        return []
+        return [
+            Condition(
+                key="comps-unknown",
+                summary="the newest Statute Compilations snapshot carries an "
+                "unreadable date",
+                action=f"Look at https://github.com/{OWNER}/us-congress-comps",
+            )
+        ]
     age = (now or datetime.now(UTC)).date() - newest
     if age <= COMPS_STALE_AFTER:
         return []
@@ -404,8 +436,8 @@ def comps_current(now: datetime | None = None) -> list[Condition]:
         Condition(
             key="comps-stale",
             summary=f"the newest COMPS snapshot is {newest}, {age.days} days old",
-            action="Run `uscongress comps`. govinfo overwrites these in place "
-            "and keeps no archive, so a missed day cannot be recovered",
+            action="Check the `comps` workflow. govinfo overwrites these in "
+            "place and keeps no archive, so a missed day cannot be recovered",
         )
     ]
 

@@ -121,17 +121,31 @@ def test_a_current_crosswalk_is_not_due(monkeypatch) -> None:
     assert attention.members_current(119) == []
 
 
-def test_a_stale_comps_snapshot_is_due(monkeypatch, tmp_path: Path) -> None:
+def _comps_commit_date(monkeypatch, stamp: str | None) -> None:
+    """Pin what GitHub reports as the newest snapshot commit.
+
+    Args:
+        monkeypatch: Pytest fixture.
+        stamp: ISO timestamp, or None to make the call fail.
+    """
+    import subprocess as sp
+
+    def fake(*_args, **_kwargs):
+        if stamp is None:
+            return sp.CompletedProcess([], 1, stdout="", stderr="gh: no")
+        return sp.CompletedProcess([], 0, stdout=stamp + "\n", stderr="")
+
+    monkeypatch.setattr(attention.subprocess, "run", fake)
+
+
+def test_a_stale_comps_snapshot_is_due(monkeypatch) -> None:
     """The only job whose missed day cannot be recovered.
 
     govinfo replaces Statute Compilations in place and keeps no archive, so this
     is the one staleness in the project that is permanent rather than catching
     up on the next run.
     """
-    snapshots = tmp_path / "snapshots"
-    snapshots.mkdir()
-    (snapshots / "2026-08-01.json").write_text("{}", encoding="utf-8")
-    monkeypatch.setattr(attention.config, "COMPS_SNAPSHOTS_DIR", snapshots)
+    _comps_commit_date(monkeypatch, "2026-08-01T12:00:00Z")
 
     due = attention.comps_current(datetime(2026, 8, 16, tzinfo=UTC))
 
@@ -139,14 +153,33 @@ def test_a_stale_comps_snapshot_is_due(monkeypatch, tmp_path: Path) -> None:
     assert "15 days old" in due[0].summary
 
 
-def test_a_fresh_comps_snapshot_is_not_due(monkeypatch, tmp_path: Path) -> None:
+def test_a_fresh_comps_snapshot_is_not_due(monkeypatch) -> None:
     """One missed day is a hiccup; the threshold is two, like the heartbeat."""
-    snapshots = tmp_path / "snapshots"
-    snapshots.mkdir()
-    (snapshots / "2026-08-15.json").write_text("{}", encoding="utf-8")
-    monkeypatch.setattr(attention.config, "COMPS_SNAPSHOTS_DIR", snapshots)
+    _comps_commit_date(monkeypatch, "2026-08-15T12:00:00Z")
 
     assert attention.comps_current(datetime(2026, 8, 16, tzinfo=UTC)) == []
+
+
+def test_comps_freshness_is_asked_of_the_published_repository(monkeypatch) -> None:
+    """It was read off `data/comps`, which a scheduled runner does not have.
+
+    So the monitor for the one irrecoverable job silently did nothing on the
+    only machine that runs it daily. Publishing the snapshots is what made them
+    checkable from anywhere, and this is the check using it.
+    """
+    monkeypatch.setattr(attention.config, "COMPS_SNAPSHOTS_DIR", Path("/nonexistent"))
+    _comps_commit_date(monkeypatch, "2026-08-01T12:00:00Z")
+
+    assert _keys(attention.comps_current(datetime(2026, 8, 16, tzinfo=UTC))) == [
+        "comps-stale"
+    ]
+
+
+def test_an_unanswerable_comps_question_is_due_not_silent(monkeypatch) -> None:
+    """Not knowing when the irrecoverable job last ran is itself worth saying."""
+    _comps_commit_date(monkeypatch, None)
+
+    assert _keys(attention.comps_current()) == ["comps-unknown"]
 
 
 def test_the_list_round_trips(tmp_path: Path) -> None:
