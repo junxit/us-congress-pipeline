@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-09-03 18:38 UTC**
+**Last successful update — 2026-09-04 09:18 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,19 +14,19 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-03 18:38 UTC |
+| Last run attempted | 2026-09-04 09:18 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-09-03 08:25 UTC |
-| Measures govinfo reported modified | 262 |
-| Branches rewritten | 32 |
-| Rebuilt to the commit already published | 229 |
-| Modified but still carrying no text | 1 |
+| Window asked of govinfo | since 2026-09-03 17:38 UTC |
+| Measures govinfo reported modified | 264 |
+| Branches rewritten | 29 |
+| Rebuilt to the commit already published | 194 |
+| Modified but still carrying no text | 41 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 32 | `hconres-115`, `hr-10220`, `hr-10221`, `hr-10222`, `hr-10223`, `hr-10224`, `hr-10225`, `hr-10227`, `hr-10228`, `hr-10229`, `hr-10230`, `hr-10231`, and 20 more |
+| 119 | 29 | `hconres-116`, `hr-10040`, `hr-10240`, `hr-10241`, `hr-10242`, `hr-10243`, `hr-10244`, `hr-10245`, `hr-10246`, `hr-10247`, `hr-10250`, `hr-10252`, and 17 more |
 
 ## Congressional Record
 
