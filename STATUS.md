@@ -14,13 +14,12 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-04 09:18 UTC |
-| Outcome | ok |
-| Window asked of govinfo | since 2026-09-03 17:38 UTC |
-| Measures govinfo reported modified | 264 |
-| Branches rewritten | 29 |
-| Rebuilt to the commit already published | 194 |
-| Modified but still carrying no text | 41 |
+| Last run attempted | 2026-09-05 08:47 UTC |
+| Outcome | listing changed packages: HTTPStatusError: 500 for https://api.govinfo.gov/collections/BILLSTATUS/2026-09-04T08:18:33Z?offsetMark=*&pageSize=1000&api_key=BuRb8HtH8Sn3AoHVu2bnPUzz7ByW8ucYNf5JyyUh |
+| Window asked of govinfo | since 2026-09-04 08:18 UTC |
+| Measures govinfo reported modified | 0 |
+| Branches rewritten | 0 |
+| Rebuilt to the commit already published | 0 |
 
 ## Measures updated on the last successful run
 
@@ -30,17 +29,22 @@ If that date is more than 2 days old, the loop has stopped.
 
 ## Congressional Record
 
-**Last successful run — 2026-09-03 11:49 UTC**
+**Last successful run — 2026-09-04 11:52 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-03 11:49 UTC |
+| Last run attempted | 2026-09-04 11:52 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 2 |
+| Issue days added | 0 |
 | Issue days held | 353 |
-| Refs published | 2 |
+| Refs published | 0 |
+
+No issue day was added on the last successful run. Congress does not
+sit every day, and the Record is published only for the days it does,
+so an unchanged shard is the ordinary result of a recess rather than a
+sign the job failed — the date above would show that.
 
 ## What this does not cover
 

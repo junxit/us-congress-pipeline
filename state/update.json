@@ -1,7 +1,7 @@
 {
   "checked_since": "2026-09-03T17:38:55Z",
-  "last_outcome": "ok",
-  "last_run": "2026-09-04T09:18:33Z",
+  "last_outcome": "listing changed packages: HTTPStatusError: 500 for https://api.govinfo.gov/collections/BILLSTATUS/2026-09-04T08:18:33Z?offsetMark=*&pageSize=1000&api_key=BuRb8HtH8Sn3AoHVu2bnPUzz7ByW8ucYNf5JyyUh",
+  "last_run": "2026-09-05T08:47:22Z",
   "last_success": "2026-09-04T09:18:33Z",
   "measures": {
     "119": [
