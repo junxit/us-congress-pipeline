@@ -2,8 +2,8 @@
   "congress": 119,
   "days_built": 0,
   "days_present": 353,
-  "last_outcome": "ok",
-  "last_run": "2026-09-04T11:52:57Z",
+  "last_outcome": "HTTPStatusError: 500 for https://api.govinfo.gov/published/2024-12-04/2027-02-01?offsetMark=*&pageSize=1000&collection=CREC&api_key=BuRb8HtH8Sn3AoHVu2bnPUzz7ByW8ucYNf5JyyUh",
+  "last_run": "2026-09-05T11:02:08Z",
   "last_success": "2026-09-04T11:52:57Z",
   "refs_published": 0
 }
