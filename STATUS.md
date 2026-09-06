@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-09-04 09:18 UTC**
+**Last successful update — 2026-09-06 09:08 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,18 +14,19 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-05 08:47 UTC |
-| Outcome | listing changed packages: HTTPStatusError: 500 for https://api.govinfo.gov/collections/BILLSTATUS/2026-09-04T08:18:33Z?offsetMark=*&pageSize=1000&api_key=BuRb8HtH8Sn3AoHVu2bnPUzz7ByW8ucYNf5JyyUh |
+| Last run attempted | 2026-09-06 09:08 UTC |
+| Outcome | ok |
 | Window asked of govinfo | since 2026-09-04 08:18 UTC |
-| Measures govinfo reported modified | 0 |
-| Branches rewritten | 0 |
-| Rebuilt to the commit already published | 0 |
+| Measures govinfo reported modified | 307 |
+| Branches rewritten | 44 |
+| Rebuilt to the commit already published | 253 |
+| Modified but still carrying no text | 10 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 29 | `hconres-116`, `hr-10040`, `hr-10240`, `hr-10241`, `hr-10242`, `hr-10243`, `hr-10244`, `hr-10245`, `hr-10246`, `hr-10247`, `hr-10250`, `hr-10252`, and 17 more |
+| 119 | 44 | `hr-10249`, `hr-10251`, `hr-10253`, `hr-10255`, `hr-10256`, `hr-10257`, `hr-10258`, `hr-10259`, `hr-10260`, `hr-10261`, `hr-10262`, `hr-10263`, and 32 more |
 
 ## Congressional Record
 
@@ -34,8 +35,8 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-04 11:52 UTC |
-| Outcome | ok |
+| Last run attempted | 2026-09-05 11:02 UTC |
+| Outcome | HTTPStatusError: 500 for https://api.govinfo.gov/published/2024-12-04/2027-02-01?offsetMark=*&pageSize=1000&collection=CREC&api_key=BuRb8HtH8Sn3AoHVu2bnPUzz7ByW8ucYNf5JyyUh |
 | Congress | 119 |
 | Issue days added | 0 |
 | Issue days held | 353 |
