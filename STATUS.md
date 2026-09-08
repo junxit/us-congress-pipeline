@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-09-07 09:55 UTC**
+**Last successful update — 2026-09-08 09:20 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,30 +14,37 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-07 09:55 UTC |
+| Last run attempted | 2026-09-08 09:20 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-09-06 08:08 UTC |
-| Measures govinfo reported modified | 0 |
+| Window asked of govinfo | since 2026-09-07 08:55 UTC |
+| Measures govinfo reported modified | 6 |
 | Branches rewritten | 0 |
-| Rebuilt to the commit already published | 0 |
+| Rebuilt to the commit already published | 6 |
 
-No measure changed on the last successful run. That is an ordinary
-result — Congress does not sit every day — and is not the same as the
-job having failed, which the date above would show.
+No branch changed. 6 measures were rebuilt from freshly
+fetched upstream records and came out as the commits already
+published, so there was nothing to write. That is the ordinary
+result of a day on which nothing moved, and is not the same as the
+job having failed — the date above would show that.
 
 ## Congressional Record
 
-**Last successful run — 2026-09-06 11:25 UTC**
+**Last successful run — 2026-09-07 13:08 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-06 11:25 UTC |
+| Last run attempted | 2026-09-07 13:08 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 2 |
+| Issue days added | 0 |
 | Issue days held | 355 |
-| Refs published | 2 |
+| Refs published | 0 |
+
+No issue day was added on the last successful run. Congress does not
+sit every day, and the Record is published only for the days it does,
+so an unchanged shard is the ordinary result of a recess rather than a
+sign the job failed — the date above would show that.
 
 ## What this does not cover
 
