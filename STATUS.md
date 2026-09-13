@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-09-12 08:59 UTC**
+**Last successful update — 2026-09-13 09:56 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,19 +14,18 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-12 08:59 UTC |
+| Last run attempted | 2026-09-13 09:56 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-09-11 08:20 UTC |
-| Measures govinfo reported modified | 317 |
-| Branches rewritten | 28 |
-| Rebuilt to the commit already published | 273 |
-| Modified but still carrying no text | 16 |
+| Window asked of govinfo | since 2026-09-12 07:59 UTC |
+| Measures govinfo reported modified | 13 |
+| Branches rewritten | 0 |
+| Rebuilt to the commit already published | 13 |
 
-## Measures updated on the last successful run
-
-| Congress | Branches | Measures |
-|---|---|---|
-| 119 | 28 | `hr-10326`, `hr-10327`, `hr-10328`, `hr-10329`, `hr-10330`, `hr-10331`, `hr-10332`, `hr-10343`, `hr-10344`, `hr-10345`, `hr-10346`, `hr-10347`, and 16 more |
+No branch changed. 13 measures were rebuilt from freshly
+fetched upstream records and came out as the commits already
+published, so there was nothing to write. That is the ordinary
+result of a day on which nothing moved, and is not the same as the
+job having failed — the date above would show that.
 
 ## US Code release points not built yet
 
@@ -43,21 +42,26 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-09-11 11:56 UTC**
+**Last successful run — 2026-09-12 11:22 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-11 11:56 UTC |
+| Last run attempted | 2026-09-12 11:22 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 1 |
+| Issue days added | 0 |
 | Issue days held | 357 |
-| Refs published | 2 |
+| Refs published | 0 |
+
+No issue day was added on the last successful run. Congress does not
+sit every day, and the Record is published only for the days it does,
+so an unchanged shard is the ordinary result of a recess rather than a
+sign the job failed — the date above would show that.
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-09-12 08:59 UTC**
+**1 thing a schedule cannot do — checked 2026-09-13 09:56 UTC**
 
 | What | What to do |
 |---|---|
