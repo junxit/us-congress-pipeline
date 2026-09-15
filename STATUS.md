@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-09-14 10:18 UTC**
+**Last successful update — 2026-09-15 09:45 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,16 +14,19 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-14 10:18 UTC |
+| Last run attempted | 2026-09-15 09:45 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-09-13 08:56 UTC |
-| Measures govinfo reported modified | 0 |
-| Branches rewritten | 0 |
-| Rebuilt to the commit already published | 0 |
+| Window asked of govinfo | since 2026-09-14 09:18 UTC |
+| Measures govinfo reported modified | 364 |
+| Branches rewritten | 27 |
+| Rebuilt to the commit already published | 310 |
+| Modified but still carrying no text | 27 |
 
-No measure changed on the last successful run. That is an ordinary
-result — Congress does not sit every day — and is not the same as the
-job having failed, which the date above would show.
+## Measures updated on the last successful run
+
+| Congress | Branches | Measures |
+|---|---|---|
+| 119 | 27 | `hr-10025`, `hr-10248`, `hr-10267`, `hr-10333`, `hr-10334`, `hr-10335`, `hr-10336`, `hr-10337`, `hr-10338`, `hr-10339`, `hr-10341`, `hr-10342`, and 15 more |
 
 ## US Code release points not built yet
 
@@ -40,12 +43,12 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-09-13 12:26 UTC**
+**Last successful run — 2026-09-14 13:28 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-13 12:26 UTC |
+| Last run attempted | 2026-09-14 13:28 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 0 |
@@ -59,7 +62,7 @@ sign the job failed — the date above would show that.
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-09-14 10:18 UTC**
+**1 thing a schedule cannot do — checked 2026-09-15 09:45 UTC**
 
 | What | What to do |
 |---|---|
