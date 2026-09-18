@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-09-17 09:48 UTC**
+**Last successful update — 2026-09-18 09:22 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,19 +14,19 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-17 09:48 UTC |
+| Last run attempted | 2026-09-18 09:22 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-09-16 08:39 UTC |
-| Measures govinfo reported modified | 676 |
-| Branches rewritten | 142 |
-| Rebuilt to the commit already published | 395 |
-| Modified but still carrying no text | 139 |
+| Window asked of govinfo | since 2026-09-17 08:48 UTC |
+| Measures govinfo reported modified | 481 |
+| Branches rewritten | 145 |
+| Rebuilt to the commit already published | 213 |
+| Modified but still carrying no text | 123 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 142 | `hconres-117`, `hconres-93`, `hjres-210`, `hr-1008`, `hr-1009`, `hr-10159`, `hr-10167`, `hr-10204`, `hr-10358`, `hr-10359`, `hr-10362`, `hr-10363`, and 130 more |
+| 119 | 145 | `hconres-118`, `hconres-93`, `hjres-210`, `hjres-213`, `hjres-216`, `hjres-217`, `hr-1008`, `hr-1009`, `hr-10159`, `hr-10167`, `hr-10179`, `hr-10184`, and 133 more |
 
 ## US Code release points not built yet
 
@@ -44,25 +44,25 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-09-16 12:18 UTC**
+**Last successful run — 2026-09-17 12:18 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-16 12:18 UTC |
+| Last run attempted | 2026-09-17 12:18 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 1 |
-| Issue days held | 358 |
+| Issue days held | 359 |
 | Refs published | 2 |
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-09-17 09:48 UTC**
+**1 thing a schedule cannot do — checked 2026-09-18 09:21 UTC**
 
 | What | What to do |
 |---|---|
-| 1 US Code release point(s) published upstream and not built: `pl-119-103` | Run `uscongress seed-code` where `us-congress-code` already is; a release point is built against its predecessor |
+| 2 US Code release point(s) published upstream and not built: `pl-119-103`, `pl-119-108` | Run `uscongress seed-code` where `us-congress-code` already is; a release point is built against its predecessor |
 
 This list is computed, not remembered. It is empty on an ordinary day,
 and this section is absent when it is empty.
