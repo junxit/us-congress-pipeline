@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-09-21 10:23 UTC**
+**Last successful update — 2026-09-22 09:37 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,25 +14,28 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-21 10:23 UTC |
+| Last run attempted | 2026-09-22 09:37 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-09-20 08:35 UTC |
-| Measures govinfo reported modified | 3 |
-| Branches rewritten | 0 |
-| Rebuilt to the commit already published | 3 |
+| Window asked of govinfo | since 2026-09-21 09:23 UTC |
+| Measures govinfo reported modified | 213 |
+| Branches rewritten | 72 |
+| Rebuilt to the commit already published | 128 |
+| Modified but still carrying no text | 13 |
 
-No branch changed. 3 measures were rebuilt from freshly
-fetched upstream records and came out as the commits already
-published, so there was nothing to write. That is the ordinary
-result of a day on which nothing moved, and is not the same as the
-job having failed — the date above would show that.
+## Measures updated on the last successful run
+
+| Congress | Branches | Measures |
+|---|---|---|
+| 119 | 72 | `hconres-17`, `hr-10364`, `hr-10368`, `hr-10369`, `hr-10370`, `hr-10372`, `hr-10374`, `hr-10376`, `hr-10377`, `hr-10378`, `hr-10379`, `hr-10380`, and 60 more |
 
 ## US Code release points not built yet
 
-OLRC has published 2 release point(s) that `us-congress-code` does not carry:
+OLRC has published 4 release point(s) that `us-congress-code` does not carry:
 
 - `pl-119-103`
+- `pl-119-103`
 - `pl-119-108`
+- `pl-119-110`
 
 A release point is a full snapshot of ~60,000 files built against the
 one before it — the guard that stops a truncated archive recording
@@ -43,12 +46,12 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-09-20 11:54 UTC**
+**Last successful run — 2026-09-21 13:28 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-20 11:54 UTC |
+| Last run attempted | 2026-09-21 13:28 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 0 |
@@ -62,7 +65,7 @@ sign the job failed — the date above would show that.
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-09-21 10:23 UTC**
+**1 thing a schedule cannot do — checked 2026-09-22 09:37 UTC**
 
 | What | What to do |
 |---|---|
