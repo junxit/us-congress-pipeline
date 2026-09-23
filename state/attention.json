@@ -1,9 +1,9 @@
 {
-  "checked": "2026-09-22T09:37:16Z",
+  "checked": "2026-09-23T09:43:08Z",
   "due": [
     {
       "key": "release-points-pending",
-      "summary": "2 US Code release point(s) published upstream and not built: `pl-119-103`, `pl-119-108`",
+      "summary": "4 US Code release point(s) published upstream and not built: `pl-119-103`, `pl-119-103`, `pl-119-108`, `pl-119-110`",
       "action": "Run `uscongress seed-code` where `us-congress-code` already is; a release point is built against its predecessor"
     }
   ]
