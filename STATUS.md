@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-09-23 09:43 UTC**
+**Last successful update — 2026-09-24 09:41 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,19 +14,19 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-23 09:43 UTC |
+| Last run attempted | 2026-09-24 09:41 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-09-22 08:37 UTC |
-| Measures govinfo reported modified | 602 |
-| Branches rewritten | 143 |
-| Rebuilt to the commit already published | 407 |
-| Modified but still carrying no text | 52 |
+| Window asked of govinfo | since 2026-09-23 08:43 UTC |
+| Measures govinfo reported modified | 276 |
+| Branches rewritten | 92 |
+| Rebuilt to the commit already published | 168 |
+| Modified but still carrying no text | 16 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 143 | `hconres-16`, `hjres-89`, `hr-1008`, `hr-10326`, `hr-10360`, `hr-10394`, `hr-10396`, `hr-10397`, `hr-10398`, `hr-10399`, `hr-10400`, `hr-10414`, and 131 more |
+| 119 | 92 | `hconres-119`, `hjres-213`, `hr-10173`, `hr-10240`, `hr-10260`, `hr-10280`, `hr-10326`, `hr-10446`, `hr-10447`, `hr-10448`, `hr-10450`, `hr-10451`, and 80 more |
 
 ## US Code release points not built yet
 
@@ -46,21 +46,21 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-09-22 12:12 UTC**
+**Last successful run — 2026-09-23 12:25 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-22 12:12 UTC |
+| Last run attempted | 2026-09-23 12:25 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 1 |
-| Issue days held | 362 |
+| Issue days added | 2 |
+| Issue days held | 364 |
 | Refs published | 2 |
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-09-23 09:43 UTC**
+**1 thing a schedule cannot do — checked 2026-09-24 09:41 UTC**
 
 | What | What to do |
 |---|---|
