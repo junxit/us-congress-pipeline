@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-09-25 09:59 UTC**
+**Last successful update — 2026-09-26 09:41 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,19 +14,19 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-25 09:59 UTC |
+| Last run attempted | 2026-09-26 09:41 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-09-24 08:41 UTC |
-| Measures govinfo reported modified | 710 |
-| Branches rewritten | 52 |
-| Rebuilt to the commit already published | 506 |
-| Modified but still carrying no text | 152 |
+| Window asked of govinfo | since 2026-09-25 08:59 UTC |
+| Measures govinfo reported modified | 546 |
+| Branches rewritten | 151 |
+| Rebuilt to the commit already published | 232 |
+| Modified but still carrying no text | 163 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 52 | `hconres-120`, `hconres-121`, `hr-10476`, `hr-10477`, `hr-10492`, `hr-10494`, `hr-10495`, `hr-10496`, `hr-10507`, `hr-10509`, `hr-10511`, `hr-10514`, and 40 more |
+| 119 | 151 | `hconres-10`, `hconres-12`, `hconres-13`, `hconres-15`, `hconres-8`, `hr-10499`, `hr-10500`, `hr-10501`, `hr-10502`, `hr-10504`, `hr-10505`, `hr-10512`, and 139 more |
 
 ## US Code release points not built yet
 
@@ -47,30 +47,25 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-09-24 12:24 UTC**
+**Last successful run — 2026-09-25 12:24 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-24 12:24 UTC |
+| Last run attempted | 2026-09-25 12:24 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 0 |
-| Issue days held | 364 |
-| Refs published | 0 |
-
-No issue day was added on the last successful run. Congress does not
-sit every day, and the Record is published only for the days it does,
-so an unchanged shard is the ordinary result of a recess rather than a
-sign the job failed — the date above would show that.
+| Issue days added | 1 |
+| Issue days held | 365 |
+| Refs published | 2 |
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-09-25 09:59 UTC**
+**1 thing a schedule cannot do — checked 2026-09-26 09:41 UTC**
 
 | What | What to do |
 |---|---|
-| 4 US Code release point(s) published upstream and not built: `pl-119-103`, `pl-119-103`, `pl-119-108`, `pl-119-110` | Run `uscongress seed-code` where `us-congress-code` already is; a release point is built against its predecessor |
+| 5 US Code release point(s) published upstream and not built: `pl-119-103`, `pl-119-103`, `pl-119-108`, `pl-119-110`, `pl-119-111` | Run `uscongress seed-code` where `us-congress-code` already is; a release point is built against its predecessor |
 
 This list is computed, not remembered. It is empty on an ordinary day,
 and this section is absent when it is empty.
