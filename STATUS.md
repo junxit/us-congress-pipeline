@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-09-26 09:41 UTC**
+**Last successful update — 2026-09-27 10:21 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,19 +14,19 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-26 09:41 UTC |
+| Last run attempted | 2026-09-27 10:21 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-09-25 08:59 UTC |
-| Measures govinfo reported modified | 546 |
-| Branches rewritten | 151 |
-| Rebuilt to the commit already published | 232 |
-| Modified but still carrying no text | 163 |
+| Window asked of govinfo | since 2026-09-26 08:41 UTC |
+| Measures govinfo reported modified | 65 |
+| Branches rewritten | 9 |
+| Rebuilt to the commit already published | 49 |
+| Modified but still carrying no text | 7 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 151 | `hconres-10`, `hconres-12`, `hconres-13`, `hconres-15`, `hconres-8`, `hr-10499`, `hr-10500`, `hr-10501`, `hr-10502`, `hr-10504`, `hr-10505`, `hr-10512`, and 139 more |
+| 119 | 9 | `hr-2400`, `s-240`, `s-283`, `s-3257`, `s-3258`, `sres-902`, `sres-903`, `sres-904`, `sres-905` |
 
 ## US Code release points not built yet
 
@@ -47,21 +47,21 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-09-25 12:24 UTC**
+**Last successful run — 2026-09-26 11:56 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-25 12:24 UTC |
+| Last run attempted | 2026-09-26 11:56 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 1 |
-| Issue days held | 365 |
+| Issue days held | 366 |
 | Refs published | 2 |
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-09-26 09:41 UTC**
+**1 thing a schedule cannot do — checked 2026-09-27 10:21 UTC**
 
 | What | What to do |
 |---|---|
