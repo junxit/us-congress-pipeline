@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-09-28 11:25 UTC**
+**Last successful update — 2026-09-29 11:02 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,18 +14,19 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-28 11:25 UTC |
+| Last run attempted | 2026-09-29 11:02 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-09-27 09:21 UTC |
-| Measures govinfo reported modified | 1 |
-| Branches rewritten | 0 |
-| Rebuilt to the commit already published | 1 |
+| Window asked of govinfo | since 2026-09-28 10:25 UTC |
+| Measures govinfo reported modified | 491 |
+| Branches rewritten | 146 |
+| Rebuilt to the commit already published | 318 |
+| Modified but still carrying no text | 27 |
 
-No branch changed. 1 measures were rebuilt from freshly
-fetched upstream records and came out as the commits already
-published, so there was nothing to write. That is the ordinary
-result of a day on which nothing moved, and is not the same as the
-job having failed — the date above would show that.
+## Measures updated on the last successful run
+
+| Congress | Branches | Measures |
+|---|---|---|
+| 119 | 146 | `hconres-4`, `hconres-5`, `hconres-6`, `hconres-7`, `hr-10361`, `hr-10367`, `hr-10421`, `hr-10459`, `hr-10506`, `hr-10515`, `hr-10519`, `hr-10520`, and 134 more |
 
 ## US Code release points not built yet
 
@@ -46,12 +47,12 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-09-27 12:34 UTC**
+**Last successful run — 2026-09-28 14:42 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-27 12:34 UTC |
+| Last run attempted | 2026-09-28 14:42 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 0 |
@@ -65,7 +66,7 @@ sign the job failed — the date above would show that.
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-09-28 11:25 UTC**
+**1 thing a schedule cannot do — checked 2026-09-29 11:02 UTC**
 
 | What | What to do |
 |---|---|
