@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-09-29 11:02 UTC**
+**Last successful update — 2026-09-30 10:53 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,19 +14,19 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-29 11:02 UTC |
+| Last run attempted | 2026-09-30 10:53 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-09-28 10:25 UTC |
-| Measures govinfo reported modified | 491 |
-| Branches rewritten | 146 |
-| Rebuilt to the commit already published | 318 |
-| Modified but still carrying no text | 27 |
+| Window asked of govinfo | since 2026-09-29 10:02 UTC |
+| Measures govinfo reported modified | 362 |
+| Branches rewritten | 77 |
+| Rebuilt to the commit already published | 246 |
+| Modified but still carrying no text | 39 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 146 | `hconres-4`, `hconres-5`, `hconres-6`, `hconres-7`, `hr-10361`, `hr-10367`, `hr-10421`, `hr-10459`, `hr-10506`, `hr-10515`, `hr-10519`, `hr-10520`, and 134 more |
+| 119 | 77 | `hconres-11`, `hr-10457`, `hr-10530`, `hr-10539`, `hr-10550`, `hr-10558`, `hr-10559`, `hr-10576`, `hr-10586`, `hr-10587`, `hr-10588`, `hr-10589`, and 65 more |
 
 ## US Code release points not built yet
 
@@ -47,12 +47,12 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-09-28 14:42 UTC**
+**Last successful run — 2026-09-29 13:32 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-09-28 14:42 UTC |
+| Last run attempted | 2026-09-29 13:32 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 0 |
@@ -66,7 +66,7 @@ sign the job failed — the date above would show that.
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-09-29 11:02 UTC**
+**1 thing a schedule cannot do — checked 2026-09-30 10:53 UTC**
 
 | What | What to do |
 |---|---|
