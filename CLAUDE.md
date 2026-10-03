@@ -83,10 +83,11 @@ it is safe to re-run and pushes nothing when nothing moved.
 
 ## Two loops, one page
 
-There are three scheduled jobs, and they are separate on purpose.
+There are four scheduled jobs, and they are separate on purpose.
 
 | Workflow | When | Runs | Writes |
 |---|---|---|---|
+| `comps.yml` | 01:00 UTC daily | `comps`, `seed-comps`, then `republish --repo us-congress-comps` — one snapshot a day, unrecoverable if missed | `state/ci-comps.txt` |
 | `update.yml` | 05:00 UTC daily | `attention --announce`, then `update --publish` — bills, and reports US Code release points | `STATUS.md`, `state/update.json`, `state/attention.json` |
 | `record.yml` | 07:00 UTC daily | `update-record --publish` — the current Congress's Record shard | `state/record.json` |
 | `rebuild.yml` | 03:00 UTC monthly | `seed-bills --rebuild` then `republish` — the only thing that can refresh `GAPS.md` honestly | `state/ci-rebuild.txt` |
@@ -259,9 +260,18 @@ handles them; this is the index.
 - **Three volumes need an `Accept` header or they do not exist.** STATUTE 107,
   108 and 109 return HTTP 200 and 67 KB of error HTML without
   `Accept: application/xml`.
+- **The govinfo key belongs in a header, never a URL.** An error message
+  carries its URL, and the state files carry error messages: on 2026-09-05 a
+  govinfo 500 put the key into `state/update.json`, `state/record.json` and
+  `STATUS.md`, and the scheduled jobs committed all three to this public
+  repository. GitHub masks secrets in logs, not in files a job commits. See
+  `GovInfoClient.api_json`.
 - **`fast-import`'s `deleteall` sets a commit's whole tree.** Anything writing
   `main` must `read_tree` first and merge, or it deletes `README.md`, `LICENSE`
-  and `GAPS.md`. This has bitten twice, from both directions.
+  and `GAPS.md`. This has bitten three times: twice from both directions, and
+  once where reading first read nothing — the monthly rebuild runs where `main`
+  was never fetched, and published `us-congress-bills-119` with `GAPS.md` alone
+  from 2026-09-01 until 2026-10-03. See `bills.seed`.
 - **`read_tree` costs one `git show` per file.** Use `GitRepo.list_files` when
   you only need existence — `us-congress-code`'s `main` holds 60,493 files.
 - **git refuses to fetch into a checked-out branch.** Park HEAD first; see
