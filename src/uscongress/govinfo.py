@@ -1,11 +1,14 @@
 """HTTP client for govinfo bulk data and the govinfo API.
 
-Two traps this module exists to absorb:
+Three traps this module exists to absorb:
 
 * Bulk listing endpoints return **HTTP 406** unless ``Accept: application/json``
   is sent. The plain URL works in a browser and fails from a script.
 * The API is rate limited to 36,000 requests/hour per key. Exceeding it returns
   429s that cost more time than pacing would have.
+* The documented ``api_key`` query parameter puts the key in every URL, and so
+  in every error message, and from there into state the scheduled jobs commit
+  publicly. The key travels as ``X-Api-Key`` instead; see :meth:`api_json`.
 """
 
 from __future__ import annotations
@@ -187,12 +190,22 @@ class GovInfoClient:
 
         Args:
             path: Path below the API root, e.g. ``collections``.
-            **params: Query parameters. The API key is added automatically.
+            **params: Query parameters. The API key is sent automatically, as a
+                header.
 
         Returns:
             The decoded JSON body.
         """
         query = "&".join(f"{k}={v}" for k, v in params.items())
-        url = f"{config.GOVINFO_API}/{path.strip('/')}?{query}&api_key={self._api_key}"
-        response = await self._request(url)
+        url = f"{config.GOVINFO_API}/{path.strip('/')}"
+        if query:
+            url = f"{url}?{query}"
+        # The key goes in a header, never the query string, because an error
+        # message carries its URL. On 2026-09-05 a govinfo 500 put the key into
+        # state/update.json, state/record.json and STATUS.md, and the scheduled
+        # jobs committed all three to a public repository: GitHub masks secrets
+        # in a log, not in a file a job commits. api.data.gov reads X-Api-Key
+        # on every endpoint, and the nextPage links it returns then carry no key
+        # either, so no URL here ever needs to hold one.
+        response = await self._request(url, headers={"X-Api-Key": self._api_key})
         return response.json()
