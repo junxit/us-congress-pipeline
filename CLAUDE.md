@@ -280,6 +280,16 @@ handles them; this is the index.
   transferring everything; force-updates fail far lower. Batch at
   `publish.BATCH`, and read back what landed with `ls-remote` — a push that
   exits zero is not evidence.
+- **`republish` force-pushes whatever differs, in either direction.** It has no
+  notion of *behind*: a branch the loops moved after this machine last fetched
+  reads as "moved" and goes back to the old commit. On 2026-10-03 this clone
+  was 515 branches behind on `us-congress-bills-119` and 49 snapshots behind on
+  `us-congress-comps`, which cannot be refetched. Bring a clone forward before
+  publishing anything not just rebuilt — `bootstrap --only <repo>` for the
+  fast-import shards, a fast-forward of the checked-out branch for
+  `us-congress-comps`, whose working tree `bootstrap` would leave under a parked
+  HEAD — but never between a rebuild and its `republish`: `bootstrap` mirrors
+  the remote, and would discard the rebuild.
 - **Generated documents must not embed counts their own commit changes**, or
   regeneration churns forever.
 
