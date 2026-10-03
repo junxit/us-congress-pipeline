@@ -210,6 +210,61 @@ def test_upstream_is_reported_unchecked_rather_than_passing() -> None:
     assert "upstream-unchecked" in _keys(due)
 
 
+def test_an_upstream_failure_is_due_rather_than_fatal(monkeypatch) -> None:
+    """A govinfo 500 must not end the run and take every other answer with it.
+
+    On 2026-09-05 it did: push access had come back 32 of 32, then the upstream
+    check raised, nothing was saved, and the workflow's ``|| true`` kept the
+    step green. The answers already gathered have to survive the one that
+    could not be.
+    """
+    import asyncio
+
+    import httpx
+
+    for name in (
+        "shards_exist",
+        "registry_repos_exist",
+        "token_can_publish",
+        "schedules_enabled",
+        "backlog",
+        "members_current",
+    ):
+        monkeypatch.setattr(attention, name, lambda *_args, **_kwargs: [])
+    stale = Condition(key="comps-stale", summary="stale", action="refresh")
+    monkeypatch.setattr(attention, "comps_current", lambda *_args, **_kwargs: [stale])
+
+    class _Down:
+        async def api_json(self, path: str, **_params: object) -> dict:
+            request = httpx.Request("GET", f"https://api.govinfo.gov/{path}")
+            response = httpx.Response(500, request=request)
+            raise httpx.HTTPStatusError("500", request=request, response=response)
+
+    due = asyncio.run(attention.check(_Down(), Path("/nonexistent/update.json")))
+
+    assert _keys(due) == ["comps-stale", "upstream-unchecked"]
+    assert "govinfo answered 500" in due[-1].summary
+
+
+def test_unreadable_statutes_tags_are_unknown_not_missing(monkeypatch) -> None:
+    """A failed ls-remote must not read as every Statutes volume being absent.
+
+    ``remote_tags`` answers an empty set on failure, and 137 volumes against
+    zero tags would otherwise be reported as 137 to build.
+    """
+    import asyncio
+
+    class _Up:
+        async def api_json(self, path: str, **_params: object) -> dict:
+            return {"count": 0} if path.startswith("published/") else {"count": 137}
+
+    monkeypatch.setattr(attention.publish, "remote_tags", lambda _url: set())
+
+    due = asyncio.run(attention.upstream_editions(_Up()))
+
+    assert _keys(due) == ["statutes-unchecked"]
+
+
 def test_a_repository_built_here_and_absent_from_github_is_due(
     monkeypatch, tmp_path: Path
 ) -> None:

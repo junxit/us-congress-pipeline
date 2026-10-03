@@ -27,6 +27,8 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+import httpx
+
 from .. import config
 from ..govinfo import GovInfoClient
 from ..registry import OWNER, PIPELINE_REPO, REPOSITORIES
@@ -477,6 +479,19 @@ async def upstream_editions(client: GovInfoClient) -> list[Condition]:
         "collections/STATUTE/1990-01-01T00:00:00Z", pageSize=1, offset=0
     )
     tags = publish.remote_tags(publish.repo_url("us-congress-statutes"))
+    if not tags:
+        # `remote_tags` answers an empty set when ls-remote fails, and against
+        # zero tags every volume govinfo carries would read as missing -- an
+        # instruction to rebuild the Statutes on the strength of a network error.
+        due.append(
+            Condition(
+                key="statutes-unchecked",
+                summary="the tags of `us-congress-statutes` could not be read, so "
+                "whether govinfo has a volume it lacks is unknown",
+                action="Check network access to github.com, then re-run",
+            )
+        )
+        return due
     # Two volumes print no session law at all, so the tag count is legitimately
     # below the package count and only a *growing* gap means anything.
     if volumes.get("count", 0) > len(tags) + 2:
@@ -530,7 +545,24 @@ async def check(
             )
         )
     else:
-        due += await upstream_editions(client)
+        try:
+            due += await upstream_editions(client)
+        except (httpx.HTTPError, ValueError) as exc:
+            # Raised, this ended the whole run. On 2026-09-05 a govinfo 500 here
+            # crashed `attention` after push access had come back 32 of 32, so
+            # nothing was saved and every answer of the day went with it --
+            # while `|| true` in the workflow kept the step green.
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            reason = f"govinfo answered {status}" if status else type(exc).__name__
+            due.append(
+                Condition(
+                    key="upstream-unchecked",
+                    summary=f"upstream editions could not be checked ({reason})",
+                    action="Nothing, if govinfo was briefly down: the next run "
+                    "asks again. If this persists, check the GOVINFO_API_KEY "
+                    "secret",
+                )
+            )
     return due
 
 
