@@ -117,7 +117,8 @@ async def run(
     except Exception as exc:  # noqa: BLE001 - the heartbeat must record any failure
         errors.append(f"{type(exc).__name__}: {exc}")
 
-    state.last_outcome = "ok" if not errors else "; ".join(errors[:3])
+    # Redacted where an error becomes something committed; see `config.redact`.
+    state.last_outcome = "ok" if not errors else config.redact("; ".join(errors[:3]))
     if not errors:
         state.last_success = started
         state.days_built = days_built

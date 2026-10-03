@@ -955,3 +955,26 @@ def test_the_attention_section_names_the_action_not_just_the_problem(
     assert "## Needs a person" in page
     assert "1 thing a schedule cannot do" in page
     assert "| the 120th has no repository | Create it |" in page
+
+
+def test_a_failure_quoting_the_push_token_is_not_committed(tmp_path: Path) -> None:
+    """Both files `_finish` writes are committed to a public repository.
+
+    A ``CalledProcessError`` from ``git remote set-url`` quotes the push URL,
+    token included, and ``update_bills`` is reported by its exception's message.
+    Unredacted, that went into ``last_outcome`` and the Outcome row alike.
+    """
+    token = "github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz"
+    result = _result(ok=False)
+    result.errors = [
+        "rebuilding measures: CalledProcessError: Command '['git', 'remote', "
+        f"'set-url', 'origin', 'https://x-access-token:{token}@github.com/junxit/"
+        "us-congress-bills-119.git']' returned non-zero exit status 255."
+    ]
+    state_path, status_path = tmp_path / "update.json", tmp_path / "STATUS.md"
+
+    update._finish(State(), result, state_path, status_path)  # noqa: SLF001
+
+    assert token not in state_path.read_text()
+    assert token not in status_path.read_text()
+    assert "CalledProcessError" in load_state(state_path).last_outcome

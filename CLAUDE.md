@@ -265,7 +265,9 @@ handles them; this is the index.
   govinfo 500 put the key into `state/update.json`, `state/record.json` and
   `STATUS.md`, and the scheduled jobs committed all three to this public
   repository. GitHub masks secrets in logs, not in files a job commits. See
-  `GovInfoClient.api_json`.
+  `GovInfoClient.api_json`. The push token still rides in git URLs, where a
+  failed `git remote set-url` quotes it, so every outcome passes through
+  `config.redact` before it is saved.
 - **`fast-import`'s `deleteall` sets a commit's whole tree.** Anything writing
   `main` must `read_tree` first and merge, or it deletes `README.md`, `LICENSE`
   and `GAPS.md`. This has bitten three times: twice from both directions, and

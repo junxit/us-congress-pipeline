@@ -8,6 +8,7 @@ explicitly.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -118,6 +119,49 @@ def govinfo_api_key() -> str:
             "Free key: https://www.govinfo.gov/api-signup"
         )
     return key
+
+
+#: The userinfo of a URL -- ``x-access-token:<token>@`` in the push URLs that
+#: :func:`uscongress.jobs.publish.repo_url` builds.
+_URL_USERINFO = re.compile(r"(?<=://)[^/\s@'\"]+@")
+
+#: A govinfo key in a query string, the form :mod:`uscongress.govinfo` sent
+#: until 2026-10-03.
+_API_KEY_PARAM = re.compile(r"(?<=api_key=)[^&\s'\"]+")
+
+
+def redact(text: str) -> str:
+    """Remove credentials from text that is about to be committed.
+
+    The scheduled jobs commit their outcome -- ``last_outcome`` in ``state/``
+    and the Outcome rows of ``STATUS.md`` -- to a public repository, and a
+    failed run's outcome is an exception's message. GitHub masks secrets in a
+    run's log, never in the files a job commits, so whatever an exception
+    quotes is published: that is how the govinfo key leaked on 2026-09-05. The
+    push token is exposed the same way. It rides in the URL handed to
+    ``git remote set-url``, and a failed call raises a ``CalledProcessError``
+    quoting the whole command.
+
+    The configured values are replaced wherever they appear, as GitHub's own
+    masking does. The two shapes a credential takes inside a URL are replaced
+    whatever their value, because the Record loop is handed its token as an
+    argument, so the environment cannot be relied on to name it.
+
+    Args:
+        text: Text bound for a committed file.
+
+    Returns:
+        The text, with every credential replaced by ``***``.
+    """
+    _load_dotenv(REPO_ROOT / ".env")
+    for name in ("GITHUB_TOKEN", "GOVINFO_API_KEY"):
+        secret = os.environ.get(name, "").strip()
+        # Too short to be a real credential -- these are 40 characters and up --
+        # and replacing it would rewrite ordinary words.
+        if len(secret) >= 16:
+            text = text.replace(secret, "***")
+    text = _URL_USERINFO.sub("***@", text)
+    return _API_KEY_PARAM.sub("***", text)
 
 
 def ensure_dirs() -> None:

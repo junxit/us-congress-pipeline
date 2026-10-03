@@ -12,6 +12,7 @@ so it is asserted rather than assumed.
 from __future__ import annotations
 
 import asyncio
+import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -168,3 +169,33 @@ def test_a_congress_with_no_repository_yet_still_builds(
 
     assert status == 0
     assert seeded["congress"] == 120
+
+
+def test_a_failure_quoting_the_push_token_is_not_committed(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """The outcome is committed publicly, and the push URL carries the token.
+
+    Fetching the shard runs ``git remote set-url origin <url>`` with the token in
+    the URL. When that fails, ``CalledProcessError`` quotes the command, and the
+    loop records any exception's message as its outcome -- the same route the
+    govinfo key took into this public repository on 2026-09-05.
+    """
+    token = "github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz"
+
+    def fail(path: Path, url: str) -> None:
+        raise subprocess.CalledProcessError(
+            255, ["git", "-C", str(path), "remote", "set-url", "origin", url]
+        )
+
+    monkeypatch.setattr(recordloop, "GovInfoClient", _NoClient)
+    monkeypatch.setattr(recordloop.config, "REPOS_DIR", tmp_path)
+    monkeypatch.setattr(recordloop.publish, "remote_exists", lambda _url: True)
+    monkeypatch.setattr(recordloop.publish, "prepare_all", fail)
+    state_path = tmp_path / "record.json"
+
+    status = asyncio.run(recordloop.run(congress=119, token=token, state_path=state_path))
+
+    assert status == 1
+    assert token not in state_path.read_text()
+    assert "CalledProcessError" in update_job.load_record_state(state_path).last_outcome

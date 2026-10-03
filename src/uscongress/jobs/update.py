@@ -885,7 +885,9 @@ def _finish(
         status_path: Override the heartbeat location.
     """
     state.last_run = result.started
-    state.last_outcome = "ok" if result.ok else "; ".join(result.errors[:3])
+    # Redacted here, where an error becomes something committed, so it covers
+    # every exception whatever raised it. See `config.redact`.
+    state.last_outcome = "ok" if result.ok else config.redact("; ".join(result.errors[:3]))
     if result.ok:
         state.last_success = result.started
         state.checked_since = result.since

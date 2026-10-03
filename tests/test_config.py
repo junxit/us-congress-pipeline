@@ -1,4 +1,5 @@
-"""Tests for the filesystem layout helpers.
+"""Tests for the filesystem layout helpers, and for keeping credentials out of
+committed text.
 
 Weighted towards :func:`uscongress.config.built_shards`, because the thing it
 replaced was a hardcoded ``range(108, 120)`` in ``republish``: correct on the
@@ -84,3 +85,76 @@ def test_nothing_cloned_reports_nothing(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(config, "REPOS_DIR", tmp_path)
 
     assert config.built_shards("us-congress-record-{congress}") == []
+
+
+#: A fine-grained token's shape, the kind `DATA_REPO_TOKEN` is. Not a real one.
+_TOKEN = "github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz"
+
+
+def _no_credentials(monkeypatch) -> None:
+    """Clear whatever credentials this shell holds, so only the test's count.
+
+    Args:
+        monkeypatch: Pytest fixture.
+    """
+    for name in ("GITHUB_TOKEN", "GOVINFO_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(config, "REPO_ROOT", Path("/nonexistent"))
+
+
+def test_a_push_token_in_a_url_is_redacted(monkeypatch) -> None:
+    """The message a failed ``git remote set-url`` raises, token and all.
+
+    ``CalledProcessError`` quotes the whole command, and both loops commit an
+    exception's message as their outcome -- the route the govinfo key took into
+    this public repository on 2026-09-05.
+    """
+    _no_credentials(monkeypatch)
+    message = (
+        "CalledProcessError: Command '['git', '-C', 'data/repos/us-congress-record-119', "
+        "'remote', 'set-url', 'origin', "
+        f"'https://x-access-token:{_TOKEN}@github.com/junxit/us-congress-record-119.git']' "
+        "returned non-zero exit status 255."
+    )
+
+    redacted = config.redact(message)
+
+    assert _TOKEN not in redacted
+    assert "'https://***@github.com/junxit/us-congress-record-119.git'" in redacted
+    assert redacted.endswith("returned non-zero exit status 255.")
+
+
+def test_a_configured_credential_is_redacted_wherever_it_appears(monkeypatch) -> None:
+    """Outside a URL only its value identifies it, as GitHub's masking assumes."""
+    _no_credentials(monkeypatch)
+    monkeypatch.setenv("GITHUB_TOKEN", _TOKEN)
+
+    assert config.redact(f"remote: Invalid credentials {_TOKEN}.") == (
+        "remote: Invalid credentials ***."
+    )
+
+
+def test_a_govinfo_key_in_a_query_string_is_redacted(monkeypatch) -> None:
+    """The text committed on 2026-09-05, with a stand-in for the key."""
+    _no_credentials(monkeypatch)
+    message = (
+        "listing changed packages: HTTPStatusError: 500 for https://api.govinfo.gov/"
+        "collections/BILLSTATUS/2026-09-04T08:18:33Z?offsetMark=*&pageSize=1000"
+        "&api_key=0123456789abcdefABCDEF0123456789abcdefAB"
+    )
+
+    assert config.redact(message).endswith("&pageSize=1000&api_key=***")
+
+
+def test_an_outcome_without_credentials_is_left_alone(monkeypatch) -> None:
+    """Redacting must not cost an outcome its meaning."""
+    _no_credentials(monkeypatch)
+    # Far too short to be a credential, and replacing it would rewrite words.
+    monkeypatch.setenv("GITHUB_TOKEN", "ok")
+    message = (
+        "HTTPStatusError: 500 for https://api.govinfo.gov/published/2024-12-04/"
+        "2027-02-01?offsetMark=*&pageSize=1000&collection=CREC"
+    )
+
+    assert config.redact(message) == message
+    assert config.redact("ok") == "ok"
