@@ -515,6 +515,56 @@ def test_writing_gaps_preserves_the_readme_and_license(tmp_path) -> None:
     assert sorted(repo.read_tree("main")) == ["GAPS.md", "LICENSE", "README.md"]
 
 
+def test_writing_gaps_drops_a_companion_the_new_record_lacks(tmp_path) -> None:
+    """GAPS.tsv exists only above INLINE_GAP_LIMIT, so it can stop existing.
+
+    The 119th counted 199 measures without text on 2026-10-01 against a limit
+    of 200, so its list crosses that line in both directions. Merged rather
+    than replaced, a shrinking list left the old TSV on main with nothing in
+    GAPS.md pointing at it.
+    """
+    repo = GitRepo(tmp_path / "us-congress-bills-113")
+    repo.init()
+    with repo.fast_import() as stream:
+        stream.commit(
+            "main",
+            {"README.md": "readme\n", "LICENSE": "license\n", **gap_documents("113", _gaps(900))},
+            "Artifacts and a long gap list",
+        )
+
+    _write_gaps(repo, "113", _gaps(3))
+
+    assert sorted(repo.read_tree("main")) == ["GAPS.md", "LICENSE", "README.md"]
+
+
+def test_a_build_with_no_main_starts_from_the_published_one(
+    monkeypatch, tmp_path
+) -> None:
+    """The monthly rebuild runs where no main exists, so it must fetch one.
+
+    ``_write_gaps`` merges into main and, on an empty runner, found nothing to
+    merge into. The 2026-09-01 rebuild wrote GAPS.md alone as a new root and
+    force-pushed it over us-congress-bills-119, deleting its README and license.
+    """
+    published = GitRepo(tmp_path / "published")
+    published.init()
+    with published.fast_import() as stream:
+        stream.commit("main", {"README.md": "readme\n", "LICENSE": "license\n"}, "Artifacts")
+
+    async def _no_measures(_client, _congress):  # noqa: ANN001, ANN202
+        return []
+
+    monkeypatch.setattr(bills, "discover", _no_measures)
+    monkeypatch.setattr(bills.config, "REPOS_DIR", tmp_path / "repos")
+    monkeypatch.setattr(
+        bills.publish, "repo_url", lambda _name, _token="": str(published.path)
+    )
+
+    repo = asyncio.run(bills.seed(None, "113", rebuild=True))
+
+    assert sorted(repo.read_tree("main")) == ["LICENSE", "README.md"]
+
+
 # --------------------------------------------------------------------------
 # Roll-call votes
 # --------------------------------------------------------------------------

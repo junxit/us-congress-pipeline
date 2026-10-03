@@ -39,6 +39,7 @@ from ..billtext import render_bill
 from ..gitbuild import GitRepo
 from ..govinfo import GovInfoClient
 from ..xmlrepair import repair
+from . import publish
 from . import votes as votes_job
 
 #: Measure types, in the order a listing walks them.
@@ -791,6 +792,15 @@ async def seed(
 
     repo = GitRepo(repo_path or config.REPOS_DIR / f"{REPO_PREFIX}-{congress}")
     repo.init()
+    if repo_path is None and "main" not in repo.branches():
+        # `_write_gaps` merges into main, and the monthly rebuild runs where
+        # there is no main to merge into. It read nothing, wrote GAPS.md alone
+        # as a new root, and the 2026-09-01 rebuild force-pushed that over
+        # us-congress-bills-119: its README and license were gone for a month.
+        # So start from the published main. A shard not yet created has none,
+        # and nothing is fetched. Only the default location, because that is
+        # the one `republish` publishes from.
+        publish.prepare(repo.path, publish.repo_url(f"{REPO_PREFIX}-{congress}"), [])
     existing = repo.branches()
 
     print(f"BILLS {congress}: {len(measures)} measures listed", flush=True)
@@ -1003,8 +1013,13 @@ def _write_gaps(
     # Writing only the gap record would delete the README and license that
     # `uscongress artifacts` puts on this branch.
     existing = repo.read_tree("main")
+    # Every GAPS file is this function's, though, so each write replaces all
+    # of them rather than merging. GAPS.tsv exists only above INLINE_GAP_LIMIT,
+    # the 119th counted 199 against a limit of 200 on 2026-10-01, and a list
+    # that shrinks back under it must not leave a TSV GAPS.md no longer names.
+    kept = {name: text for name, text in existing.items() if not name.startswith("GAPS")}
     merged = {
-        **existing,
+        **kept,
         **gap_documents(congress, gaps, votes_missing, votes_late, derived_totals),
     }
     if merged == existing:
