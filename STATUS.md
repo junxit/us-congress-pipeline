@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-10-02 10:51 UTC**
+**Last successful update — 2026-10-03 10:11 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,38 +14,33 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-02 10:51 UTC |
+| Last run attempted | 2026-10-03 10:11 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-10-01 10:19 UTC |
-| Measures govinfo reported modified | 789 |
-| Branches rewritten | 124 |
-| Rebuilt to the commit already published | 478 |
-| Modified but still carrying no text | 187 |
+| Window asked of govinfo | since 2026-10-02 09:51 UTC |
+| Measures govinfo reported modified | 447 |
+| Branches rewritten | 56 |
+| Rebuilt to the commit already published | 295 |
+| Modified but still carrying no text | 96 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 124 | `hconres-122`, `hr-10401`, `hr-10449`, `hr-10510`, `hr-10543`, `hr-10552`, `hr-10574`, `hr-10590`, `hr-10591`, `hr-10593`, `hr-10595`, `hr-10615`, and 112 more |
+| 119 | 56 | `hr-10641`, `hr-10643`, `hr-10660`, `hr-10662`, `hr-2400`, `hr-5349`, `hr-7730`, `hres-1292`, `s-1055`, `s-1514`, `s-1564`, `s-2273`, and 44 more |
 
 ## Congressional Record
 
-**Last successful run — 2026-10-01 14:00 UTC**
+**Last successful run — 2026-10-02 13:20 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-01 14:00 UTC |
+| Last run attempted | 2026-10-02 13:20 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 0 |
-| Issue days held | 368 |
-| Refs published | 0 |
-
-No issue day was added on the last successful run. Congress does not
-sit every day, and the Record is published only for the days it does,
-so an unchanged shard is the ordinary result of a recess rather than a
-sign the job failed — the date above would show that.
+| Issue days added | 2 |
+| Issue days held | 370 |
+| Refs published | 2 |
 
 ## What this does not cover
 
