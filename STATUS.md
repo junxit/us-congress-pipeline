@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-10-06 11:44 UTC**
+**Last successful update — 2026-10-07 11:29 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,38 +14,44 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-06 11:44 UTC |
+| Last run attempted | 2026-10-07 11:29 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-10-05 11:00 UTC |
-| Measures govinfo reported modified | 507 |
-| Branches rewritten | 97 |
-| Rebuilt to the commit already published | 375 |
-| Modified but still carrying no text | 35 |
+| Window asked of govinfo | since 2026-10-06 10:44 UTC |
+| Measures govinfo reported modified | 317 |
+| Branches rewritten | 53 |
+| Rebuilt to the commit already published | 220 |
+| Modified but still carrying no text | 44 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 97 | `hjres-218`, `hr-10561`, `hr-10612`, `hr-10638`, `hr-10640`, `hr-10642`, `hr-10644`, `hr-10645`, `hr-10646`, `hr-10647`, `hr-10648`, `hr-10649`, and 85 more |
+| 119 | 53 | `hconres-123`, `hr-10642`, `hr-10700`, `hr-10701`, `hr-10702`, `hr-10703`, `hr-10705`, `hr-10706`, `hr-10707`, `hr-10708`, `hr-10709`, `hr-10710`, and 41 more |
 
 ## Congressional Record
 
-**Last successful run — 2026-10-05 15:23 UTC**
+**Last successful run — 2026-10-06 13:45 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-05 15:23 UTC |
+| Last run attempted | 2026-10-06 13:45 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 0 |
-| Issue days held | 370 |
-| Refs published | 0 |
+| Issue days added | 1 |
+| Issue days held | 371 |
+| Refs published | 2 |
 
-No issue day was added on the last successful run. Congress does not
-sit every day, and the Record is published only for the days it does,
-so an unchanged shard is the ordinary result of a recess rather than a
-sign the job failed — the date above would show that.
+## Needs a person
+
+**1 thing a schedule cannot do — checked 2026-10-07 11:29 UTC**
+
+| What | What to do |
+|---|---|
+| govinfo carries 138 Statutes volumes against 135 tagged here | Run `uscongress seed-statutes`, then `uscongress republish --repo us-congress-statutes` |
+
+This list is computed, not remembered. It is empty on an ordinary day,
+and this section is absent when it is empty.
 
 ## What this does not cover
 
