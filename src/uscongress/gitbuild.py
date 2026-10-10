@@ -233,6 +233,29 @@ class GitRepo:
                 refs[name] = sha
         return refs
 
+    def tag_map(self) -> dict[str, str]:
+        """Return every tag and the object it names.
+
+        The object the tag ref itself points at, unpeeled -- the tag object for
+        an annotated tag, the commit for a lightweight one -- because that is
+        what ``ls-remote`` lists first for the same tag, so the two compare
+        directly. Read by full refname: a short name can come back as
+        ``tags/x`` when a branch shares it.
+
+        Returns:
+            Tag name to full object SHA.
+        """
+        try:
+            out = self._run("for-each-ref", "--format=%(refname) %(objectname)", "refs/tags")
+        except subprocess.CalledProcessError:
+            return {}
+        tags: dict[str, str] = {}
+        for line in out.splitlines():
+            ref, _, sha = line.strip().partition(" ")
+            if ref.startswith("refs/tags/") and sha:
+                tags[ref[len("refs/tags/") :]] = sha
+        return tags
+
     def list_files(self, branch: str) -> set[str]:
         """Return the names of every file on a branch, without reading them.
 

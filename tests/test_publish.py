@@ -23,8 +23,10 @@ from uscongress.jobs.publish import (
     PARKED_HEAD,
     prepare,
     push,
+    push_tags,
     remote_exists,
     remote_refs,
+    remote_tag_refs,
     remote_tags,
     repo_url,
 )
@@ -290,6 +292,52 @@ def test_remote_tags_dereferences_annotated_tags(origin: Path, source: GitRepo) 
     )
 
     assert remote_tags(str(origin)) == {"pl-119-102"}
+
+
+def test_tags_the_remote_lacks_are_pushed_and_read_back(
+    origin: Path, source: GitRepo
+) -> None:
+    """Lightweight, as ``GitRepo.tag`` makes them, and annotated alike.
+
+    Nothing published a tag until 2026-10-10; ``stat-138`` went up by hand.
+    """
+    subprocess.run(["git", "-C", str(source.path), "tag", "stat-138", "hr-1"], check=True)
+    subprocess.run(
+        ["git", "-C", str(source.path), "tag", "-a", "pl-119-102", "-m", "rp", "hr-2"],
+        check=True,
+    )
+
+    report = push_tags(source.path, str(origin), ["pl-119-102", "stat-138"])
+
+    assert report.pushed == ["pl-119-102", "stat-138"]
+    assert report.missing == []
+    assert remote_tag_refs(str(origin)) == source.tag_map()
+
+
+def test_a_tag_published_at_another_commit_is_never_moved(
+    origin: Path, source: GitRepo
+) -> None:
+    """A tag names a citation, so overwriting one rewrites what it cites."""
+    subprocess.run(["git", "-C", str(source.path), "tag", "stat-138", "hr-1"], check=True)
+    push_tags(source.path, str(origin), ["stat-138"])
+    published = remote_tag_refs(str(origin))["stat-138"]
+    subprocess.run(
+        ["git", "-C", str(source.path), "tag", "-f", "stat-138", "hr-2"],
+        check=True,
+        capture_output=True,
+    )
+
+    report = push_tags(source.path, str(origin), ["stat-138"])
+
+    assert report.missing == ["stat-138"]
+    assert report.errors
+    assert remote_tag_refs(str(origin))["stat-138"] == published
+
+
+def test_an_unreadable_remote_has_no_tags_to_compare(origin: Path, tmp_path: Path) -> None:
+    """None rather than empty: "lacks" is only safe to act on when it is known."""
+    assert remote_tag_refs(str(tmp_path / "nowhere.git")) is None
+    assert remote_tag_refs(str(origin)) == {}
 
 
 def test_missing_repository_reads_as_empty(tmp_path: Path) -> None:

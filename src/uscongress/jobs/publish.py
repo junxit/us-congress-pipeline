@@ -219,6 +219,37 @@ def remote_tags(url: str) -> set[str]:
     return tags
 
 
+def remote_tag_refs(url: str) -> dict[str, str] | None:
+    """Read every tag on the remote and the object it names.
+
+    Answers None when the remote cannot be read, where :func:`remote_tags` and
+    :func:`remote_refs` answer an empty collection. The difference is the whole
+    point: this feeds a push of whatever the remote *lacks*, and a network error
+    read as "no tags at all" would offer every tag a repository holds.
+
+    Args:
+        url: Repository URL.
+
+    Returns:
+        Tag name to the object the tag ref names -- unpeeled, as
+        :meth:`GitRepo.tag_map` reports it locally -- or None if unreadable.
+    """
+    result = subprocess.run(
+        ["git", "ls-remote", "--tags", url], capture_output=True, text=True, check=False
+    )
+    if result.returncode != 0:
+        return None
+    tags: dict[str, str] = {}
+    for line in result.stdout.splitlines():
+        sha, _, ref = line.partition("\t")
+        ref = ref.strip()
+        # The ^{} line is the dereferenced commit of an annotated tag; the
+        # unpeeled line before it is what the local ref names.
+        if ref.startswith("refs/tags/") and not ref.endswith("^{}"):
+            tags[ref[len("refs/tags/") :]] = sha.strip()
+    return tags
+
+
 def prepare(path: Path, url: str, branches: list[str]) -> GitRepo:
     """Make a local repository holding just the branches about to be rebuilt.
 
@@ -406,6 +437,56 @@ def push(
     # push's own account of itself.
     report.pushed = sorted(b for b in branches if b in local and landed.get(b) == local[b])
     report.missing = sorted(set(branches) - set(report.pushed))
+    return report
+
+
+def push_tags(path: Path, url: str, tags: list[str], batch: int = BATCH) -> PushReport:
+    """Push tags and verify from the remote that they landed.
+
+    Until 2026-10-10 nothing here published a tag. :func:`push` takes branch
+    names, so ``stat-138`` reached GitHub by hand, and every release point and
+    volume before it had to be pushed by whoever remembered.
+
+    Never forced, unlike branches. A tag names a citation -- ``stat-138``,
+    ``pl-119-102`` -- and one already published at another object is a
+    disagreement for a person to settle, not something to overwrite; git refuses
+    to move it, and that refusal is wanted.
+
+    Args:
+        path: Local repository.
+        url: Remote to push to.
+        tags: Tag names to publish.
+        batch: Refs per request.
+
+    Returns:
+        What landed and what did not, read back from the remote.
+    """
+    report = PushReport()
+    local = GitRepo(path).tag_map()
+    wanted = [t for t in tags if t in local]
+    if not wanted:
+        report.missing = sorted(tags)
+        return report
+    report.attempts = 1
+    for start in range(0, len(wanted), batch):
+        window = wanted[start : start + batch]
+        result = _git(
+            path,
+            "push",
+            "--quiet",
+            url,
+            *(f"refs/tags/{t}:refs/tags/{t}" for t in window),
+            check=False,
+        )
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout).strip()
+            report.errors.append(
+                f"{len(window)} tags, git exited {result.returncode}: "
+                f"{detail[-400:] or '(no output)'}"
+            )
+    landed = remote_tag_refs(url) or {}
+    report.pushed = sorted(t for t in wanted if landed.get(t) == local[t])
+    report.missing = sorted(set(tags) - set(report.pushed))
     return report
 
 

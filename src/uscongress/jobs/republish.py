@@ -13,6 +13,12 @@ branches that genuinely differ. For phase 8 that is the difference between
 pushing 7,510 branches and pushing 160,190: only 4.4% of measures carry a
 recorded vote, and the rest must not be touched at all.
 
+Tags travel too, which they did not until 2026-10-10: ``seed-statutes`` tagged
+volume 138 and this published the branch alone, so ``stat-138`` went up by hand.
+A tag the remote lacks is pushed; one it holds at another object is reported and
+left, because a tag names a citation and two answers to which commit it is need
+a person; and none is ever deleted.
+
 Nothing here decides *whether* to publish. It reports what would move, and only
 pushes when told to.
 """
@@ -41,6 +47,11 @@ class Divergence:
             ceased to exist.
         unchanged: How many branches match exactly.
         error: Why the comparison could not be made, if it could not.
+        tags_missing: Tags that exist locally and not on the remote.
+        tags_conflicting: Tags the remote holds at a different object. Reported
+            and never moved; see :func:`publish.push_tags`.
+        tag_error: Why the remote's tags could not be compared, if they could
+            not. No tag is pushed then.
     """
 
     name: str
@@ -49,6 +60,9 @@ class Divergence:
     remote_only: list[str] = field(default_factory=list)
     unchanged: int = 0
     error: str = ""
+    tags_missing: list[str] = field(default_factory=list)
+    tags_conflicting: list[str] = field(default_factory=list)
+    tag_error: str = ""
 
     @property
     def to_push(self) -> list[str]:
@@ -73,7 +87,8 @@ def compare(path: Path, name: str, token: str = "") -> Divergence:
     if not publish.remote_exists(publish.repo_url(name)):
         return Divergence(name=name, error="no such repository on GitHub")
 
-    local = GitRepo(path).ref_map()
+    repo = GitRepo(path)
+    local = repo.ref_map()
     published = publish.remote_refs(url)
 
     divergence = Divergence(name=name)
@@ -85,6 +100,21 @@ def compare(path: Path, name: str, token: str = "") -> Divergence:
         else:
             divergence.unchanged += 1
     divergence.remote_only = sorted(set(published) - set(local))
+
+    # Asked only when there is something to ask about. The bills and Record
+    # repositories carry no tags, and an ls-remote per shard would be 29
+    # requests spent learning that.
+    local_tags = repo.tag_map()
+    if local_tags:
+        published_tags = publish.remote_tag_refs(url)
+        if published_tags is None:
+            divergence.tag_error = "the remote's tags could not be read, so none were compared"
+        else:
+            for tag, sha in sorted(local_tags.items()):
+                if tag not in published_tags:
+                    divergence.tags_missing.append(tag)
+                elif published_tags[tag] != sha:
+                    divergence.tags_conflicting.append(tag)
     return divergence
 
 
@@ -117,6 +147,7 @@ def run(
             continue
 
         pending = divergence.to_push
+        tags = divergence.tags_missing
         detail = (
             f"{len(divergence.moved):,} moved, {len(divergence.added):,} new, "
             f"{divergence.unchanged:,} unchanged"
@@ -128,34 +159,67 @@ def run(
             detail += (
                 f", {len(divergence.remote_only):,} published but not built here"
             )
+        if tags:
+            detail += f", {len(tags):,} tags not on GitHub"
         print(f"{name}: {detail}", flush=True)
-
-        if not pending:
-            continue
-        if dry_run:
-            print(f"  would push {len(pending):,} refs", flush=True)
-            continue
-        if not token:
-            print(f"  cannot push {len(pending):,} refs: GITHUB_TOKEN is empty", flush=True)
+        if divergence.tag_error:
+            print(f"  WARNING: {divergence.tag_error}", flush=True)
             failures += 1
-            continue
-
-        report = publish.push(root / name, publish.repo_url(name, token), pending)
-        total_pushed += len(report.pushed)
-        print(
-            f"  {len(report.pushed):,} refs published in {report.attempts} attempt(s)",
-            flush=True,
-        )
-        if report.missing:
-            # Read back from the remote, not taken from git's exit status.
+        if divergence.tags_conflicting:
             print(
-                f"  WARNING: {len(report.missing):,} refs did not land"
-                + (f" — {report.errors[-1]}" if report.errors else "")
-                + "; first: "
-                + ", ".join(report.missing[:10]),
+                f"  WARNING: {len(divergence.tags_conflicting):,} tags name another "
+                "object on GitHub and were left alone: "
+                + ", ".join(divergence.tags_conflicting[:10]),
                 flush=True,
             )
             failures += 1
+
+        if not pending and not tags:
+            continue
+        if dry_run:
+            if pending:
+                print(f"  would push {len(pending):,} refs", flush=True)
+            if tags:
+                print(f"  would push {len(tags):,} tags", flush=True)
+            continue
+        if not token:
+            print(
+                f"  cannot push {len(pending) + len(tags):,} refs: GITHUB_TOKEN is empty",
+                flush=True,
+            )
+            failures += 1
+            continue
+
+        if pending:
+            report = publish.push(root / name, publish.repo_url(name, token), pending)
+            total_pushed += len(report.pushed)
+            print(
+                f"  {len(report.pushed):,} refs published in {report.attempts} attempt(s)",
+                flush=True,
+            )
+            if report.missing:
+                # Read back from the remote, not taken from git's exit status.
+                print(
+                    f"  WARNING: {len(report.missing):,} refs did not land"
+                    + (f" — {report.errors[-1]}" if report.errors else "")
+                    + "; first: "
+                    + ", ".join(report.missing[:10]),
+                    flush=True,
+                )
+                failures += 1
+        if tags:
+            tagged = publish.push_tags(root / name, publish.repo_url(name, token), tags)
+            total_pushed += len(tagged.pushed)
+            print(f"  {len(tagged.pushed):,} tags published", flush=True)
+            if tagged.missing:
+                print(
+                    f"  WARNING: {len(tagged.missing):,} tags did not land"
+                    + (f" — {tagged.errors[-1]}" if tagged.errors else "")
+                    + "; first: "
+                    + ", ".join(tagged.missing[:10]),
+                    flush=True,
+                )
+                failures += 1
 
     if not dry_run:
         print(f"\n{total_pushed:,} refs published across {len(names)} repositories", flush=True)

@@ -145,3 +145,96 @@ def test_refs_that_did_not_land_fail_the_run(tmp_path, monkeypatch) -> None:
     assert republish.run(
         ["us-congress-bills-113"], token="t", repos_dir=tmp_path
     ) == 1
+
+
+def _tag(repo: GitRepo, name: str, branch: str) -> str:
+    """Tag a branch tip, lightweight as ``GitRepo.tag`` makes them.
+
+    Args:
+        repo: The repository.
+        name: Tag name.
+        branch: Branch whose tip to tag.
+
+    Returns:
+        The object the tag names.
+    """
+    repo._run("tag", name, branch)  # noqa: SLF001
+    return repo.tag_map()[name]
+
+
+def test_a_tag_github_lacks_is_offered_and_one_it_disagrees_on_is_left(
+    tmp_path, monkeypatch
+) -> None:
+    """``stat-138`` reached GitHub by hand because nothing here pushed tags.
+
+    The opposite failure would be worse. A tag is a citation, and moving one
+    already published to another commit rewrites what it cites without a
+    trace, so a disagreement is reported for a person and never offered.
+    """
+    repo = _repo(tmp_path / "r", {"main": "a", "next": "b"})
+    present = _tag(repo, "stat-137", "main")
+    _tag(repo, "stat-138", "next")
+    _tag(repo, "stat-136", "main")
+    _remote(monkeypatch, repo.ref_map())
+    monkeypatch.setattr(
+        publish, "remote_tag_refs", lambda url: {"stat-137": present, "stat-136": "0" * 40}
+    )
+
+    divergence = republish.compare(tmp_path / "r", "us-congress-statutes")
+
+    assert divergence.tags_missing == ["stat-138"]
+    assert divergence.tags_conflicting == ["stat-136"]
+    assert divergence.to_push == []
+
+
+def test_unreadable_tags_offer_none(tmp_path, monkeypatch) -> None:
+    """A network error read as "no tags" would offer every tag the repository has."""
+    repo = _repo(tmp_path / "r", {"main": "a"})
+    _tag(repo, "stat-001", "main")
+    _remote(monkeypatch, repo.ref_map())
+    monkeypatch.setattr(publish, "remote_tag_refs", lambda url: None)
+
+    divergence = republish.compare(tmp_path / "r", "us-congress-statutes")
+
+    assert divergence.tag_error
+    assert divergence.tags_missing == []
+
+
+def test_a_missing_tag_is_pushed_and_a_disagreeing_one_fails_the_run(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    """The run publishes what it can and still says a person is needed."""
+    repo = _repo(tmp_path / "us-congress-statutes", {"main": "a"})
+    _tag(repo, "stat-138", "main")
+    _tag(repo, "stat-136", "main")
+    _remote(monkeypatch, repo.ref_map())
+    monkeypatch.setattr(publish, "remote_tag_refs", lambda url: {"stat-136": "0" * 40})
+    asked: list[list[str]] = []
+
+    def _push_tags(path, url, tags, batch=publish.BATCH):
+        asked.append(list(tags))
+        return publish.PushReport(pushed=list(tags), attempts=1)
+
+    monkeypatch.setattr(publish, "push_tags", _push_tags)
+
+    status = republish.run(["us-congress-statutes"], token="t", repos_dir=tmp_path)
+
+    assert asked == [["stat-138"]]
+    assert status == 1
+    assert "stat-136" in capsys.readouterr().out
+
+
+def test_a_dry_run_pushes_no_tag(tmp_path, monkeypatch, capsys) -> None:
+    """Reported, not sent: a tag is as public as a branch."""
+    repo = _repo(tmp_path / "us-congress-statutes", {"main": "a"})
+    _tag(repo, "stat-138", "main")
+    _remote(monkeypatch, repo.ref_map())
+    monkeypatch.setattr(publish, "remote_tag_refs", lambda url: {})
+
+    def _fail(*args, **kwargs):  # pragma: no cover
+        raise AssertionError("dry run must not push")
+
+    monkeypatch.setattr(publish, "push_tags", _fail)
+
+    assert republish.run(["us-congress-statutes"], dry_run=True, repos_dir=tmp_path) == 0
+    assert "would push 1 tags" in capsys.readouterr().out

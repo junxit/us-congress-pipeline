@@ -79,7 +79,10 @@ uv run uscongress index && uv run uscongress describe   # 6. then the phase stat
   minutes, 5,969 in ~15, and 90,277 in ~50. Every ref landed first attempt.
 
 `republish` computes what to push by comparing local refs against the remote, so
-it is safe to re-run and pushes nothing when nothing moved.
+it is safe to re-run and pushes nothing when nothing moved. Tags go with the
+branches: one the remote lacks is pushed, one it holds at another object is
+reported and left alone, and none is ever deleted. Until 2026-10-10 it pushed
+branches only, and `stat-138` went up by hand.
 
 ## Two loops, one page
 
