@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-10-10 16:59 UTC**
+**Last successful update — 2026-10-10 17:18 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,9 +14,9 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-10 16:59 UTC |
+| Last run attempted | 2026-10-10 17:18 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-10-10 12:45 UTC |
+| Window asked of govinfo | since 2026-10-10 15:59 UTC |
 | Measures govinfo reported modified | 1 |
 | Branches rewritten | 0 |
 | Rebuilt to the commit already published | 1 |
@@ -40,17 +40,6 @@ job having failed — the date above would show that.
 | Issue days added | 1 |
 | Issue days held | 373 |
 | Refs published | 2 |
-
-## Needs a person
-
-**1 thing a schedule cannot do — checked 2026-10-10 16:59 UTC**
-
-| What | What to do |
-|---|---|
-| govinfo carries 138 Statutes volumes against 135 tagged here | Run `uscongress seed-statutes`, then `uscongress republish --repo us-congress-statutes` |
-
-This list is computed, not remembered. It is empty on an ordinary day,
-and this section is absent when it is empty.
 
 ## What this does not cover
 

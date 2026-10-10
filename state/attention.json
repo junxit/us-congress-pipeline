@@ -1,10 +1,4 @@
 {
-  "checked": "2026-10-10T16:59:08Z",
-  "due": [
-    {
-      "key": "statutes-volume",
-      "summary": "govinfo carries 138 Statutes volumes against 135 tagged here",
-      "action": "Run `uscongress seed-statutes`, then `uscongress republish --repo us-congress-statutes`"
-    }
-  ]
+  "checked": "2026-10-10T17:18:36Z",
+  "due": []
 }
