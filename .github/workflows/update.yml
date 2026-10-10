@@ -34,6 +34,12 @@ on:
 
 permissions:
   contents: write
+  # For the "Needs a person" issue, which the attention step maintains with the
+  # built-in token (GH_TOKEN there). A permissions block sets every scope it
+  # does not name to none, so without this line the token could list issues
+  # but not open one: every create failed, and the issue never existed, from
+  # the first condition that came due until 2026-10-10.
+  issues: write
 
 concurrency:
   # Two runs rebuilding the same branches would race on the push. Queued rather
