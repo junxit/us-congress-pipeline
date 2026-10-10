@@ -570,7 +570,8 @@ def _caveats(name: str) -> list[str]:
             "**A gap between commit dates is a gap in the record, not a quiet "
             "period.** Every snapshot day is committed, including days on which "
             "nothing changed, so a missing date means no snapshot was taken and "
-            "whatever changed that day cannot be recovered from anywhere.",
+            "whatever changed that day cannot be recovered from anywhere. "
+            "`GAPS.md`, on `main`, lists every such day.",
             "",
             "**These are compilations, not codified law.** A compilation states "
             "an act as amended through a given public law — the Social Security "

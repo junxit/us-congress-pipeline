@@ -28,7 +28,7 @@ which is where assuming otherwise went wrong.
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from .. import config
@@ -39,6 +39,14 @@ REPO_NAME = "us-congress-comps"
 #: The branch the snapshots land on. ``main`` carries the README, the license
 #: and GAPS.md, exactly as it does in every other generated repository.
 SNAPSHOTS = "snapshots"
+
+GAPS_MESSAGE = (
+    "Record the days no snapshot was taken\n"
+    "\n"
+    "govinfo keeps no archive of these packages, so a day without a\n"
+    "snapshot is a day nobody can recover. Stated rather than left as a\n"
+    "silent jump between two commit dates.\n"
+)
 
 
 def _blob(digest: str) -> Path:
@@ -123,6 +131,102 @@ def built_snapshots(repo: GitRepo) -> set[date]:
     return days
 
 
+def missing_days(days: set[date]) -> list[tuple[date, date]]:
+    """Return the runs of calendar days that have no snapshot.
+
+    Only the span from the first snapshot to the latest counts. Before the first
+    there was nothing to miss, and after the latest is today, whose snapshot may
+    simply not have run yet -- listing it would announce a gap every morning and
+    retract it every afternoon.
+
+    Args:
+        days: Every snapshot day the repository holds.
+
+    Returns:
+        ``(first, last)`` pairs, inclusive, oldest first.
+    """
+    if not days:
+        return []
+    runs: list[tuple[date, date]] = []
+    first, last = min(days), max(days)
+    for offset in range((last - first).days + 1):
+        day = first + timedelta(days=offset)
+        if day in days:
+            continue
+        if runs and runs[-1][1] == day - timedelta(days=1):
+            runs[-1] = (runs[-1][0], day)
+        else:
+            runs.append((day, day))
+    return runs
+
+
+def gaps_markdown(runs: list[tuple[date, date]]) -> str:
+    """Render ``GAPS.md`` from the runs of missing days.
+
+    Holds nothing a new snapshot changes -- not how many there are, not the
+    latest date -- or every daily commit would rewrite it. It changes only when
+    a day is missed.
+
+    Args:
+        runs: Output of :func:`missing_days`.
+
+    Returns:
+        The document.
+    """
+    lines = [
+        "# What this repository does not hold",
+        "",
+        "Days on which no snapshot was taken. govinfo replaces Statute",
+        "Compilations in place and keeps no version archive, so a day missed",
+        "here cannot be fetched again by anyone: whatever the collection held",
+        "that day is gone.",
+        "",
+        "Every calendar day from the first snapshot to the latest that has no",
+        "commit on `snapshots` is listed. A day on which nothing changed is not",
+        "a gap -- it still has its commit, which says so.",
+        "",
+    ]
+    if not runs:
+        lines.append("No day is missing.")
+    else:
+        lines += ["| From | To | Days |", "|---|---|---|"]
+        lines += [
+            f"| {first.isoformat()} | {last.isoformat()} | {(last - first).days + 1} |"
+            for first, last in runs
+        ]
+    return "\n".join(lines) + "\n"
+
+
+def _write_gaps(repo: GitRepo) -> bool:
+    """Write ``GAPS.md`` onto ``main``, beside the README and the license.
+
+    Through fast-import with ``main``'s tree read first, because the working
+    tree belongs to ``snapshots`` and ``deleteall`` sets a commit's whole tree:
+    writing GAPS.md alone would delete the README and the license. A repository
+    with no ``main`` is left alone for the same reason -- creating one here
+    would publish a ``main`` holding GAPS.md and nothing else, which is how
+    ``us-congress-bills-119`` went out from 2026-09-01 to 2026-10-03.
+
+    Computed from the snapshot commits, never from ``data/``: on the scheduled
+    runner that publishes this repository, ``data/`` holds one day's manifest.
+
+    Args:
+        repo: The repository.
+
+    Returns:
+        True if a commit was made.
+    """
+    if "main" not in repo.branches():
+        return False
+    text = gaps_markdown(missing_days(built_snapshots(repo)))
+    existing = repo.read_tree("main")
+    if existing.get("GAPS.md") == text:
+        return False
+    with repo.fast_import() as stream:
+        stream.commit("main", {**existing, "GAPS.md": text}, GAPS_MESSAGE)
+    return True
+
+
 def seed(repo_path: Path | None = None) -> GitRepo:
     """Build the snapshots repository from the local store.
 
@@ -145,9 +249,26 @@ def seed(repo_path: Path | None = None) -> GitRepo:
         f"COMPS: {len(existing)} snapshot(s) already present, {len(pending)} to build",
         flush=True,
     )
-    if not pending:
-        return repo
+    if pending:
+        _build(repo, pending)
+    # After the snapshots and never at their expense. This runs on the
+    # scheduled job whose missed day is unrecoverable, and a failure here must
+    # not stop that day's snapshot reaching `republish` -- so it can only warn.
+    try:
+        if _write_gaps(repo):
+            print("  GAPS.md updated on main", flush=True)
+    except Exception as exc:  # noqa: BLE001 - see above
+        print(f"  WARNING: GAPS.md not updated - {type(exc).__name__}: {exc}", flush=True)
+    return repo
 
+
+def _build(repo: GitRepo, pending: list[tuple[date, Path]]) -> None:
+    """Commit each pending snapshot day onto the snapshots branch, oldest first.
+
+    Args:
+        repo: The repository.
+        pending: ``(snapshot date, manifest path)`` pairs not yet committed.
+    """
     if SNAPSHOTS in repo.branches():
         repo._run("checkout", "--quiet", SNAPSHOTS)  # noqa: SLF001
     else:
@@ -192,7 +313,6 @@ def seed(repo_path: Path | None = None) -> GitRepo:
             f"{changed:,} changed, {withdrawn:,} withdrawn",
             flush=True,
         )
-    return repo
 
 
 def _materialise(repo: GitRepo, files: dict[str, str]) -> tuple[int, int]:

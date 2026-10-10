@@ -13,6 +13,7 @@ publishing starts with nothing, so the manifest was absent on every single run.
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 from uscongress.gitbuild import GitRepo
@@ -135,3 +136,101 @@ def test_the_counts_do_not_depend_on_anything_outside_the_repository(
             stray.unlink()
 
     assert compsrepo._materialise(repo, _day(c1="a\n", c2="b\n")) == (0, 0)  # noqa: SLF001
+
+
+def _snapshot(repo: GitRepo, day: date) -> None:
+    """Commit one snapshot day under the subject ``seed`` gives it.
+
+    Args:
+        repo: The repository, on the snapshots branch.
+        day: The snapshot day.
+    """
+    tree = _day(c1=f"{day}\n")
+    tree["snapshot.json"] = f'{{"snapshot_date": "{day}"}}\n'
+    compsrepo._materialise(repo, tree)  # noqa: SLF001
+    repo.commit(f"Statute Compilations — {day.isoformat()}", when=day)
+
+
+def _main(repo: GitRepo) -> None:
+    """Give the repository the main that ``artifacts`` writes.
+
+    Args:
+        repo: The repository.
+    """
+    with repo.fast_import() as stream:
+        stream.commit(
+            "main", {"README.md": "readme\n", "LICENSE": "license\n"}, "Add README\n"
+        )
+
+
+def test_missing_days_group_into_runs_inside_the_span() -> None:
+    """Before the first snapshot and after the latest are not gaps.
+
+    After the latest is today, whose snapshot may not have run yet; counting it
+    would announce a gap every morning and retract it every afternoon.
+    """
+    days = {date(2026, 8, d) for d in (3, 4, 15, 16, 18)}
+
+    assert compsrepo.missing_days(days) == [
+        (date(2026, 8, 5), date(2026, 8, 14)),
+        (date(2026, 8, 17), date(2026, 8, 17)),
+    ]
+    assert compsrepo.missing_days({date(2026, 8, 3)}) == []
+    assert compsrepo.missing_days(set()) == []
+
+
+def test_gaps_land_on_main_beside_the_readme_and_leave_snapshots_alone(
+    tmp_path: Path,
+) -> None:
+    """``deleteall`` sets a commit's whole tree, so ``main`` is read first.
+
+    Written without that, GAPS.md replaces the README and the license; written
+    through the working tree, it lands inside the snapshot.
+    """
+    repo = _repo(tmp_path)
+    for day in (3, 4, 7):
+        _snapshot(repo, date(2026, 8, day))
+    _main(repo)
+    tip = repo.ref_map()[compsrepo.SNAPSHOTS]
+
+    assert compsrepo._write_gaps(repo)  # noqa: SLF001
+    tree = repo.read_tree("main")
+    assert set(tree) == {"README.md", "LICENSE", "GAPS.md"}
+    assert "| 2026-08-05 | 2026-08-06 | 2 |" in tree["GAPS.md"]
+    assert repo.ref_map()[compsrepo.SNAPSHOTS] == tip
+    assert not (repo.path / "GAPS.md").exists()
+    assert not compsrepo._write_gaps(repo)  # noqa: SLF001 - unchanged, so no commit
+
+
+def test_no_main_is_created_to_hold_gaps(tmp_path: Path) -> None:
+    """A ``main`` holding GAPS.md alone is how us-congress-bills-119 went out."""
+    repo = _repo(tmp_path)
+    _snapshot(repo, date(2026, 8, 3))
+    _snapshot(repo, date(2026, 8, 5))
+
+    assert not compsrepo._write_gaps(repo)  # noqa: SLF001
+    assert "main" not in repo.branches()
+
+
+def test_a_gaps_failure_never_costs_the_snapshot(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    """This runs in the job whose missed day cannot be made up, so it may only warn.
+
+    It also runs when nothing new was built, which is most re-runs.
+    """
+    repo = _repo(tmp_path)
+    _snapshot(repo, date(2026, 8, 3))
+    monkeypatch.setattr(compsrepo.config, "COMPS_SNAPSHOTS_DIR", tmp_path / "none")
+    calls: list[bool] = []
+
+    def _broken(_repo: GitRepo) -> bool:
+        calls.append(True)
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(compsrepo, "_write_gaps", _broken)
+
+    compsrepo.seed(repo.path)
+
+    assert calls
+    assert "WARNING: GAPS.md not updated" in capsys.readouterr().out
