@@ -411,3 +411,45 @@ def test_an_unreadable_repository_list_is_due_not_silent(monkeypatch) -> None:
     _fixed_repo_list(monkeypatch, [])
 
     assert _keys(attention.token_can_publish("a-token")) == ["push-access-unknown"]
+
+
+def test_a_refused_issue_says_why(monkeypatch) -> None:
+    """For weeks the log said only "failed to open the issue".
+
+    The workflow token lacked ``issues: write``, and gh said so on stderr on
+    every run, to nobody.
+    """
+
+    def fake(args, **_kwargs):
+        if args[1:3] == ["issue", "list"]:
+            return subprocess.CompletedProcess(args, 0, stdout="[]\n", stderr="")
+        return subprocess.CompletedProcess(
+            args,
+            1,
+            stdout="",
+            stderr="GraphQL: Resource not accessible by integration (createIssue)\n",
+        )
+
+    monkeypatch.setattr(attention.subprocess, "run", fake)
+    due = [attention.Condition(key="k", summary="s", action="a")]
+
+    assert "Resource not accessible by integration" in attention.announce(due)
+
+
+def test_what_gh_says_is_redacted_before_it_can_be_committed(monkeypatch) -> None:
+    """A condition's summary reaches STATUS.md, which a scheduled job commits."""
+
+    def fake(*_args, **_kwargs):
+        return subprocess.CompletedProcess(
+            [],
+            1,
+            stdout="",
+            stderr="fatal: https://x-access-token:ghs_SECRET123@github.com/junxit/x.git\n",
+        )
+
+    monkeypatch.setattr(attention.subprocess, "run", fake)
+
+    [condition] = attention.schedules_enabled()
+    assert condition.key == "schedule-unknown"
+    assert "ghs_SECRET123" not in condition.summary
+    assert "github.com" in condition.summary

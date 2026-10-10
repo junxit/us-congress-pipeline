@@ -65,6 +65,27 @@ class Condition:
     action: str
 
 
+def _why(result: subprocess.CompletedProcess[str]) -> str:
+    """Say what ``gh`` reported when it failed, credentials removed.
+
+    Its error output was discarded until 2026-10-10, which is how a workflow
+    token without ``issues: write`` failed to open the "Needs a person" issue on
+    every run for weeks while the log said only "failed to open the issue". The
+    text can reach STATUS.md, which a scheduled job commits to this public
+    repository, so it passes through :func:`config.redact` first.
+
+    Args:
+        result: The finished ``gh`` process.
+
+    Returns:
+        The last line ``gh`` wrote to stderr, or a note that it wrote none.
+    """
+    lines = [
+        line.strip() for line in config.redact(result.stderr or "").splitlines() if line.strip()
+    ]
+    return lines[-1][:200] if lines else f"gh exited {result.returncode} and said nothing"
+
+
 def _sitting_congress(today: date | None = None) -> int:
     """Return the Congress sitting today.
 
@@ -279,7 +300,7 @@ def schedules_enabled() -> list[Condition]:
             Condition(
                 key="schedule-unknown",
                 summary="whether the scheduled workflows are still enabled "
-                "could not be determined",
+                f"could not be determined ({_why(result)})",
                 action="Check `gh auth status`, then look at the Actions tab",
             )
         ]
@@ -415,7 +436,7 @@ def comps_current(now: datetime | None = None) -> list[Condition]:
             Condition(
                 key="comps-unknown",
                 summary="when the Statute Compilations were last snapshotted "
-                "could not be determined",
+                f"could not be determined ({_why(result)})",
                 action="Check `gh auth status`, then look at "
                 f"https://github.com/{OWNER}/us-congress-comps",
             )
@@ -674,13 +695,13 @@ def announce(due: list[Condition]) -> str:
         What it did, for logging.
     """
 
-    def gh(*args: str) -> tuple[int, str]:
+    def gh(*args: str) -> tuple[int, str, str]:
         result = subprocess.run(
             ["gh", *args], capture_output=True, text=True, check=False, timeout=60
         )
-        return result.returncode, result.stdout.strip()
+        return result.returncode, result.stdout.strip(), _why(result)
 
-    code, out = gh(
+    code, out, why = gh(
         "issue",
         "list",
         "--state",
@@ -691,7 +712,7 @@ def announce(due: list[Condition]) -> str:
         "number,title",
     )
     if code != 0:
-        return "could not reach GitHub; issue not touched"
+        return f"could not reach GitHub ({why}); issue not touched"
     try:
         existing = [
             row["number"]
@@ -702,15 +723,15 @@ def announce(due: list[Condition]) -> str:
         return "could not read the issue list; issue not touched"
 
     if due and not existing:
-        code, out = gh(
+        code, out, why = gh(
             "issue", "create", "--title", ISSUE_TITLE, "--body", _issue_body(due)
         )
-        return f"opened {out}" if code == 0 else "failed to open the issue"
+        return f"opened {out}" if code == 0 else f"failed to open the issue: {why}"
     if due:
-        code, _ = gh(
+        code, _, why = gh(
             "issue", "edit", str(existing[0]), "--body", _issue_body(due)
         )
-        return f"updated issue #{existing[0]}" if code == 0 else "failed to update"
+        return f"updated issue #{existing[0]}" if code == 0 else f"failed to update: {why}"
     if existing:
         gh(
             "issue",
@@ -720,8 +741,8 @@ def announce(due: list[Condition]) -> str:
             "Nothing needs a person any more; closing. This will reopen as a "
             "new issue if something comes due again.",
         )
-        code, _ = gh("issue", "close", str(existing[0]))
-        return f"closed issue #{existing[0]}" if code == 0 else "failed to close"
+        code, _, why = gh("issue", "close", str(existing[0]))
+        return f"closed issue #{existing[0]}" if code == 0 else f"failed to close: {why}"
     return "nothing due, no issue open"
 
 
