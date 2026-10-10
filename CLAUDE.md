@@ -223,7 +223,9 @@ handles them; this is the index.
   lxml 6.1.1 has no wheel, and all three daily jobs failed at `uv sync` trying
   to compile it — with no commit here to blame. The workflows now pin uv,
   `.python-version` pins the interpreter, and `tests/test_toolchain.py` fails
-  when either moves without the lockfile.
+  when either moves without the lockfile. lxml itself was never imported — a
+  leftover of the `recover=True` experiment `xmlrepair` records — and is gone,
+  so nothing here needs a compiler.
 - **govinfo restamps `lastModified` in bulk, with no content change.** On
   2026-08-12 it restamped nine already-published CREC days, two of them from
   2025: 1,469 documents before, 1,469 after, granule titles unchanged. Anything
