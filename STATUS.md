@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-10-09 11:38 UTC**
+**Last successful update — 2026-10-10 13:45 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,41 +14,37 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-09 11:38 UTC |
+| Last run attempted | 2026-10-10 13:45 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-10-08 10:45 UTC |
-| Measures govinfo reported modified | 168 |
-| Branches rewritten | 60 |
-| Rebuilt to the commit already published | 108 |
+| Window asked of govinfo | since 2026-10-09 10:38 UTC |
+| Measures govinfo reported modified | 284 |
+| Branches rewritten | 48 |
+| Rebuilt to the commit already published | 210 |
+| Modified but still carrying no text | 26 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 60 | `hr-10159`, `hr-10167`, `hr-10531`, `hr-10674`, `hr-10732`, `hr-10734`, `hr-10735`, `hr-10736`, `hr-10738`, `hr-10739`, `hr-10740`, `hr-10744`, and 48 more |
+| 119 | 48 | `hconres-124`, `hconres-22`, `hr-10329`, `hr-10352`, `hr-10353`, `hr-10355`, `hr-10371`, `hr-10375`, `hr-10751`, `hr-10752`, `hr-10756`, `hr-10758`, and 36 more |
 
 ## Congressional Record
 
-**Last successful run — 2026-10-08 14:11 UTC**
+**Last successful run — 2026-10-10 13:43 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-08 14:11 UTC |
+| Last run attempted | 2026-10-10 13:43 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 0 |
-| Issue days held | 372 |
-| Refs published | 0 |
-
-No issue day was added on the last successful run. Congress does not
-sit every day, and the Record is published only for the days it does,
-so an unchanged shard is the ordinary result of a recess rather than a
-sign the job failed — the date above would show that.
+| Issue days added | 1 |
+| Issue days held | 373 |
+| Refs published | 2 |
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-10-09 11:38 UTC**
+**1 thing a schedule cannot do — checked 2026-10-10 13:45 UTC**
 
 | What | What to do |
 |---|---|
