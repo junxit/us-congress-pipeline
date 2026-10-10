@@ -1,7 +1,7 @@
 """Build ``us-congress-statutes`` -- the Statutes at Large, one commit per volume.
 
 **The shape, and why.** One commit per volume, tagged ``stat-001`` through
-``stat-137`` for the citation the volume carries, each holding every session law
+``stat-138`` for the citation the volume carries, each holding every session law
 that volume prints, one file per law under ``volume-NNN/``.
 
 The obvious alternative -- one commit per public law, dated to its approval

@@ -15,7 +15,7 @@ It owns **33 public repositories** under `github.com/junxit`:
 | `us-congress-pipeline` | 1 | this ETL |
 | `us-congress-code` | 1 | the US Code, 383 release points, tagged |
 | `us-congress-bills-{108..119}` | 12 | 160,190 branches, one per measure |
-| `us-congress-statutes` | 1 | 135 volumes, 101,975 session laws |
+| `us-congress-statutes` | 1 | 136 volumes, 102,234 session laws |
 | `us-congress-comps` | 1 | Statute Compilations, one commit per daily snapshot |
 | `us-congress-record-{103..119}` | 17 | 9,382 issue days, 1,330,322 documents |
 

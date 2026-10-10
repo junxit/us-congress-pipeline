@@ -475,7 +475,7 @@ def _usage(name: str, path: Path) -> list[str]:
             "its `approved` date and, where GPO records one, the `bills` reference — "
             "`108/s-23`, which is branch `s-23` of `us-congress-bills-108`.",
             "",
-            "Tags are `stat-001` to `stat-137`, named for the citation rather than "
+            "Tags are `stat-001` to `stat-138`, named for the citation rather than "
             "for the directory. `volume-117` would be both a tag and a path, and git "
             "refuses an argument that is both — `git log volume-117` fails with "
             "*ambiguous argument*.",
@@ -600,7 +600,7 @@ def _caveats(name: str) -> list[str]:
             "correction to the text of the *record*, not to the law.",
             "",
             "**Commit dates before 1970 are all 1970-01-01.** git stores no "
-            "timestamp earlier than the Unix epoch, and 82 of the 137 volumes close "
+            "timestamp earlier than the Unix epoch, and 82 of the 138 volumes close "
             "before then. The real dates are on each commit's subject line, in its "
             "message, and in the `approved:` frontmatter of every law.",
             "",

@@ -44,7 +44,7 @@ you to notice — the date simply stops moving. See [Staying alive](#staying-ali
 |---|---|---|---|
 | [`us-congress-code`](https://github.com/junxit/us-congress-code) | 1 | the codified US Code; one commit per OLRC release point, tagged | built |
 | `us-congress-bills-{congress}` | 2 | one repo per Congress; one branch per measure | 12 built, [108](https://github.com/junxit/us-congress-bills-108)–[119](https://github.com/junxit/us-congress-bills-119) |
-| [`us-congress-statutes`](https://github.com/junxit/us-congress-statutes) | 5 | Statutes at Large, 135 volumes and 101,975 laws | built |
+| [`us-congress-statutes`](https://github.com/junxit/us-congress-statutes) | 5 | Statutes at Large, 136 volumes and 102,234 laws | built |
 | [`us-congress-comps`](https://github.com/junxit/us-congress-comps) | 11 | Statute Compilations, one commit per daily snapshot | built |
 | `us-congress-record-{congress}` | 6 | Congressional Record as text, 1994 to present | 17 built, [103](https://github.com/junxit/us-congress-record-103)–[119](https://github.com/junxit/us-congress-record-119) |
 
@@ -124,7 +124,7 @@ uv run uscongress seed-bills --congress 113 --limit 25   # first 25 measures onl
 uv run uscongress seed-bills --congress 113 --rebuild    # rewrite every branch from its root
 uv run uscongress republish --congress 113 --dry-run     # what a rebuild changed vs GitHub
 uv run uscongress republish --congress 113               # force-push only what moved
-uv run uscongress seed-statutes       # build us-congress-statutes, volumes 1–137
+uv run uscongress seed-statutes       # build us-congress-statutes, volumes 1–138
 uv run uscongress seed-record --congress 115  # build us-congress-record-115
 uv run uscongress bootstrap           # clone the generated repos instead of rebuilding
 uv run uscongress seed-record --congress 115 --limit 5   # first 5 issue days per edition
@@ -206,7 +206,7 @@ cited:
 `public-law-108-1.md`, `private-law-82-1.md`, and `chapter-1-1-i.md` for the numbered
 chapters that preceded public-law numbering.
 
-Tags are named for the citation — `stat-001` to `stat-137`, as in *117 Stat.* — rather than
+Tags are named for the citation — `stat-001` to `stat-138`, as in *117 Stat.* — rather than
 matching the directories. `volume-117` would be both a tag and a path, and git refuses an
 argument that is both: `git log volume-117` fails with *ambiguous argument*. The tag moved
 rather than the directory, because the directory listing is what a reader browses first.
@@ -220,7 +220,7 @@ unit.
 
 **Commit dates before 1970 are all 1970-01-01.** git stores no timestamp earlier than the
 Unix epoch: `git commit` refuses `1799-03-03` outright, and writing a negative one through
-`fast-import` succeeds only for `git log` to render it blank. 82 of the 137 volumes close
+`fast-import` succeeds only for `git log` to render it blank. 82 of the 138 volumes close
 before then, so each commit's subject line carries the years instead, and every law carries
 its own `approved:` date.
 
