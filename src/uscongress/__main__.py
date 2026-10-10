@@ -70,6 +70,41 @@ def main(argv: list[str] | None = None) -> int:
         "check-links", help="verify every link in every generated document resolves"
     )
 
+    digest = subparsers.add_parser(
+        "render-digest",
+        help="hash every file rendered from the cache, to compare two toolchains",
+    )
+    digest.add_argument("out", help="directory to write one manifest per corpus into")
+    digest.add_argument(
+        "--raw",
+        help="cache to read; defaults to data/raw here. A worktree has no data/ "
+        "of its own, so a second environment points this back at this checkout",
+    )
+    digest.add_argument(
+        "--corpora",
+        default="votes,statutes,uscode,bills,record",
+        help="comma-separated subset, default all",
+    )
+    digest.add_argument(
+        "--bills-step", type=int, default=5, help="every Nth measure of each Congress"
+    )
+    digest.add_argument(
+        "--record-step", type=int, default=10, help="every Nth Record issue day"
+    )
+    digest.add_argument(
+        "--uscode",
+        action="append",
+        metavar="ARCHIVE",
+        help="release point archive to render, repeatable; default the oldest "
+        "and newest cached",
+    )
+
+    render_compare = subparsers.add_parser(
+        "render-compare", help="compare two render-digest outputs; exit 1 if any differ"
+    )
+    render_compare.add_argument("left")
+    render_compare.add_argument("right")
+
     seed_comps = subparsers.add_parser(
         "seed-comps", help="build us-congress-comps from the local snapshot store"
     )
@@ -306,6 +341,28 @@ def main(argv: list[str] | None = None) -> int:
         from .jobs import links as links_job
 
         return 1 if links_job.report() else 0
+
+    if args.command == "render-digest":
+        from pathlib import Path
+
+        from .jobs import renderdigest
+
+        renderdigest.run(
+            Path(args.out),
+            raw=Path(args.raw) if args.raw else None,
+            corpora=tuple(c for c in args.corpora.split(",") if c),
+            bills_step=args.bills_step,
+            record_step=args.record_step,
+            archives=args.uscode,
+        )
+        return 0
+
+    if args.command == "render-compare":
+        from pathlib import Path
+
+        from .jobs import renderdigest
+
+        return 1 if renderdigest.compare(Path(args.left), Path(args.right)) else 0
 
     if args.command == "seed-comps":
         from pathlib import Path

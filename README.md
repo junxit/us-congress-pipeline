@@ -274,6 +274,22 @@ never by its date — `CREC-2025-01-03-v170` is dated the day the 119th convened
 the 118th, which adjourned sine die that morning. Both shards hold a `2025/01-03/`, which is
 what actually happened.
 
+## Changing Python or a dependency
+
+A changed byte in a rendered file is a changed SHA on a published commit, so render the
+cache under both toolchains and compare before switching. Python 3.15 was adopted this way:
+520,091 files, not one different.
+
+```bash
+uv run uscongress render-digest /tmp/before              # in the current environment
+# in a worktree with the new .python-version or lockfile:
+uv --directory <worktree> run uscongress render-digest /tmp/after --raw "$PWD/data/raw"
+uv run uscongress render-compare /tmp/before /tmp/after  # exits 1 if anything differs
+```
+
+It reads `data/raw/` only, and records a cache miss rather than fetching it, so both runs
+read exactly the same inputs.
+
 ## Staying alive
 
 `uv run uscongress update` is the daily job, and it runs in
@@ -378,7 +394,8 @@ src/uscongress/
     ├── index.py     REPOSITORIES.md
     ├── artifacts.py README and LICENSE into each generated repo
     ├── describe.py  GitHub description and topics
-    └── links.py     check-links
+    ├── links.py     check-links
+    └── renderdigest.py what two toolchains render, compared
 state/update.json    the watermark — committed, so the loop survives a fresh runner
 state/record.json    the Record loop's watermark, rendered onto STATUS.md by the bills loop
 data/                gitignored — corpora and generated repos (~50 GB)

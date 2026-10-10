@@ -228,7 +228,9 @@ handles them; this is the index.
   `.python-version` pins the interpreter, and `tests/test_toolchain.py` fails
   when either moves without the lockfile. lxml itself was never imported — a
   leftover of the `recover=True` experiment `xmlrepair` records — and is gone,
-  so nothing here needs a compiler.
+  so nothing here needs a compiler. Before moving Python or a dependency, run
+  `render-digest` under both and `render-compare` the two: a changed byte is a
+  changed SHA, and 3.14 → 3.15 was taken only after 520,091 files matched.
 - **govinfo restamps `lastModified` in bulk, with no content change.** On
   2026-08-12 it restamped nine already-published CREC days, two of them from
   2025: 1,469 documents before, 1,469 after, granule titles unchanged. Anything
