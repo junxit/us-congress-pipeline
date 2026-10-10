@@ -40,9 +40,13 @@ jobs:
 
       - name: Install uv
         # Pinned exactly, matching the other three workflows. Bump all four
-        # together and deliberately.
+        # together and deliberately; tests/test_toolchain.py fails if they
+        # drift. `version` matters as much as the tag: the action installs the
+        # newest uv without it, and the night uv 0.13.0 shipped that moved every
+        # runner to a new default Python and failed all three daily jobs.
         uses: astral-sh/setup-uv@v9.0.0
         with:
+          version: "0.13.0"
           enable-cache: true
 
       - name: Install

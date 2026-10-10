@@ -215,6 +215,15 @@ handles them; this is the index.
   at the same path under `?service=git-receive-pack`, and GitHub requires push
   permission to answer: 200 may push, 403 valid credential without write, 401
   unrecognised, 404 not on a fine-grained token's list. See `publish.can_push`.
+- **Pinning an action does not pin the toolchain it installs.** `setup-uv@v9.0.0`
+  installs the newest uv unless `version` says otherwise, and uv takes the
+  newest Python `requires-python` allows unless `.python-version` says
+  otherwise. uv 0.13.0 shipped at 19:49 UTC on 2026-10-09 with Python 3.15 as
+  its default; by the next morning every runner was on 3.15, where the locked
+  lxml 6.1.1 has no wheel, and all three daily jobs failed at `uv sync` trying
+  to compile it — with no commit here to blame. The workflows now pin uv,
+  `.python-version` pins the interpreter, and `tests/test_toolchain.py` fails
+  when either moves without the lockfile.
 - **govinfo restamps `lastModified` in bulk, with no content change.** On
   2026-08-12 it restamped nine already-published CREC days, two of them from
   2025: 1,469 documents before, 1,469 after, granule titles unchanged. Anything

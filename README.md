@@ -93,7 +93,8 @@ stated rather than guessed at.
 
 ## Usage
 
-Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
+Requires [uv](https://docs.astral.sh/uv/), which installs the Python pinned in
+`.python-version` if you do not already have it.
 
 Starting from a fresh clone, get the generated repositories rather than
 rebuilding them. `data/` is gitignored and runs to about 93 GB on a machine that

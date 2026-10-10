@@ -53,9 +53,14 @@ jobs:
         # Pinned exactly, unlike checkout above, because astral-sh stopped
         # publishing floating major tags after v7 -- `@v9` does not resolve.
         # Bump this deliberately; a daily job is the worst place to discover
-        # that an action reference has gone stale.
+        # that an action reference has gone stale. The same goes for `version`,
+        # which the tag does not pin: without it the action installs the newest
+        # uv, and on 2026-10-10 that moved every runner to a new default Python
+        # and failed all three daily jobs at `uv sync`. tests/test_toolchain.py
+        # holds the four workflows, .python-version and uv.lock together.
         uses: astral-sh/setup-uv@v9.0.0
         with:
+          version: "0.13.0"
           enable-cache: true
 
       - name: Install
