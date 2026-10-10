@@ -75,6 +75,10 @@ uv run uscongress index && uv run uscongress describe   # 6. then the phase stat
 - **`--status-path` is load-bearing.** Without it a local `update` overwrites the
   tracked `STATUS.md`, and the next scheduled run commits it as though it were
   the loop's own heartbeat.
+- **`republish` needs a token here too.** It refuses to push without
+  `GITHUB_TOKEN`, and this machine's `.env` holds none: the keychain answers a
+  plain `git push`, not this. `GITHUB_TOKEN="$(gh auth token)" uv run uscongress
+  republish` lends it the credential `gh` already uses.
 - Measured: a full 12-shard rebuild is ~2.5 hours; `republish` moved 534 refs in
   minutes, 5,969 in ~15, and 90,277 in ~50. Every ref landed first attempt.
 
