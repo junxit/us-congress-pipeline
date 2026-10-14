@@ -1,9 +1,19 @@
 {
-  "checked_since": "2026-10-12T11:42:40Z",
+  "checked_since": "2026-10-13T11:26:39Z",
   "last_outcome": "ok",
-  "last_run": "2026-10-13T12:26:39Z",
-  "last_success": "2026-10-13T12:26:39Z",
-  "measures": {},
+  "last_run": "2026-10-14T09:54:36Z",
+  "last_success": "2026-10-14T09:54:36Z",
+  "measures": {
+    "119": [
+      "hr-10238",
+      "hr-10793",
+      "hr-10794",
+      "s-195",
+      "s-5588",
+      "s-5590",
+      "s-5592"
+    ]
+  },
   "pending_release_points": [],
   "release_points": [],
   "unplaceable": []
