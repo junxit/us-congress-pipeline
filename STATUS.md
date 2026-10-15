@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-10-14 09:54 UTC**
+**Last successful update — 2026-10-15 09:35 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,37 +14,33 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-14 09:54 UTC |
+| Last run attempted | 2026-10-15 09:35 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-10-13 11:26 UTC |
-| Measures govinfo reported modified | 109 |
-| Branches rewritten | 7 |
-| Rebuilt to the commit already published | 102 |
+| Window asked of govinfo | since 2026-10-14 08:54 UTC |
+| Measures govinfo reported modified | 348 |
+| Branches rewritten | 33 |
+| Rebuilt to the commit already published | 308 |
+| Modified but still carrying no text | 7 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 7 | `hr-10238`, `hr-10793`, `hr-10794`, `s-195`, `s-5588`, `s-5590`, `s-5592` |
+| 119 | 33 | `hr-10238`, `hr-10498`, `hr-10513`, `hr-10757`, `hr-10769`, `hr-10771`, `hr-10772`, `hr-10773`, `hr-10774`, `hr-10775`, `hr-10776`, `hr-10777`, and 21 more |
 
 ## Congressional Record
 
-**Last successful run — 2026-10-13 14:40 UTC**
+**Last successful run — 2026-10-14 12:33 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-13 14:40 UTC |
+| Last run attempted | 2026-10-14 12:33 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 0 |
-| Issue days held | 373 |
-| Refs published | 0 |
-
-No issue day was added on the last successful run. Congress does not
-sit every day, and the Record is published only for the days it does,
-so an unchanged shard is the ordinary result of a recess rather than a
-sign the job failed — the date above would show that.
+| Issue days added | 1 |
+| Issue days held | 374 |
+| Refs published | 2 |
 
 ## What this does not cover
 
