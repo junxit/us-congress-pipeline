@@ -14,13 +14,13 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-15 09:35 UTC |
-| Outcome | ok |
-| Window asked of govinfo | since 2026-10-14 08:54 UTC |
-| Measures govinfo reported modified | 348 |
-| Branches rewritten | 33 |
-| Rebuilt to the commit already published | 308 |
-| Modified but still carrying no text | 7 |
+| Last run attempted | 2026-10-16 09:28 UTC |
+| Outcome | BILLSTATUS-119hres53: HTTPStatusError: 503 for https://clerk.house.gov/evs/2025/roll021.xml |
+| Window asked of govinfo | since 2026-10-15 08:35 UTC |
+| Measures govinfo reported modified | 391 |
+| Branches rewritten | 43 |
+| Rebuilt to the commit already published | 315 |
+| Modified but still carrying no text | 32 |
 
 ## Measures updated on the last successful run
 
@@ -30,17 +30,22 @@ If that date is more than 2 days old, the loop has stopped.
 
 ## Congressional Record
 
-**Last successful run — 2026-10-14 12:33 UTC**
+**Last successful run — 2026-10-15 12:16 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-14 12:33 UTC |
+| Last run attempted | 2026-10-15 12:16 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 1 |
+| Issue days added | 0 |
 | Issue days held | 374 |
-| Refs published | 2 |
+| Refs published | 0 |
+
+No issue day was added on the last successful run. Congress does not
+sit every day, and the Record is published only for the days it does,
+so an unchanged shard is the ordinary result of a recess rather than a
+sign the job failed — the date above would show that.
 
 ## What this does not cover
 

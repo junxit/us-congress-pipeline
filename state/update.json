@@ -1,7 +1,7 @@
 {
   "checked_since": "2026-10-14T08:54:36Z",
-  "last_outcome": "ok",
-  "last_run": "2026-10-15T09:35:26Z",
+  "last_outcome": "BILLSTATUS-119hres53: HTTPStatusError: 503 for https://clerk.house.gov/evs/2025/roll021.xml",
+  "last_run": "2026-10-16T09:28:33Z",
   "last_success": "2026-10-15T09:35:26Z",
   "measures": {
     "119": [
