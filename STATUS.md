@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-10-15 09:35 UTC**
+**Last successful update — 2026-10-17 09:00 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,38 +14,33 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-16 09:28 UTC |
-| Outcome | BILLSTATUS-119hres53: HTTPStatusError: 503 for https://clerk.house.gov/evs/2025/roll021.xml |
+| Last run attempted | 2026-10-17 09:00 UTC |
+| Outcome | ok |
 | Window asked of govinfo | since 2026-10-15 08:35 UTC |
-| Measures govinfo reported modified | 391 |
-| Branches rewritten | 43 |
-| Rebuilt to the commit already published | 315 |
-| Modified but still carrying no text | 32 |
+| Measures govinfo reported modified | 483 |
+| Branches rewritten | 23 |
+| Rebuilt to the commit already published | 436 |
+| Modified but still carrying no text | 24 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 33 | `hr-10238`, `hr-10498`, `hr-10513`, `hr-10757`, `hr-10769`, `hr-10771`, `hr-10772`, `hr-10773`, `hr-10774`, `hr-10775`, `hr-10776`, `hr-10777`, and 21 more |
+| 119 | 23 | `hr-10810`, `hr-10812`, `hr-10813`, `hr-10815`, `hr-10816`, `hr-10817`, `hr-10818`, `hr-10820`, `hr-10821`, `hr-10823`, `hr-10824`, `hr-10827`, and 11 more |
 
 ## Congressional Record
 
-**Last successful run — 2026-10-15 12:16 UTC**
+**Last successful run — 2026-10-16 12:00 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-15 12:16 UTC |
+| Last run attempted | 2026-10-16 12:00 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 0 |
-| Issue days held | 374 |
-| Refs published | 0 |
-
-No issue day was added on the last successful run. Congress does not
-sit every day, and the Record is published only for the days it does,
-so an unchanged shard is the ordinary result of a recess rather than a
-sign the job failed — the date above would show that.
+| Issue days added | 1 |
+| Issue days held | 375 |
+| Refs published | 2 |
 
 ## What this does not cover
 
