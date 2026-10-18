@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-10-17 09:00 UTC**
+**Last successful update — 2026-10-18 09:19 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,33 +14,38 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-17 09:00 UTC |
+| Last run attempted | 2026-10-18 09:19 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-10-15 08:35 UTC |
-| Measures govinfo reported modified | 483 |
-| Branches rewritten | 23 |
-| Rebuilt to the commit already published | 436 |
-| Modified but still carrying no text | 24 |
+| Window asked of govinfo | since 2026-10-17 08:00 UTC |
+| Measures govinfo reported modified | 6 |
+| Branches rewritten | 0 |
+| Rebuilt to the commit already published | 5 |
+| Modified but still carrying no text | 1 |
 
-## Measures updated on the last successful run
-
-| Congress | Branches | Measures |
-|---|---|---|
-| 119 | 23 | `hr-10810`, `hr-10812`, `hr-10813`, `hr-10815`, `hr-10816`, `hr-10817`, `hr-10818`, `hr-10820`, `hr-10821`, `hr-10823`, `hr-10824`, `hr-10827`, and 11 more |
+No branch changed. 5 measures were rebuilt from freshly
+fetched upstream records and came out as the commits already
+published, so there was nothing to write. That is the ordinary
+result of a day on which nothing moved, and is not the same as the
+job having failed — the date above would show that.
 
 ## Congressional Record
 
-**Last successful run — 2026-10-16 12:00 UTC**
+**Last successful run — 2026-10-17 11:15 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-16 12:00 UTC |
+| Last run attempted | 2026-10-17 11:15 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 1 |
+| Issue days added | 0 |
 | Issue days held | 375 |
-| Refs published | 2 |
+| Refs published | 0 |
+
+No issue day was added on the last successful run. Congress does not
+sit every day, and the Record is published only for the days it does,
+so an unchanged shard is the ordinary result of a recess rather than a
+sign the job failed — the date above would show that.
 
 ## What this does not cover
 
