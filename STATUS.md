@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-10-21 09:48 UTC**
+**Last successful update — 2026-10-22 09:49 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,34 +14,37 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-21 09:48 UTC |
+| Last run attempted | 2026-10-22 09:49 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-10-20 08:47 UTC |
-| Measures govinfo reported modified | 170 |
-| Branches rewritten | 12 |
-| Rebuilt to the commit already published | 155 |
-| Modified but still carrying no text | 3 |
+| Window asked of govinfo | since 2026-10-21 08:48 UTC |
+| Measures govinfo reported modified | 80 |
+| Branches rewritten | 11 |
+| Rebuilt to the commit already published | 69 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 118 | 1 | `s-4638` |
-| 119 | 11 | `hr-10840`, `hr-10843`, `hr-10844`, `hr-10845`, `hr-10849`, `hr-10850`, `hr-10851`, `hr-10852`, `hr-10853`, `hr-10854`, `s-5689` |
+| 119 | 11 | `hr-1721`, `hr-227`, `hr-2388`, `hr-2481`, `hr-3620`, `hr-4307`, `hr-4467`, `hr-6380`, `hr-7831`, `hr-837`, `s-5682` |
 
 ## Congressional Record
 
-**Last successful run — 2026-10-20 12:23 UTC**
+**Last successful run — 2026-10-21 12:33 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-20 12:23 UTC |
+| Last run attempted | 2026-10-21 12:33 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 1 |
+| Issue days added | 0 |
 | Issue days held | 376 |
-| Refs published | 2 |
+| Refs published | 0 |
+
+No issue day was added on the last successful run. Congress does not
+sit every day, and the Record is published only for the days it does,
+so an unchanged shard is the ordinary result of a recess rather than a
+sign the job failed — the date above would show that.
 
 ## What this does not cover
 
