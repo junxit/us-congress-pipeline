@@ -14,13 +14,13 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-23 09:44 UTC |
+| Last run attempted | 2026-10-23 17:47 UTC |
 | Outcome | checking release points: HTTPStatusError: 500 for https://uscode.house.gov/download/priorreleasepoints.htm |
 | Window asked of govinfo | since 2026-10-22 08:49 UTC |
-| Measures govinfo reported modified | 307 |
-| Branches rewritten | 21 |
-| Rebuilt to the commit already published | 244 |
-| Modified but still carrying no text | 42 |
+| Measures govinfo reported modified | 336 |
+| Branches rewritten | 23 |
+| Rebuilt to the commit already published | 279 |
+| Modified but still carrying no text | 34 |
 
 ## Measures updated on the last successful run
 
@@ -30,22 +30,17 @@ If that date is more than 2 days old, the loop has stopped.
 
 ## Congressional Record
 
-**Last successful run — 2026-10-22 12:36 UTC**
+**Last successful run — 2026-10-23 14:14 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-22 12:36 UTC |
+| Last run attempted | 2026-10-23 14:14 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 0 |
-| Issue days held | 376 |
-| Refs published | 0 |
-
-No issue day was added on the last successful run. Congress does not
-sit every day, and the Record is published only for the days it does,
-so an unchanged shard is the ordinary result of a recess rather than a
-sign the job failed — the date above would show that.
+| Issue days added | 1 |
+| Issue days held | 377 |
+| Refs published | 2 |
 
 ## What this does not cover
 
