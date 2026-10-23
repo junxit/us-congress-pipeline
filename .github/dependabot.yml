@@ -1,0 +1,37 @@
+# Dependabot proposes the upgrades that exact pins otherwise never get.
+#
+# Everything here is pinned exactly -- each Python dependency and the build
+# backend, each action by commit SHA -- so nothing moves by itself, and
+# tests/test_toolchain.py fails on a range, a tag or a -latest image. That makes
+# every upgrade deliberate; this is what surfaces them: one pull request a week
+# per ecosystem, and security fixes as soon as they are published.
+#
+# No workflow here runs on a pull request -- all four are scheduled jobs that
+# publish -- so nothing tests a proposal automatically. Check it out and run
+# `uv run pytest` before merging one.
+#
+# Not covered, because Dependabot does not manage them: .python-version and the
+# uv `version` in the four workflows. Those move by hand, together; the same
+# test holds them to the lockfile.
+
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore"
+    groups:
+      python:
+        patterns: ["*"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore"
+    groups:
+      actions:
+        patterns: ["*"]
