@@ -14,12 +14,13 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-22 09:49 UTC |
-| Outcome | ok |
-| Window asked of govinfo | since 2026-10-21 08:48 UTC |
-| Measures govinfo reported modified | 80 |
-| Branches rewritten | 11 |
-| Rebuilt to the commit already published | 69 |
+| Last run attempted | 2026-10-23 09:44 UTC |
+| Outcome | checking release points: HTTPStatusError: 500 for https://uscode.house.gov/download/priorreleasepoints.htm |
+| Window asked of govinfo | since 2026-10-22 08:49 UTC |
+| Measures govinfo reported modified | 307 |
+| Branches rewritten | 21 |
+| Rebuilt to the commit already published | 244 |
+| Modified but still carrying no text | 42 |
 
 ## Measures updated on the last successful run
 
@@ -29,12 +30,12 @@ If that date is more than 2 days old, the loop has stopped.
 
 ## Congressional Record
 
-**Last successful run — 2026-10-21 12:33 UTC**
+**Last successful run — 2026-10-22 12:36 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-21 12:33 UTC |
+| Last run attempted | 2026-10-22 12:36 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 0 |
