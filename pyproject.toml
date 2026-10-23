@@ -3,12 +3,15 @@ name = "uscongress"
 version = "0.1.0"
 description = "ETL pipeline that mirrors the US Congress as git repositories"
 requires-python = ">=3.13"
+# Every pin here is exact, the build backend's included: nothing upgrades until
+# someone means it to. Dependabot proposes the upgrades, and
+# tests/test_toolchain.py fails on a range.
 dependencies = [
-    "httpx>=0.28",
+    "httpx==0.28.1",
     # Hardened XML parsing. The stdlib parser is vulnerable to entity-expansion
     # and external-entity attacks, and this pipeline parses tens of gigabytes of
     # third-party XML.
-    "defusedxml>=0.7",
+    "defusedxml==0.7.1",
 ]
 
 [project.scripts]
@@ -16,12 +19,12 @@ uscongress = "uscongress.__main__:main"
 
 [dependency-groups]
 dev = [
-    "pytest>=8.3",
-    "pytest-asyncio>=0.24",
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling==1.32.4"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]

@@ -290,6 +290,12 @@ uv run uscongress render-compare /tmp/before /tmp/after  # exits 1 if anything d
 It reads `data/raw/` only, and records a cache miss rather than fetching it, so both runs
 read exactly the same inputs.
 
+Nothing upgrades by itself. Every dependency, the build backend and each GitHub Action is
+pinned to an exact version, CI installs with `uv sync --locked`, and `tests/test_toolchain.py`
+fails on a range. Dependabot opens a pull request a week per ecosystem, plus security fixes as
+they appear; no workflow tests them, so run `uv run pytest` — and the comparison above, for a
+change that could alter rendering — before merging one.
+
 ## Staying alive
 
 `uv run uscongress update` is the daily job, and it runs in

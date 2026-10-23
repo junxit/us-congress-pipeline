@@ -45,25 +45,26 @@ concurrency:
 
 jobs:
   record:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install uv
-        # Pinned exactly, matching the other three workflows: astral-sh stopped
-        # publishing floating major tags after v7, so `@v9` does not resolve.
-        # Bump all four together and deliberately; tests/test_toolchain.py
-        # fails if they drift. `version` pins the uv the action installs, which
-        # the tag does not; see that test for the morning that cost.
-        uses: astral-sh/setup-uv@v9.0.0
+        # Pinned to a commit, matching the other three workflows: a tag can be
+        # moved, and astral-sh stopped publishing floating major tags after v7,
+        # so `@v9` does not resolve. Bump all four together and deliberately;
+        # tests/test_toolchain.py fails if they drift. `version` pins the uv the
+        # action installs, which the commit does not; see that test for the
+        # morning that cost.
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           version: "0.13.0"
           enable-cache: true
 
       - name: Install
-        run: uv sync --frozen
+        run: uv sync --locked
 
       - name: Test
         # Cheap, and the alternative is a defective build writing into a public

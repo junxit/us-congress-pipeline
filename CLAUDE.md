@@ -318,6 +318,12 @@ handles them; this is the index.
 ## Conventions
 
 - **`uv` always**, never pip. `uv run pytest`, `uv run uscongress …`.
+- **Exact pins, upgraded on purpose.** Every dependency and the build backend
+  use `==`; actions are pinned to a commit SHA with the version beside it; jobs
+  run on `ubuntu-24.04`, never `-latest`; `.python-version` names a full
+  release; CI installs with `uv sync --locked`. `tests/test_toolchain.py` fails
+  on anything looser. Dependabot opens the upgrade pull requests weekly, and no
+  workflow tests them — run `uv run pytest` before merging one.
 - **Google-style docstrings** on every module, class and function.
 - Comments explain **why**, with the concrete measurement that motivated them.
   Match the surrounding density, which is high.

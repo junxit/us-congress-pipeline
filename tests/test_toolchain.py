@@ -11,6 +11,13 @@ libxml2 headers.
 Three things now hold the toolchain still — ``version`` on every ``setup-uv``
 step, ``.python-version``, and ``uv.lock`` — and they can only move together.
 These tests fail when one moves alone, here rather than at 01:00 UTC.
+
+Since 2026-10-23 every other pin is exact as well: each dependency and the build
+backend with ``==``, each action by commit SHA with its version beside it, the
+runner image by release, and the interpreter to the patch. A range, a tag or a
+``-latest`` lets a run take something nobody here has run, which is 2026-10-10
+again by another route. Dependabot proposes the upgrades; these refuse anything
+that would let one happen by itself.
 """
 
 from __future__ import annotations
@@ -19,6 +26,7 @@ import re
 import tomllib
 from pathlib import Path
 
+from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -134,3 +142,90 @@ def test_every_workflow_installs_the_same_exact_uv() -> None:
     assert len({(ref, inputs["version"]) for ref, inputs in pins.values()}) == 1, (
         f"bump every workflow together: {pins}"
     )
+
+
+def _requirements() -> list[str]:
+    """Every requirement the project declares, the build backend's included.
+
+    Returns:
+        The requirement strings in ``dependencies``, in each dependency group,
+        and in ``[build-system] requires``.
+    """
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    groups = project.get("dependency-groups", {}).values()
+    return [
+        *project["project"]["dependencies"],
+        *(entry for group in groups for entry in group if isinstance(entry, str)),
+        *project["build-system"]["requires"],
+    ]
+
+
+def _workflow_lines(pattern: str) -> list[str]:
+    """Every workflow line matching a pattern, named by its file.
+
+    Args:
+        pattern: Regular expression searched for in each line.
+
+    Returns:
+        ``file: line`` for each match.
+    """
+    return [
+        f"{workflow.name}: {line.strip()}"
+        for workflow in WORKFLOWS
+        for line in workflow.read_text(encoding="utf-8").splitlines()
+        if re.search(pattern, line)
+    ]
+
+
+def test_every_dependency_is_pinned_exactly() -> None:
+    """A range lets an install take a release nobody here has run.
+
+    The build backend counts: unpinned, every build fetched the newest hatchling.
+    """
+    loose = [
+        text
+        for text in _requirements()
+        if [spec.operator for spec in Requirement(text).specifier] != ["=="]
+        or "*" in str(Requirement(text).specifier)
+    ]
+    assert not loose, f"pin these exactly: {loose}"
+
+
+def test_the_interpreter_is_pinned_to_a_release() -> None:
+    """``3.15`` takes whichever 3.15.x the local uv knows, and CI's knows another."""
+    pinned = (ROOT / ".python-version").read_text(encoding="utf-8").strip()
+    assert re.fullmatch(r"3\.\d+\.\d+", pinned), f"pin a full release, not {pinned!r}"
+
+
+def test_every_action_is_pinned_to_a_commit() -> None:
+    """A tag can be moved to other code after it was reviewed; a commit cannot.
+
+    The version stays beside it as a comment, which is what Dependabot rewrites
+    when it proposes the next one.
+    """
+    uses = _workflow_lines(r"^\s*(?:-\s*)?uses:")
+    loose = [
+        line
+        for line in uses
+        if not re.search(r"uses:\s*[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s*v\d", line)
+    ]
+    assert uses, "no workflow uses an action, so the parser has drifted from the files"
+    assert not loose, f"pin to a full commit SHA with its version: {loose}"
+
+
+def test_no_workflow_runs_on_an_image_that_moves() -> None:
+    """``ubuntu-latest`` is retargeted to a new image without a commit here."""
+    moving = _workflow_lines(r"runs-on:\s*\S*latest")
+    assert not moving, f"name an image release: {moving}"
+
+
+def test_ci_installs_exactly_what_is_locked() -> None:
+    """``--locked`` refuses a lockfile that pyproject.toml has moved away from.
+
+    ``--frozen`` installs it regardless, so a pin changed without relocking would
+    have run in CI as whatever the stale lockfile said.
+    """
+    installs = _workflow_lines(r"run:\s*uv sync\b")
+    assert installs, "no workflow installs with uv sync, so the parser has drifted"
+    unlocked = [line for line in installs if "--locked" not in line]
+    assert not unlocked, f"install with --locked: {unlocked}"

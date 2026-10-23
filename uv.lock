@@ -168,12 +168,12 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "defusedxml", specifier = ">=0.7" },
-    { name = "httpx", specifier = ">=0.28" },
+    { name = "defusedxml", specifier = "==0.7.1" },
+    { name = "httpx", specifier = "==0.28.1" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "pytest", specifier = ">=8.3" },
-    { name = "pytest-asyncio", specifier = ">=0.24" },
+    { name = "pytest", specifier = "==9.1.1" },
+    { name = "pytest-asyncio", specifier = "==1.4.0" },
 ]
