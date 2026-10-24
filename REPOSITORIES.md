@@ -3,7 +3,7 @@
 Every repository in this project, what it holds, and whether it exists yet,
 and the plan the whole thing is being built to.
 
-**Generated** 2026-10-10 17:12 UTC by `uv run uscongress index`. Do not edit by hand —
+**Generated** 2026-10-24 15:28 UTC by `uv run uscongress index`. Do not edit by hand —
 the source of truth is `src/uscongress/registry.py`.
 
 ## Roadmap
@@ -39,12 +39,12 @@ one states its own terms in a `LICENSE` file.
 
 | Repository | Phase | Contents | Status |
 |---|---|---|---|
-| [`us-congress-pipeline`](https://github.com/junxit/us-congress-pipeline) ← you are here | 0 | The ETL itself. Generates every repository below. | live, **public**, pushed 2026-10-10 |
-| [`us-congress-code`](https://github.com/junxit/us-congress-code) | 1 | The codified US Code. One commit per OLRC release point, tagged, with per-law attribution from Table III. | live, **public**, pushed 2026-08-16 |
+| [`us-congress-pipeline`](https://github.com/junxit/us-congress-pipeline) ← you are here | 0 | The ETL itself. Generates every repository below. | live, **public**, pushed 2026-10-24 |
+| [`us-congress-code`](https://github.com/junxit/us-congress-code) | 1 | The codified US Code. One commit per OLRC release point, tagged, with per-law attribution from Table III. | live, **public**, pushed 2026-10-24 |
 | `us-congress-bills-{congress}` | 2 | One branch per measure; one commit per bill text version. | 12 shards live, **public** |
-| [`us-congress-statutes`](https://github.com/junxit/us-congress-statutes) | 5 | Statutes at Large — session laws as enacted, volumes 1–138. | live, **public**, pushed 2026-08-16 |
+| [`us-congress-statutes`](https://github.com/junxit/us-congress-statutes) | 5 | Statutes at Large — session laws as enacted, volumes 1–138. | live, **public**, pushed 2026-10-10 |
 | `us-congress-record-{congress}` | 6 | Congressional Record floor proceedings as text, 1994 to present, sharded by Congress and linked to bills by metadata. | 17 shards live, **public** |
-| [`us-congress-comps`](https://github.com/junxit/us-congress-comps) | 11 | Statute Compilations — non-codified law as amended, snapshotted daily because govinfo overwrites it in place and keeps no archive. | live, **public**, pushed 2026-10-10 |
+| [`us-congress-comps`](https://github.com/junxit/us-congress-comps) | 11 | Statute Compilations — non-codified law as amended, snapshotted daily because govinfo overwrites it in place and keeps no archive. | live, **public**, pushed 2026-10-24 |
 
 ### The sharded repositories
 
