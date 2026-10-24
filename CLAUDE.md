@@ -202,6 +202,15 @@ handles them; this is the index.
 - **The `<?xml` guard is not enough.** 51 of 137 Statutes volumes carry a UTF-8
   BOM, which `bytes.lstrip()` does not strip; MODS documents carry no XML
   declaration at all. See `statutes._is_xml` and `record` for the two shapes.
+- **A page that yields nothing is not "nothing new".** From 2026-10-01 OLRC's
+  `download/download.shtml` and `download/priorreleasepoints.htm` answered HTTP
+  200 with no release point in them, so discovery read nothing, found nothing
+  missing, and every daily run printed "us-congress-code: current at 0 release
+  points" and passed, for three weeks, until the old listing began answering
+  500. OLRC had moved both pages to the site root, in a new markup that names
+  only the current year's release points; the archives stayed put. Discovery now
+  raises on an empty listing, and "current at N" counts the repository's tags,
+  never the listing. See `uscode.discover`.
 - **A scheduled runner has no `data/`, so anything that reads it there is
   silently answering a different question.** This has bitten three times in one
   week, each time quietly: the push check derived its repository list from
