@@ -195,9 +195,15 @@ _NEW_LISTING = _listed(
     "120", "Public Law 119-120 (October 7, 2026), affecting titles 31, 42."
 )
 
-#: The current release point as ``download.html`` links it.
+#: The current release point's archive link as ``download.html`` writes it.
+_NEW_LINK = (
+    '<a href="download/releasepoints/us/pl/119/124/xml_uscAll@119-124.zip">[XML]</a>'
+)
+
+#: The current release point as ``download.html`` dates and links it.
 _NEW_DOWNLOAD = (
-    '<a href="download/releasepoints/us/pl/119/124/xml_uscAll@119-124.zip">XML</a>'
+    "All files are current through Public Law 119-124 (October 15, 2026). "
+    + _NEW_LINK
 )
 
 #: What ``download/download.shtml`` serves at HTTP 200 since October 2026.
@@ -240,8 +246,30 @@ def test_discover_reads_the_new_pages() -> None:
     site = _Site({PRIOR_URL: _NEW_LISTING, CURRENT_URL: _NEW_DOWNLOAD})
     points = asyncio.run(discover(site))
     assert [p.tag for p in points] == ["pl-119-120", "pl-119-121", "pl-119-124"]
-    assert [p.published for p in points] == [date(2026, 10, 7), date(2026, 10, 9), None]
+    assert [p.published for p in points] == [
+        date(2026, 10, 7),
+        date(2026, 10, 9),
+        date(2026, 10, 15),
+    ]
     assert [p.is_current for p in points] == [False, False, True]
+
+
+def test_the_current_release_point_is_dated_from_the_download_page() -> None:
+    """Undated, a release point built while current is committed as never dated.
+
+    ``pl-119-102`` was built while current, so its commit reads "date not
+    published" and 2026-08-04, the day it was built, where OLRC gives July 12.
+    The download page states the date itself; a page that does not leaves the
+    release point undated rather than guessing.
+    """
+    dated = _Site({PRIOR_URL: _NEW_LISTING, CURRENT_URL: _NEW_DOWNLOAD})
+    *_, current = asyncio.run(discover(dated))
+    assert current.published == date(2026, 10, 15)
+
+    undated = _Site({PRIOR_URL: _NEW_LISTING, CURRENT_URL: _NEW_LINK})
+    *_, current = asyncio.run(discover(undated))
+    assert current.tag == "pl-119-124"
+    assert current.published is None
 
 
 @pytest.mark.parametrize("unreadable", [PRIOR_URL, CURRENT_URL])

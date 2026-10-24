@@ -18,7 +18,8 @@ Four traps in the source data, all verified against the live page:
 * **The current release point is not among the prior ones** -- HTML-commented
   out on the old prior-release-points page, absent from the new one -- because
   it lives on the main download page instead. It must be added back or the
-  newest snapshot is silently missing.
+  newest snapshot is silently missing, and dated from that page or it is
+  committed as undated on the day it was built.
 * **The pages moved, and the old addresses kept answering.** OLRC now serves
   ``download.html`` and ``priorreleasepoints.html`` at the site root, both
   Last-Modified 2026-10-22. From 2026-10-01 the old ``download/download.shtml``
@@ -282,17 +283,16 @@ async def discover(client: GovInfoClient) -> list[ReleasePoint]:
     known = {(e["congress"], e["law_spec"]) for e in entries}
     if current not in known:
         # The prior page does not list the current RP (the old one commented it
-        # out); re-add it as newest.
+        # out); re-add it as newest, dated by the download page's own "current
+        # through Public Law 119-124 (October 15, 2026)". Undated, a release
+        # point built while current is committed as "date not published" on the
+        # day it was built: pl-119-102 reads 2026-08-04, where OLRC gives July 12.
+        congress, law_spec = current
+        stated = re.search(
+            rf"Public Law {congress}-{re.escape(law_spec)}\s*\([^)]*\)", current_html
+        )
         entries.insert(
-            0,
-            {
-                "congress": current[0],
-                "law_spec": current[1],
-                "law_number": int(re.match(r"\d+", current[1]).group()),
-                "excludes": tuple(int(n) for n in re.findall(r"not(\d+)", current[1])),
-                "published": None,
-                "titles": (),
-            },
+            0, _parse_entry(str(congress), law_spec, stated.group(0) if stated else "")
         )
 
     oldest_first = list(reversed(entries))
