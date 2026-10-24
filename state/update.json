@@ -1,21 +1,11 @@
 {
-  "checked_since": "2026-10-21T08:48:46Z",
-  "last_outcome": "checking release points: HTTPStatusError: 500 for https://uscode.house.gov/download/priorreleasepoints.htm",
-  "last_run": "2026-10-24T09:17:02Z",
-  "last_success": "2026-10-22T09:49:13Z",
+  "checked_since": "2026-10-22T08:49:13Z",
+  "last_outcome": "ok",
+  "last_run": "2026-10-24T18:02:28Z",
+  "last_success": "2026-10-24T18:02:28Z",
   "measures": {
     "119": [
-      "hr-1721",
-      "hr-227",
-      "hr-2388",
-      "hr-2481",
-      "hr-3620",
-      "hr-4307",
-      "hr-4467",
-      "hr-6380",
-      "hr-7831",
-      "hr-837",
-      "s-5682"
+      "hr-10879"
     ]
   },
   "pending_release_points": [],
