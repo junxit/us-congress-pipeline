@@ -37,6 +37,7 @@ from uscongress.jobs.update import (
     render_status,
     save_state,
 )
+from uscongress.jobs.uscode import ReleasePoint
 
 
 def test_package_id_maps_to_a_measure() -> None:
@@ -978,3 +979,49 @@ def test_a_failure_quoting_the_push_token_is_not_committed(tmp_path: Path) -> No
     assert token not in state_path.read_text()
     assert token not in status_path.read_text()
     assert "CalledProcessError" in load_state(state_path).last_outcome
+
+
+def test_release_points_are_counted_from_the_repository(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    """The "current at N" count is the repository's tags, never OLRC's listing.
+
+    Since 2026-10-22 the listing names only the current year's release points,
+    so counting it would report 23 for a repository holding 383. Both paths
+    count: a runner holds no clone and asks the remote; a clone asks itself.
+    """
+    listed = [
+        ReleasePoint(
+            congress=119,
+            law_spec=spec,
+            law_number=int(spec),
+            excludes=(),
+            published=None,
+            titles=(),
+            order=order,
+            is_current=False,
+        )
+        for order, spec in enumerate(("120", "121"))
+    ]
+    held = {"pl-113-21", "pl-119-102", "pl-119-120", "pl-119-121"}
+
+    async def _discover(_client: object) -> list[ReleasePoint]:
+        return listed
+
+    monkeypatch.setattr(update.uscode, "discover", _discover)
+    monkeypatch.setattr(update.publish, "remote_tags", lambda _url: held)
+    monkeypatch.setattr(update.config, "REPOS_DIR", tmp_path / "repos")
+
+    result = _result()
+    asyncio.run(update.update_code(None, result))
+    assert "current at 4 release points" in capsys.readouterr().out
+    assert result.pending_release_points == []
+
+    repo = GitRepo(tmp_path / "repos" / "us-congress-code")
+    repo.init()
+    repo.write("README.md", "readme\n")
+    repo.commit("readme")
+    for tag in held:
+        repo.tag(tag)
+    asyncio.run(update.update_code(None, _result()))
+    assert "current at 4 release points" in capsys.readouterr().out

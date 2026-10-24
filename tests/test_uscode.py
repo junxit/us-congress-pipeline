@@ -1,14 +1,26 @@
 """Tests for OLRC release-point parsing.
 
-Every fixture below is real text copied from ``priorreleasepoints.htm``. These
-cover the cases that would otherwise corrupt the history silently.
+Every release-point fixture below is real text copied from OLRC's pages:
+``priorreleasepoints.htm`` through September 2026, ``priorreleasepoints.html``
+since. These cover the cases that would otherwise corrupt the history silently.
 """
 
 from __future__ import annotations
 
+import asyncio
+import re
 from datetime import date
 
-from uscongress.jobs.uscode import ReleasePoint, parse_current, parse_prior
+import pytest
+
+from uscongress.jobs.uscode import (
+    CURRENT_URL,
+    PRIOR_URL,
+    ReleasePoint,
+    discover,
+    parse_current,
+    parse_prior,
+)
 
 
 def _entry(law_spec: str, text: str, congress: str = "119") -> str:
@@ -166,3 +178,81 @@ def test_ordinary_release_points_have_a_single_candidate() -> None:
         is_current=False,
     )
     assert len(point.xml_url_candidates) == 1
+
+
+def _listed(law_spec: str, text: str, congress: str = "119") -> str:
+    """Build one release-point list item as ``priorreleasepoints.html`` writes it."""
+    return (
+        f'<li class="releasepoint"><a class="releasepoint" '
+        f'href="download/{congress}-{law_spec}.html">{text}</a></li>'
+    )
+
+
+#: The two newest entries on ``priorreleasepoints.html`` on 2026-10-24.
+_NEW_LISTING = _listed(
+    "121", "Public Law 119-121 (October 9, 2026), affecting title 15."
+) + _listed(
+    "120", "Public Law 119-120 (October 7, 2026), affecting titles 31, 42."
+)
+
+#: The current release point as ``download.html`` links it.
+_NEW_DOWNLOAD = (
+    '<a href="download/releasepoints/us/pl/119/124/xml_uscAll@119-124.zip">XML</a>'
+)
+
+#: What ``download/download.shtml`` serves at HTTP 200 since October 2026.
+_MAINTENANCE = (
+    "<title>Under Maintenance</title><p>Site is currently under maintenance</p>"
+)
+
+
+class _Site:
+    """Serve fixed pages by URL, standing in for uscode.house.gov."""
+
+    def __init__(self, pages: dict[str, str]) -> None:
+        self._pages = pages
+
+    async def get_bytes(self, url: str, headers: dict[str, str] | None = None) -> bytes:
+        """Return the page at ``url``."""
+        return self._pages[url].encode()
+
+
+def test_new_listing_links_a_page_per_entry() -> None:
+    """Since 2026-10-22 an entry links a page of its own and spells out its date.
+
+    The old pattern finds none of the 22 entries on the new page, and an
+    unparsed date would leave the reverse-chronological check nothing to check.
+    """
+    html = _listed(
+        "102not101",
+        "Public Law 119-102not101 (July 12, 2026), except 119-101, "
+        "affecting titles 5, 16.",
+    )
+    (entry,) = parse_prior(html)
+    assert entry["law_spec"] == "102not101"
+    assert entry["excludes"] == (101,)
+    assert entry["published"] == date(2026, 7, 12)
+    assert entry["titles"] == (5, 16)
+
+
+def test_discover_reads_the_new_pages() -> None:
+    """The current release point, absent from the new listing, is added as newest."""
+    site = _Site({PRIOR_URL: _NEW_LISTING, CURRENT_URL: _NEW_DOWNLOAD})
+    points = asyncio.run(discover(site))
+    assert [p.tag for p in points] == ["pl-119-120", "pl-119-121", "pl-119-124"]
+    assert [p.published for p in points] == [date(2026, 10, 7), date(2026, 10, 9), None]
+    assert [p.is_current for p in points] == [False, False, True]
+
+
+@pytest.mark.parametrize("unreadable", [PRIOR_URL, CURRENT_URL])
+def test_a_page_with_no_release_point_is_an_error(unreadable: str) -> None:
+    """Reading nothing is not "nothing new".
+
+    From 2026-10-01 both old addresses answered HTTP 200 with no release point
+    in them, so discovery returned nothing, nothing was missing, and the daily
+    check reported the repository "current at 0" on every run for three weeks.
+    """
+    pages = {PRIOR_URL: _NEW_LISTING, CURRENT_URL: _NEW_DOWNLOAD}
+    pages[unreadable] = _MAINTENANCE
+    with pytest.raises(ValueError, match=re.escape(unreadable)):
+        asyncio.run(discover(_Site(pages)))

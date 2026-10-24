@@ -116,8 +116,8 @@ cp .env.example .env                  # then add your govinfo key
 
 uv run uscongress comps               # snapshot Statute Compilations (do this first)
 uv run uscongress comps --fresh       # ignore today's manifest, refetch everything
-uv run uscongress releasepoints       # list all 386 OLRC release points, oldest first
-uv run uscongress seed-code           # build us-congress-code from every release point
+uv run uscongress releasepoints       # list the current year's OLRC release points, oldest first
+uv run uscongress seed-code           # build every listed release point not yet tagged
 uv run uscongress seed-code --limit 5 # build only the oldest 5
 uv run uscongress seed-bills --congress 113   # build us-congress-bills-113
 uv run uscongress seed-bills --congress 113 --limit 25   # first 25 measures only
@@ -151,10 +151,13 @@ skips release points whose tag exists, `seed-bills` skips measures whose branch 
 committed, and all of them cache their downloads. Re-running a completed job fetches nothing
 — re-running a finished Congress takes seconds and rebuilds no branches.
 
-OLRC lists 386 release points but only **383 are distinct** — `pl-113-165`, `pl-115-95not91`
-and `pl-115-117not91not96not97` each appear twice at adjacent positions on
-`priorreleasepoints.htm`. The tag check that makes `seed-code` resumable also absorbs the
-duplicates, so a complete `us-congress-code` has 383 commits and 383 tags, not 386.
+OLRC's listing is not the history. When `us-congress-code` was built, `priorreleasepoints.htm`
+listed 386 release points but only **383 were distinct** — `pl-113-165`, `pl-115-95not91` and
+`pl-115-117not91not96not97` each appeared twice at adjacent positions. The tag check that makes
+`seed-code` resumable absorbed the duplicates, so the build came to 383 commits and 383 tags,
+not 386. That page was replaced in October 2026 by `priorreleasepoints.html`, which names only
+the current year's release points: `seed-code` can still extend the repository but could no
+longer rebuild it from nothing, so its tags, not OLRC's page, are the complete list.
 
 ### Inside a bills repository
 

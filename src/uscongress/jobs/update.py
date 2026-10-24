@@ -731,11 +731,12 @@ async def update_code(client: GovInfoClient, result: Result) -> None:
     """
     repo = GitRepo(config.REPOS_DIR / uscode.REPO_NAME)
     points = await uscode.discover(client)
-    # OLRC lists 386 release points but only 383 are distinct: pl-113-165,
-    # pl-115-95not91 and pl-115-117not91not96not97 each appear twice at adjacent
-    # positions. Reporting the listing count would contradict the repository,
-    # which has 383 tags and says so.
-    distinct = len({p.tag for p in points})
+    # "Current at N" counts the repository's tags, never OLRC's listing, which
+    # has contradicted the repository both ways: the old page listed 386 release
+    # points for 383 distinct -- pl-113-165, pl-115-95not91 and
+    # pl-115-117not91not96not97 each appeared twice at adjacent positions -- and
+    # since 2026-10-22 the listing names only the current year's, 23 on
+    # 2026-10-24 against 383 tags.
 
     if not (repo.path / ".git").is_dir():
         published = publish.remote_tags(publish.repo_url(uscode.REPO_NAME))
@@ -749,14 +750,17 @@ async def update_code(client: GovInfoClient, result: Result) -> None:
             )
         else:
             print(
-                f"  us-congress-code: current at {distinct} release points",
+                f"  us-congress-code: current at {len(published)} release points",
                 flush=True,
             )
         return
 
     missing = [p for p in points if not repo.has_tag(p.tag)]
     if not missing:
-        print(f"  us-congress-code: current at {distinct} release points", flush=True)
+        print(
+            f"  us-congress-code: current at {len(repo.tag_map())} release points",
+            flush=True,
+        )
         return
 
     print(

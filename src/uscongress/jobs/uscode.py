@@ -4,7 +4,7 @@ A *release point* is a snapshot of the Code "current through Public Law N".
 OLRC publishes one every few weeks, roughly every 5-6 public laws, and keeps
 every prior one downloadable back to July 2013.
 
-Three traps in the source data, all verified against the live page:
+Four traps in the source data, all verified against the live page:
 
 * **Release points are not ordered by law number.** 97 of them carry a ``not``
   suffix -- ``119-102not101`` means "through PL 119-102 but *excluding* 119-101",
@@ -15,9 +15,22 @@ Three traps in the source data, all verified against the live page:
   "Pub. L." with a single-digit date. Ordering therefore keys on **list
   position**, which the page guarantees is reverse-chronological; dates are
   parsed as metadata and used only to validate that assumption.
-* **The current release point is HTML-commented out** on the prior-release-points
-  page, because it lives on the main download page instead. It must be added
-  back or the newest snapshot is silently missing.
+* **The current release point is not among the prior ones** -- HTML-commented
+  out on the old prior-release-points page, absent from the new one -- because
+  it lives on the main download page instead. It must be added back or the
+  newest snapshot is silently missing.
+* **The pages moved, and the old addresses kept answering.** OLRC now serves
+  ``download.html`` and ``priorreleasepoints.html`` at the site root, both
+  Last-Modified 2026-10-22. From 2026-10-01 the old ``download/download.shtml``
+  and ``download/priorreleasepoints.htm`` answered HTTP 200 with no release
+  point in them -- the first became house.gov's 14,615-byte "Under Maintenance"
+  page -- so every run for three weeks read nothing and reported "current at 0",
+  until ``priorreleasepoints.htm`` began answering 500 on 2026-10-23. A page
+  that yields nothing is therefore an error, never "nothing new". The new list
+  names only the current year's release points -- 22 on 2026-10-24, back to
+  ``119-73not60`` -- and links each to a page of its own,
+  ``download/119-121.html``, rather than to its files. The archives did not
+  move: both pages link the same ``download/releasepoints/`` paths.
 """
 
 from __future__ import annotations
@@ -38,15 +51,27 @@ from ..render import Section, render_title, title_folder, to_file_map
 from ..xmlrepair import repair
 from .table3 import trailers as table3_trailers
 
-PRIOR_URL = "https://uscode.house.gov/download/priorreleasepoints.htm"
-CURRENT_URL = "https://uscode.house.gov/download/download.shtml"
+# Both pages moved to the site root in October 2026; the archives under _BASE
+# did not. See the module docstring.
+PRIOR_URL = "https://uscode.house.gov/priorreleasepoints.html"
+CURRENT_URL = "https://uscode.house.gov/download.html"
 _BASE = "https://uscode.house.gov/download/releasepoints/us/pl"
 
 _LINK = re.compile(
     r'href="releasepoints/us/pl/(\d+)/([0-9A-Za-z]+)/usc-rp@[^"]+">([^<]*)</a>'
 )
+# The markup priorreleasepoints.html has served since 2026-10-22: each entry
+# links a page of its own rather than its files.
+_PAGE_LINK = re.compile(r'href="download/(\d+)-([0-9A-Za-z]+)\.html">([^<]*)</a>')
 _COMMENT = re.compile(r"<!--.*?-->", re.S)
-_DATE = re.compile(r"\((\d{1,2}/\d{1,2}/\d{4})\)")
+# "(07/12/2026)" on the old page, "(July 12, 2026)" on the new one. The month is
+# named rather than matched as any word so that 115-40u1's "(effective July 1,
+# 2017)" stays the undated entry it is.
+_DATE = re.compile(
+    r"\((\d{1,2}/\d{1,2}/\d{4}"
+    r"|(?:January|February|March|April|May|June|July|August|September|October"
+    r"|November|December) \d{1,2}, \d{4})\)"
+)
 _TITLES = re.compile(r"affecting titles?\s+([^.]*)", re.I)
 _EXCLUDES = re.compile(r"except\s+([\d\-,\sand]+)", re.I)
 
@@ -149,7 +174,9 @@ def _parse_entry(congress: str, law_spec: str, text: str) -> dict:
     match = _DATE.search(text)
     published: date | None = None
     if match:
-        published = datetime.strptime(match.group(1), "%m/%d/%Y").date()
+        stamp = match.group(1)
+        layout = "%m/%d/%Y" if "/" in stamp else "%B %d, %Y"
+        published = datetime.strptime(stamp, layout).date()
 
     titles_match = _TITLES.search(text)
     titles = _parse_int_list(titles_match.group(1)) if titles_match else ()
@@ -177,18 +204,24 @@ def _parse_entry(congress: str, law_spec: str, text: str) -> dict:
 def parse_prior(html: str) -> list[dict]:
     """Parse the prior-release-points page, newest first.
 
-    HTML comments are stripped first: the current release point is commented out
-    on this page and is fetched separately from the download page.
+    Reads either markup OLRC has served: entries linking their files under
+    ``releasepoints/`` (``priorreleasepoints.htm``, through September 2026), or
+    entries linking a page of their own under ``download/``
+    (``priorreleasepoints.html``). HTML comments are stripped first: the old page
+    commented out the current release point, which is fetched separately from
+    the download page.
 
     Args:
-        html: Raw HTML of ``priorreleasepoints.htm``.
+        html: Raw HTML of the prior-release-points page.
 
     Returns:
-        Parsed entries in page order (newest first).
+        Parsed entries in page order (newest first); empty if the page holds
+        neither markup.
     """
+    page = _COMMENT.sub("", html)
+    found = _LINK.findall(page) or _PAGE_LINK.findall(page)
     return [
-        _parse_entry(congress, law_spec, text)
-        for congress, law_spec, text in _LINK.findall(_COMMENT.sub("", html))
+        _parse_entry(congress, law_spec, text) for congress, law_spec, text in found
     ]
 
 
@@ -196,7 +229,8 @@ def parse_current(html: str) -> tuple[int, str] | None:
     """Find the current release point on the main download page.
 
     Args:
-        html: Raw HTML of ``download.shtml``.
+        html: Raw HTML of the download page, ``download.html`` or the older
+            ``download.shtml``.
 
     Returns:
         A ``(congress, law_spec)`` pair, or None if not found.
@@ -218,24 +252,37 @@ async def discover(client: GovInfoClient) -> list[ReleasePoint]:
         Release points in chronological order, ``order`` running from 0.
 
     Raises:
-        ValueError: If the page is not in reverse-chronological order, which
-            would invalidate position-based ordering.
+        ValueError: If either page yields no release point -- reading nothing
+            would otherwise report the repository as current -- or if the
+            listing is not in reverse-chronological order, which would
+            invalidate position-based ordering.
     """
     prior_html = (await client.get_bytes(PRIOR_URL)).decode("utf-8", "replace")
     entries = parse_prior(prior_html)
+    if not entries:
+        raise ValueError(
+            f"no release points found on {PRIOR_URL}: the page has moved or "
+            "changed its markup"
+        )
 
     dated = [e["published"] for e in entries if e["published"]]
     if any(a < b for a, b in zip(dated, dated[1:])):
         raise ValueError(
-            "priorreleasepoints.htm is no longer reverse-chronological; "
+            f"{PRIOR_URL} is no longer reverse-chronological; "
             "position-based ordering is unsafe. Re-verify before seeding."
         )
 
     current_html = (await client.get_bytes(CURRENT_URL)).decode("utf-8", "replace")
     current = parse_current(current_html)
+    if current is None:
+        raise ValueError(
+            f"no current release point found on {CURRENT_URL}: the page has "
+            "moved or changed its markup"
+        )
     known = {(e["congress"], e["law_spec"]) for e in entries}
-    if current and current not in known:
-        # Current RP is commented out on the prior page; re-add it as newest.
+    if current not in known:
+        # The prior page does not list the current RP (the old one commented it
+        # out); re-add it as newest.
         entries.insert(
             0,
             {
@@ -248,13 +295,12 @@ async def discover(client: GovInfoClient) -> list[ReleasePoint]:
             },
         )
 
-    current_key = current if current else None
     oldest_first = list(reversed(entries))
     return [
         ReleasePoint(
             **entry,
             order=index,
-            is_current=(entry["congress"], entry["law_spec"]) == current_key,
+            is_current=(entry["congress"], entry["law_spec"]) == current,
         )
         for index, entry in enumerate(oldest_first)
     ]
