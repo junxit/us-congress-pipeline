@@ -14,13 +14,13 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-23 17:47 UTC |
+| Last run attempted | 2026-10-24 09:17 UTC |
 | Outcome | checking release points: HTTPStatusError: 500 for https://uscode.house.gov/download/priorreleasepoints.htm |
 | Window asked of govinfo | since 2026-10-22 08:49 UTC |
-| Measures govinfo reported modified | 336 |
-| Branches rewritten | 23 |
-| Rebuilt to the commit already published | 279 |
-| Modified but still carrying no text | 34 |
+| Measures govinfo reported modified | 342 |
+| Branches rewritten | 1 |
+| Rebuilt to the commit already published | 308 |
+| Modified but still carrying no text | 33 |
 
 ## Measures updated on the last successful run
 
