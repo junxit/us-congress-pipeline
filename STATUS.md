@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-10-25 09:33 UTC**
+**Last successful update — 2026-10-26 10:44 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,9 +14,9 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-25 09:33 UTC |
+| Last run attempted | 2026-10-26 10:44 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-10-24 17:02 UTC |
+| Window asked of govinfo | since 2026-10-25 08:33 UTC |
 | Measures govinfo reported modified | 0 |
 | Branches rewritten | 0 |
 | Rebuilt to the commit already published | 0 |
@@ -27,12 +27,12 @@ job having failed, which the date above would show.
 
 ## Congressional Record
 
-**Last successful run — 2026-10-24 11:43 UTC**
+**Last successful run — 2026-10-25 12:12 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-24 11:43 UTC |
+| Last run attempted | 2026-10-25 12:12 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 0 |
