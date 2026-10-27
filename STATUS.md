@@ -14,9 +14,9 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-26 10:44 UTC |
-| Outcome | ok |
-| Window asked of govinfo | since 2026-10-25 08:33 UTC |
+| Last run attempted | 2026-10-27 10:11 UTC |
+| Outcome | listing changed packages: HTTPStatusError: 500 for https://api.govinfo.gov/collections/BILLSTATUS/2026-10-26T09:44:37Z?offsetMark=*&pageSize=1000 |
+| Window asked of govinfo | since 2026-10-26 09:44 UTC |
 | Measures govinfo reported modified | 0 |
 | Branches rewritten | 0 |
 | Rebuilt to the commit already published | 0 |
@@ -27,12 +27,12 @@ job having failed, which the date above would show.
 
 ## Congressional Record
 
-**Last successful run — 2026-10-25 12:12 UTC**
+**Last successful run — 2026-10-26 13:43 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-25 12:12 UTC |
+| Last run attempted | 2026-10-26 13:43 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 0 |
@@ -43,6 +43,17 @@ No issue day was added on the last successful run. Congress does not
 sit every day, and the Record is published only for the days it does,
 so an unchanged shard is the ordinary result of a recess rather than a
 sign the job failed — the date above would show that.
+
+## Needs a person
+
+**1 thing a schedule cannot do — checked 2026-10-27 10:11 UTC**
+
+| What | What to do |
+|---|---|
+| upstream editions could not be checked (govinfo answered 500) | Nothing, if govinfo was briefly down: the next run asks again. If this persists, check the GOVINFO_API_KEY secret |
+
+This list is computed, not remembered. It is empty on an ordinary day,
+and this section is absent when it is empty.
 
 ## What this does not cover
 

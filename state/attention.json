@@ -1,4 +1,10 @@
 {
-  "checked": "2026-10-26T10:44:35Z",
-  "due": []
+  "checked": "2026-10-27T10:11:32Z",
+  "due": [
+    {
+      "key": "upstream-unchecked",
+      "summary": "upstream editions could not be checked (govinfo answered 500)",
+      "action": "Nothing, if govinfo was briefly down: the next run asks again. If this persists, check the GOVINFO_API_KEY secret"
+    }
+  ]
 }
