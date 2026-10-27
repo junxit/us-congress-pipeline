@@ -1,10 +1,44 @@
 {
-  "checked_since": "2026-10-25T08:33:29Z",
-  "last_outcome": "listing changed packages: HTTPStatusError: 500 for https://api.govinfo.gov/collections/BILLSTATUS/2026-10-26T09:44:37Z?offsetMark=*&pageSize=1000",
-  "last_run": "2026-10-27T10:11:34Z",
-  "last_success": "2026-10-26T10:44:37Z",
-  "measures": {},
-  "pending_release_points": [],
+  "checked_since": "2026-10-26T09:44:37Z",
+  "last_outcome": "ok",
+  "last_run": "2026-10-27T13:11:27Z",
+  "last_success": "2026-10-27T13:11:27Z",
+  "measures": {
+    "119": [
+      "hr-10061",
+      "hr-10604",
+      "hr-10885",
+      "hr-10886",
+      "hr-10888",
+      "hr-10889",
+      "hr-10891",
+      "hr-10892",
+      "hr-10895",
+      "hr-10896",
+      "hr-10897",
+      "hr-10898",
+      "hr-10899",
+      "hr-10900",
+      "hr-10902",
+      "hr-10904",
+      "hr-10905",
+      "hr-10906",
+      "hr-10907",
+      "hr-1744",
+      "hr-6644",
+      "hr-7022",
+      "hr-8205",
+      "hr-952",
+      "hr-9877",
+      "hres-1187",
+      "hres-1639",
+      "hres-1641",
+      "s-2294"
+    ]
+  },
+  "pending_release_points": [
+    "pl-119-134"
+  ],
   "release_points": [],
   "unplaceable": []
 }
