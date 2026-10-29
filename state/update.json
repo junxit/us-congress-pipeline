@@ -1,14 +1,42 @@
 {
-  "checked_since": "2026-10-27T12:52:01Z",
+  "checked_since": "2026-10-28T09:57:58Z",
   "last_outcome": "ok",
-  "last_run": "2026-10-28T10:57:58Z",
-  "last_success": "2026-10-28T10:57:58Z",
+  "last_run": "2026-10-29T11:17:11Z",
+  "last_success": "2026-10-29T11:17:11Z",
   "measures": {
     "119": [
-      "hr-10901"
+      "hr-10544",
+      "hr-10683",
+      "hr-10733",
+      "hr-10737",
+      "hr-10798",
+      "hr-10820",
+      "hr-10821",
+      "hr-10855",
+      "hr-10876",
+      "hr-10877",
+      "hr-10878",
+      "hr-10880",
+      "hr-10883",
+      "hr-10890",
+      "hr-10908",
+      "hr-10909",
+      "hr-10910",
+      "hr-10911",
+      "hr-10912",
+      "hr-10913",
+      "hr-10914",
+      "hr-10915",
+      "hr-10916",
+      "hr-10917",
+      "hres-1575",
+      "hres-1623",
+      "hres-1640"
     ]
   },
-  "pending_release_points": [],
+  "pending_release_points": [
+    "pl-119-136"
+  ],
   "release_points": [],
   "unplaceable": []
 }
