@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-10-30 11:09 UTC**
+**Last successful update — 2026-10-31 10:42 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,18 +14,19 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-30 11:09 UTC |
+| Last run attempted | 2026-10-31 10:42 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-10-29 10:17 UTC |
-| Measures govinfo reported modified | 42 |
-| Branches rewritten | 18 |
-| Rebuilt to the commit already published | 24 |
+| Window asked of govinfo | since 2026-10-30 10:09 UTC |
+| Measures govinfo reported modified | 446 |
+| Branches rewritten | 22 |
+| Rebuilt to the commit already published | 388 |
+| Modified but still carrying no text | 36 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 18 | `hjres-219`, `hr-10770`, `hr-10803`, `hr-10814`, `hr-10819`, `hr-315`, `s-5682`, `s-5683`, `s-5684`, `s-5685`, `s-5686`, `s-5687`, and 6 more |
+| 119 | 22 | `hconres-125`, `hr-10136`, `hr-10306`, `hr-10741`, `hr-3331`, `hr-4598`, `hr-5334`, `hr-7254`, `hr-7954`, `hr-8183`, `hr-8195`, `hr-8483`, and 10 more |
 
 ## US Code release points not built yet
 
@@ -42,26 +43,21 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-10-29 13:49 UTC**
+**Last successful run — 2026-10-30 13:42 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-10-29 13:49 UTC |
+| Last run attempted | 2026-10-30 13:42 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 0 |
-| Issue days held | 378 |
-| Refs published | 0 |
-
-No issue day was added on the last successful run. Congress does not
-sit every day, and the Record is published only for the days it does,
-so an unchanged shard is the ordinary result of a recess rather than a
-sign the job failed — the date above would show that.
+| Issue days added | 1 |
+| Issue days held | 379 |
+| Refs published | 2 |
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-10-30 11:09 UTC**
+**1 thing a schedule cannot do — checked 2026-10-31 10:42 UTC**
 
 | What | What to do |
 |---|---|
