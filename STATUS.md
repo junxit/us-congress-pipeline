@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-11-02 13:02 UTC**
+**Last successful update — 2026-11-03 12:36 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,16 +14,19 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-02 13:02 UTC |
+| Last run attempted | 2026-11-03 12:36 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-11-01 10:38 UTC |
-| Measures govinfo reported modified | 0 |
-| Branches rewritten | 0 |
-| Rebuilt to the commit already published | 0 |
+| Window asked of govinfo | since 2026-11-02 12:02 UTC |
+| Measures govinfo reported modified | 140 |
+| Branches rewritten | 23 |
+| Rebuilt to the commit already published | 115 |
+| Modified but still carrying no text | 2 |
 
-No measure changed on the last successful run. That is an ordinary
-result — Congress does not sit every day — and is not the same as the
-job having failed, which the date above would show.
+## Measures updated on the last successful run
+
+| Congress | Branches | Measures |
+|---|---|---|
+| 119 | 23 | `hr-10875`, `hr-10920`, `hr-10923`, `hr-10927`, `hr-10934`, `hr-10935`, `hr-10936`, `hr-10937`, `hr-10938`, `hr-10939`, `hr-10940`, `hr-10941`, and 11 more |
 
 ## US Code release points not built yet
 
@@ -40,12 +43,12 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-11-01 13:54 UTC**
+**Last successful run — 2026-11-02 16:40 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-01 13:54 UTC |
+| Last run attempted | 2026-11-02 16:40 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 0 |
@@ -59,7 +62,7 @@ sign the job failed — the date above would show that.
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-11-02 13:02 UTC**
+**1 thing a schedule cannot do — checked 2026-11-03 12:36 UTC**
 
 | What | What to do |
 |---|---|
