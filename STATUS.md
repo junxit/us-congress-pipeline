@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-11-04 12:45 UTC**
+**Last successful update — 2026-11-05 12:55 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,19 +14,18 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-04 12:45 UTC |
+| Last run attempted | 2026-11-05 12:55 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-11-03 11:36 UTC |
-| Measures govinfo reported modified | 187 |
-| Branches rewritten | 7 |
-| Rebuilt to the commit already published | 178 |
-| Modified but still carrying no text | 2 |
+| Window asked of govinfo | since 2026-11-04 11:45 UTC |
+| Measures govinfo reported modified | 82 |
+| Branches rewritten | 4 |
+| Rebuilt to the commit already published | 78 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 7 | `hjres-221`, `hr-10822`, `hr-10825`, `hr-10924`, `hr-10932`, `hres-1646`, `hres-1647` |
+| 119 | 4 | `hr-10952`, `hr-1744`, `hr-6158`, `hr-8205` |
 
 ## US Code release points not built yet
 
@@ -43,21 +42,26 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-11-03 14:45 UTC**
+**Last successful run — 2026-11-04 14:57 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-03 14:45 UTC |
+| Last run attempted | 2026-11-04 14:57 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 1 |
+| Issue days added | 0 |
 | Issue days held | 380 |
-| Refs published | 2 |
+| Refs published | 0 |
+
+No issue day was added on the last successful run. Congress does not
+sit every day, and the Record is published only for the days it does,
+so an unchanged shard is the ordinary result of a recess rather than a
+sign the job failed — the date above would show that.
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-11-04 12:45 UTC**
+**1 thing a schedule cannot do — checked 2026-11-05 12:55 UTC**
 
 | What | What to do |
 |---|---|
