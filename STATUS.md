@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-11-05 12:55 UTC**
+**Last successful update — 2026-11-06 12:42 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,18 +14,19 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-05 12:55 UTC |
+| Last run attempted | 2026-11-06 12:42 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-11-04 11:45 UTC |
-| Measures govinfo reported modified | 82 |
-| Branches rewritten | 4 |
-| Rebuilt to the commit already published | 78 |
+| Window asked of govinfo | since 2026-11-05 11:55 UTC |
+| Measures govinfo reported modified | 179 |
+| Branches rewritten | 16 |
+| Rebuilt to the commit already published | 159 |
+| Modified but still carrying no text | 4 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 4 | `hr-10952`, `hr-1744`, `hr-6158`, `hr-8205` |
+| 119 | 16 | `hr-1744`, `hr-1945`, `hr-3100`, `hr-3978`, `hr-5549`, `hr-5723`, `hr-7730`, `hr-8205`, `hr-8495`, `hr-8845`, `hr-9084`, `hr-9605`, and 4 more |
 
 ## US Code release points not built yet
 
@@ -42,12 +43,12 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-11-04 14:57 UTC**
+**Last successful run — 2026-11-05 15:01 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-04 14:57 UTC |
+| Last run attempted | 2026-11-05 15:01 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 0 |
@@ -61,7 +62,7 @@ sign the job failed — the date above would show that.
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-11-05 12:55 UTC**
+**1 thing a schedule cannot do — checked 2026-11-06 12:42 UTC**
 
 | What | What to do |
 |---|---|
