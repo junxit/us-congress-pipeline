@@ -1,20 +1,9 @@
 {
-  "checked_since": "2026-11-06T11:42:23Z",
+  "checked_since": "2026-11-07T10:28:26Z",
   "last_outcome": "ok",
-  "last_run": "2026-11-07T11:28:26Z",
-  "last_success": "2026-11-07T11:28:26Z",
-  "measures": {
-    "119": [
-      "hr-10954",
-      "hr-10955",
-      "hr-10956",
-      "hr-10957",
-      "hr-10958",
-      "hr-10959",
-      "hr-10960",
-      "hres-1649"
-    ]
-  },
+  "last_run": "2026-11-08T11:40:45Z",
+  "last_success": "2026-11-08T11:40:45Z",
+  "measures": {},
   "pending_release_points": [
     "pl-119-136",
     "pl-119-138"
