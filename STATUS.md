@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-11-08 11:40 UTC**
+**Last successful update — 2026-11-09 13:35 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,18 +14,16 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-08 11:40 UTC |
+| Last run attempted | 2026-11-09 13:35 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-11-07 10:28 UTC |
-| Measures govinfo reported modified | 5 |
+| Window asked of govinfo | since 2026-11-08 10:40 UTC |
+| Measures govinfo reported modified | 0 |
 | Branches rewritten | 0 |
-| Rebuilt to the commit already published | 5 |
+| Rebuilt to the commit already published | 0 |
 
-No branch changed. 5 measures were rebuilt from freshly
-fetched upstream records and came out as the commits already
-published, so there was nothing to write. That is the ordinary
-result of a day on which nothing moved, and is not the same as the
-job having failed — the date above would show that.
+No measure changed on the last successful run. That is an ordinary
+result — Congress does not sit every day — and is not the same as the
+job having failed, which the date above would show.
 
 ## US Code release points not built yet
 
@@ -43,12 +41,12 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-11-07 13:39 UTC**
+**Last successful run — 2026-11-08 13:57 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-07 13:39 UTC |
+| Last run attempted | 2026-11-08 13:57 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 0 |
@@ -62,7 +60,7 @@ sign the job failed — the date above would show that.
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-11-08 11:40 UTC**
+**1 thing a schedule cannot do — checked 2026-11-09 13:35 UTC**
 
 | What | What to do |
 |---|---|
