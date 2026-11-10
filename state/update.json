@@ -1,9 +1,24 @@
 {
-  "checked_since": "2026-11-08T10:40:45Z",
+  "checked_since": "2026-11-09T12:35:32Z",
   "last_outcome": "ok",
-  "last_run": "2026-11-09T13:35:32Z",
-  "last_success": "2026-11-09T13:35:32Z",
-  "measures": {},
+  "last_run": "2026-11-10T13:13:44Z",
+  "last_success": "2026-11-10T13:13:44Z",
+  "measures": {
+    "119": [
+      "hr-3857",
+      "hr-5254",
+      "hr-6365",
+      "hres-1299",
+      "hres-1494",
+      "hres-1644",
+      "s-1275",
+      "s-3589",
+      "s-537",
+      "s-5594",
+      "s-611",
+      "s-659"
+    ]
+  },
   "pending_release_points": [
     "pl-119-136",
     "pl-119-138"
