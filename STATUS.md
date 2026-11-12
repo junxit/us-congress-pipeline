@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-11-11 12:24 UTC**
+**Last successful update — 2026-11-12 13:31 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,19 +14,19 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-11 12:24 UTC |
+| Last run attempted | 2026-11-12 13:31 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-11-10 12:13 UTC |
-| Measures govinfo reported modified | 386 |
-| Branches rewritten | 35 |
-| Rebuilt to the commit already published | 344 |
-| Modified but still carrying no text | 7 |
+| Window asked of govinfo | since 2026-11-11 11:24 UTC |
+| Measures govinfo reported modified | 321 |
+| Branches rewritten | 39 |
+| Rebuilt to the commit already published | 240 |
+| Modified but still carrying no text | 42 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 35 | `hr-10961`, `hr-10962`, `hr-10965`, `hr-10966`, `hr-10967`, `hr-10968`, `hr-10969`, `hr-10970`, `hr-1703`, `hr-3857`, `hr-3978`, `hr-5254`, and 23 more |
+| 119 | 39 | `hconres-126`, `hr-10971`, `hr-10972`, `hr-10973`, `hr-10974`, `hr-10975`, `hr-10976`, `hr-10977`, `hr-10978`, `hr-10979`, `hr-10980`, `hr-10981`, and 27 more |
 
 ## US Code release points not built yet
 
@@ -44,26 +44,21 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-11-10 15:17 UTC**
+**Last successful run — 2026-11-11 14:48 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-10 15:17 UTC |
+| Last run attempted | 2026-11-11 14:48 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 0 |
-| Issue days held | 381 |
-| Refs published | 0 |
-
-No issue day was added on the last successful run. Congress does not
-sit every day, and the Record is published only for the days it does,
-so an unchanged shard is the ordinary result of a recess rather than a
-sign the job failed — the date above would show that.
+| Issue days added | 1 |
+| Issue days held | 382 |
+| Refs published | 2 |
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-11-11 12:24 UTC**
+**1 thing a schedule cannot do — checked 2026-11-12 13:31 UTC**
 
 | What | What to do |
 |---|---|
