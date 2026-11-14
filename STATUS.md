@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-11-13 12:50 UTC**
+**Last successful update — 2026-11-14 11:55 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,26 +14,27 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-13 12:50 UTC |
+| Last run attempted | 2026-11-14 11:55 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-11-12 12:31 UTC |
-| Measures govinfo reported modified | 357 |
-| Branches rewritten | 74 |
-| Rebuilt to the commit already published | 273 |
-| Modified but still carrying no text | 10 |
+| Window asked of govinfo | since 2026-11-13 11:50 UTC |
+| Measures govinfo reported modified | 260 |
+| Branches rewritten | 53 |
+| Rebuilt to the commit already published | 200 |
+| Modified but still carrying no text | 7 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 74 | `hr-1013`, `hr-10167`, `hr-10238`, `hr-10329`, `hr-10353`, `hr-10354`, `hr-10355`, `hr-10371`, `hr-10375`, `hr-10508`, `hr-10751`, `hr-10828`, and 62 more |
+| 119 | 53 | `hr-1013`, `hr-10846`, `hr-10848`, `hr-11001`, `hr-11012`, `hr-11013`, `hr-11014`, `hr-11015`, `hr-11016`, `hr-11017`, `hr-11018`, `hr-11020`, and 41 more |
 
 ## US Code release points not built yet
 
-OLRC has published 2 release point(s) that `us-congress-code` does not carry:
+OLRC has published 3 release point(s) that `us-congress-code` does not carry:
 
 - `pl-119-136`
 - `pl-119-138`
+- `pl-119-142`
 
 A release point is a full snapshot of ~60,000 files built against the
 one before it — the guard that stops a truncated archive recording
@@ -44,21 +45,21 @@ backlog is stated rather than left to be noticed.
 
 ## Congressional Record
 
-**Last successful run — 2026-11-12 15:40 UTC**
+**Last successful run — 2026-11-13 14:58 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-12 15:40 UTC |
+| Last run attempted | 2026-11-13 14:58 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 2 |
-| Issue days held | 384 |
+| Issue days added | 1 |
+| Issue days held | 385 |
 | Refs published | 2 |
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-11-13 12:50 UTC**
+**1 thing a schedule cannot do — checked 2026-11-14 11:55 UTC**
 
 | What | What to do |
 |---|---|
