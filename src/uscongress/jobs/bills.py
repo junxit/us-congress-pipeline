@@ -60,6 +60,10 @@ INLINE_GAP_LIMIT = 200
 GAP_SAMPLE = 50
 
 
+class BuildIncomplete(Exception):
+    """A build finished with measures it could not build, so it must not publish."""
+
+
 @dataclass(frozen=True)
 class TextVersion:
     """One text version of a measure.
@@ -785,6 +789,10 @@ async def seed(
 
     Returns:
         The repository that was built.
+
+    Raises:
+        BuildIncomplete: If any measure failed to build. Every other measure is
+            built first, and GAPS.md is left as it was.
     """
     measures = await discover(client, congress)
     if limit is not None:
@@ -888,6 +896,14 @@ async def seed(
                 "record would drop those sections. Use --rebuild to refresh it.",
                 flush=True,
             )
+    elif failed:
+        # The same rule from the other side: a failed measure contributed none
+        # of its gaps, so the record would quietly understate them.
+        print(
+            f"  GAPS.md left alone: {failed:,} measures failed to build, so this "
+            "run did not walk every measure.",
+            flush=True,
+        )
     elif gaps or votes_missing or votes_late or derived_totals:
         _write_gaps(repo, congress, gaps, votes_missing, votes_late, derived_totals)
 
@@ -920,6 +936,11 @@ async def seed(
             f"WARNING: {len(measures) - accounted} measures unaccounted for",
             flush=True,
         )
+    if failed:
+        # Raised only now, after every measure that could be built has been, so
+        # the blast radius stays one measure -- but the run still fails, and the
+        # monthly rebuild never reaches `republish`.
+        raise BuildIncomplete(f"{failed:,} measures failed to build; see above")
     return repo
 
 

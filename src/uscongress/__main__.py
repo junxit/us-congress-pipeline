@@ -446,7 +446,12 @@ def main(argv: list[str] | None = None) -> int:
                 f"({size / max(branches, 1) / 1e3:.0f} KB per branch)"
             )
 
-        asyncio.run(_seed_bills())
+        try:
+            asyncio.run(_seed_bills())
+        except bills_job.BuildIncomplete as exc:
+            # Non-zero so the monthly rebuild stops before `republish`.
+            print(f"\nseed-bills: {exc}", flush=True)
+            return 1
         return 0
 
     if args.command == "seed-statutes":

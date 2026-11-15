@@ -37,7 +37,14 @@ from ..votes import RecordedVote, RollCall, parse
 #: *yet*. These are answered with a rendered marker rather than a failure; any
 #: other error propagates, because a measure that silently loses a vote to a
 #: timeout would be committed without it and published as complete.
-_ABSENT = frozenset({403, 404, 410})
+#:
+#: 403 is not among them: it is a refusal, not an absence. In the monthly
+#: rebuild of 2026-11-01 senate.gov answered 403 to the GitHub runner for 448
+#: Senate roll calls on 133 measures -- every one fetched by the rebuild a month
+#: earlier, and served to a laptop on 2026-11-15 -- and each was published as
+#: "not retrievable". Raised instead, a refusal leaves the measure as published
+#: and fails the run, which is the honest answer to "the source would not say".
+_ABSENT = frozenset({404, 410})
 
 
 class VoteUnavailable(Exception):
@@ -92,6 +99,8 @@ async def fetch(client: GovInfoClient, vote: RecordedVote) -> bytes:
     Raises:
         VoteUnavailable: If the chamber does not publish the vote where
             BILLSTATUS says it does, or serves something that is not XML.
+        httpx.HTTPStatusError: On any other status, 403 included: a refusal
+            says nothing about whether the vote exists.
     """
     cached = _cache_path(vote)
     if cached.is_file() and cached.stat().st_size > 0:
@@ -145,9 +154,10 @@ async def load(
     whether a fetch happened to succeed, which is the one thing that must not
     vary between a local build and the daily loop.
 
-    Transient failures do not come back here at all. They propagate, the
-    measure is not rebuilt, and the watermark stays where it is -- advancing
-    past a measure whose vote timed out is how a gap becomes permanent.
+    Transient failures and refusals do not come back here at all. They
+    propagate, the measure is not rebuilt, and the watermark stays where it is
+    -- advancing past a measure whose vote timed out is how a gap becomes
+    permanent.
 
     Args:
         client: HTTP client.

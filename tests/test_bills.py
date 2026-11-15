@@ -11,7 +11,9 @@ from __future__ import annotations
 import asyncio
 import subprocess
 from datetime import date
+from types import SimpleNamespace
 
+import httpx
 import pytest
 
 from uscongress import votes as votes_text
@@ -563,6 +565,50 @@ def test_a_build_with_no_main_starts_from_the_published_one(
     repo = asyncio.run(bills.seed(None, "113", rebuild=True))
 
     assert sorted(repo.read_tree("main")) == ["LICENSE", "README.md"]
+
+
+def test_a_rebuild_with_a_failed_measure_fails_and_leaves_gaps_alone(
+    monkeypatch, tmp_path
+) -> None:
+    """A measure that could not be built must fail the run, not thin the record.
+
+    The monthly rebuild runs `seed-bills` and then `republish` in one step, so a
+    non-zero exit is what keeps a partial build off GitHub. A failed measure also
+    contributed none of its gaps, so GAPS.md stays as published rather than
+    being rewritten to understate them.
+    """
+    published = GitRepo(tmp_path / "published")
+    published.init()
+    with published.fast_import() as stream:
+        stream.commit(
+            "main",
+            {"README.md": "readme\n", "LICENSE": "license\n", "GAPS.md": "as published\n"},
+            "Artifacts",
+        )
+
+    async def _two_measures(_client, _congress):  # noqa: ANN001, ANN202
+        return [("BILLSTATUS-113hr1.xml", "u1"), ("BILLSTATUS-113hr2.xml", "u2")]
+
+    async def _build(_client, _congress, name, _url):  # noqa: ANN001, ANN202
+        if name.endswith("hr1.xml"):
+            request = httpx.Request("GET", "https://www.senate.gov/vote.xml")
+            raise httpx.HTTPStatusError(
+                "403", request=request, response=httpx.Response(403, request=request)
+            )
+        return SimpleNamespace(branch="hr-2", citation="H.R. 2", title="Reserved"), []
+
+    monkeypatch.setattr(bills, "discover", _two_measures)
+    monkeypatch.setattr(bills, "_build_measure", _build)
+    monkeypatch.setattr(bills.config, "REPOS_DIR", tmp_path / "repos")
+    monkeypatch.setattr(
+        bills.publish, "repo_url", lambda _name, _token="": str(published.path)
+    )
+
+    with pytest.raises(bills.BuildIncomplete):
+        asyncio.run(bills.seed(None, "113", rebuild=True))
+
+    repo = GitRepo(tmp_path / "repos" / "us-congress-bills-113")
+    assert repo.read_tree("main")["GAPS.md"] == "as published\n"
 
 
 # --------------------------------------------------------------------------

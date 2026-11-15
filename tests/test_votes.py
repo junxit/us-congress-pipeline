@@ -21,6 +21,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from datetime import date
 
+import httpx
 import pytest
 from defusedxml.ElementTree import fromstring
 
@@ -579,6 +580,43 @@ async def test_a_vote_that_is_not_published_is_reported_rather_than_raised(
     assert len(missing) == 1
     assert missing[0][0] is reference
     assert "not XML" in missing[0][1]
+
+
+async def test_a_refused_vote_is_an_error_not_an_absence(tmp_path, monkeypatch) -> None:
+    """A 403 says the source would not answer, not that the vote does not exist.
+
+    Read as an absence, it published a falsehood: the rebuild of 2026-11-01 was
+    refused 448 Senate roll calls that the rebuild a month earlier had fetched,
+    and committed each as "not retrievable". A refusal propagates instead, while
+    a 404 is still the upstream absence it was.
+    """
+    monkeypatch.setattr(votes_job.config, "RAW_DIR", tmp_path)
+    reference = votes.RecordedVote(
+        chamber=votes.SENATE,
+        congress="119",
+        session="1",
+        number=548,
+        url="https://www.senate.gov/legislative/LIS/roll_call_votes/vote1191/vote_119_1_00548.xml",
+    )
+
+    class _Client:
+        def __init__(self, status: int) -> None:
+            self.status = status
+
+        async def get_bytes(self, url: str) -> bytes:
+            request = httpx.Request("GET", url)
+            raise httpx.HTTPStatusError(
+                f"{self.status} for {url}",
+                request=request,
+                response=httpx.Response(self.status, request=request),
+            )
+
+    with pytest.raises(httpx.HTTPStatusError):
+        await votes_job.load(_Client(403), (reference,))
+
+    rolls, missing = await votes_job.load(_Client(404), (reference,))
+    assert rolls == ()
+    assert "answered HTTP 404" in missing[0][1]
 
 
 # --------------------------------------------------------------------------

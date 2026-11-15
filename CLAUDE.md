@@ -149,9 +149,14 @@ Two things it deliberately cannot judge for you:
   the diff is right. Read it, because a changed bioguide ID moves votes from one
   senator to another. Nothing fetches that table at build time and nothing
   should — see the module docstring.
-- **A vote that cannot be fetched has never happened.** All 19,471 roll calls
-  were retrievable, so the marker path and the matching `GAPS.md` section have
-  only ever run in tests. Their first real execution will be unattended.
+- **A vote the chamber refuses is not a vote it lacks.** The marker path first
+  ran for real, unattended, in the monthly rebuild of 2026-11-01: senate.gov
+  answered HTTP 403 to the GitHub runner for 448 Senate roll calls on 133
+  measures, every one fetched a month earlier, and each was published as "not
+  retrievable". A 403 now fails the run (`votes._ABSENT`); only 404 and 410
+  become markers. If runners stay refused, the daily loop goes red on measures
+  with Senate votes and the monthly rebuild publishes nothing. That is the
+  signal; do not silence it by putting 403 back.
 
 ## Where the truth lives
 
