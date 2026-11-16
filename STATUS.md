@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-11-15 12:28 UTC**
+**Last successful update — 2026-11-16 13:20 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,52 +14,39 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-15 12:28 UTC |
+| Last run attempted | 2026-11-16 13:20 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-11-14 10:55 UTC |
-| Measures govinfo reported modified | 30 |
-| Branches rewritten | 2 |
-| Rebuilt to the commit already published | 25 |
-| Modified but still carrying no text | 3 |
+| Window asked of govinfo | since 2026-11-15 11:28 UTC |
+| Measures govinfo reported modified | 0 |
+| Branches rewritten | 0 |
+| Rebuilt to the commit already published | 0 |
 
-## Measures updated on the last successful run
-
-| Congress | Branches | Measures |
-|---|---|---|
-| 119 | 2 | `hr-11033`, `hr-2102` |
-
-## US Code release points not built yet
-
-OLRC has published 3 release point(s) that `us-congress-code` does not carry:
-
-- `pl-119-136`
-- `pl-119-138`
-- `pl-119-142`
-
-A release point is a full snapshot of ~60,000 files built against the
-one before it — the guard that stops a truncated archive recording
-hundreds of repeals and reversing them two commits later compares the
-two trees — so it is built where that history already is, with
-`uv run uscongress seed-code`, rather than by the daily job. This
-backlog is stated rather than left to be noticed.
+No measure changed on the last successful run. That is an ordinary
+result — Congress does not sit every day — and is not the same as the
+job having failed, which the date above would show.
 
 ## Congressional Record
 
-**Last successful run — 2026-11-14 13:51 UTC**
+**Last successful run — 2026-11-15 14:25 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-14 13:51 UTC |
+| Last run attempted | 2026-11-15 14:25 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 1 |
+| Issue days added | 0 |
 | Issue days held | 386 |
-| Refs published | 2 |
+| Refs published | 0 |
+
+No issue day was added on the last successful run. Congress does not
+sit every day, and the Record is published only for the days it does,
+so an unchanged shard is the ordinary result of a recess rather than a
+sign the job failed — the date above would show that.
 
 ## Needs a person
 
-**1 thing a schedule cannot do — checked 2026-11-15 12:28 UTC**
+**1 thing a schedule cannot do — checked 2026-11-16 13:20 UTC**
 
 | What | What to do |
 |---|---|
