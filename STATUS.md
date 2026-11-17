@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-11-16 13:20 UTC**
+**Last successful update — 2026-11-17 14:04 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,25 +14,27 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-16 13:20 UTC |
+| Last run attempted | 2026-11-17 14:04 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-11-15 11:28 UTC |
-| Measures govinfo reported modified | 0 |
-| Branches rewritten | 0 |
-| Rebuilt to the commit already published | 0 |
+| Window asked of govinfo | since 2026-11-16 12:20 UTC |
+| Measures govinfo reported modified | 130 |
+| Branches rewritten | 49 |
+| Rebuilt to the commit already published | 81 |
 
-No measure changed on the last successful run. That is an ordinary
-result — Congress does not sit every day — and is not the same as the
-job having failed, which the date above would show.
+## Measures updated on the last successful run
+
+| Congress | Branches | Measures |
+|---|---|---|
+| 119 | 49 | `hr-1013`, `hr-10238`, `hr-10329`, `hr-10353`, `hr-10355`, `hr-10371`, `hr-10375`, `hr-11009`, `hr-11010`, `hr-11011`, `hr-11019`, `hr-11034`, and 37 more |
 
 ## Congressional Record
 
-**Last successful run — 2026-11-15 14:25 UTC**
+**Last successful run — 2026-11-16 16:36 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-15 14:25 UTC |
+| Last run attempted | 2026-11-16 16:36 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 0 |
@@ -43,17 +45,6 @@ No issue day was added on the last successful run. Congress does not
 sit every day, and the Record is published only for the days it does,
 so an unchanged shard is the ordinary result of a recess rather than a
 sign the job failed — the date above would show that.
-
-## Needs a person
-
-**1 thing a schedule cannot do — checked 2026-11-16 13:20 UTC**
-
-| What | What to do |
-|---|---|
-| 3 US Code release point(s) published upstream and not built: `pl-119-136`, `pl-119-138`, `pl-119-142` | Run `uscongress seed-code` where `us-congress-code` already is; a release point is built against its predecessor |
-
-This list is computed, not remembered. It is empty on an ordinary day,
-and this section is absent when it is empty.
 
 ## What this does not cover
 
