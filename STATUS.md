@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-11-17 14:04 UTC**
+**Last successful update — 2026-11-18 13:38 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,37 +14,33 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-17 14:04 UTC |
+| Last run attempted | 2026-11-18 13:38 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-11-16 12:20 UTC |
-| Measures govinfo reported modified | 130 |
-| Branches rewritten | 49 |
-| Rebuilt to the commit already published | 81 |
+| Window asked of govinfo | since 2026-11-17 13:04 UTC |
+| Measures govinfo reported modified | 470 |
+| Branches rewritten | 22 |
+| Rebuilt to the commit already published | 442 |
+| Modified but still carrying no text | 6 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 49 | `hr-1013`, `hr-10238`, `hr-10329`, `hr-10353`, `hr-10355`, `hr-10371`, `hr-10375`, `hr-11009`, `hr-11010`, `hr-11011`, `hr-11019`, `hr-11034`, and 37 more |
+| 119 | 22 | `hconres-86`, `hconres-93`, `hr-10784`, `hr-4464`, `hr-4930`, `hr-5525`, `hr-665`, `hr-8552`, `hr-8801`, `hr-9607`, `hr-9608`, `s-3296`, and 10 more |
 
 ## Congressional Record
 
-**Last successful run — 2026-11-16 16:36 UTC**
+**Last successful run — 2026-11-17 16:33 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-16 16:36 UTC |
+| Last run attempted | 2026-11-17 16:33 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 0 |
-| Issue days held | 386 |
-| Refs published | 0 |
-
-No issue day was added on the last successful run. Congress does not
-sit every day, and the Record is published only for the days it does,
-so an unchanged shard is the ordinary result of a recess rather than a
-sign the job failed — the date above would show that.
+| Issue days added | 1 |
+| Issue days held | 387 |
+| Refs published | 2 |
 
 ## What this does not cover
 
