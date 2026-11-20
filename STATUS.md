@@ -14,13 +14,14 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-19 14:06 UTC |
-| Outcome | ok |
-| Window asked of govinfo | since 2026-11-18 12:38 UTC |
-| Measures govinfo reported modified | 415 |
-| Branches rewritten | 74 |
-| Rebuilt to the commit already published | 269 |
-| Modified but still carrying no text | 72 |
+| Last run attempted | 2026-11-20 13:48 UTC |
+| Outcome | BILLSTATUS-119hconres93: HTTPStatusError: Client error '403 Forbidden' for url 'https://www.senate.gov/legislative/LIS/roll_call_votes/vote1192/vote_119_2_00269.xml'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403 |
+| Window asked of govinfo | since 2026-11-19 13:06 UTC |
+| Measures govinfo reported modified | 390 |
+| Branches rewritten | 57 |
+| Rebuilt to the commit already published | 217 |
+| Modified but still carrying no text | 115 |
 
 ## Measures updated on the last successful run
 
@@ -30,16 +31,16 @@ If that date is more than 2 days old, the loop has stopped.
 
 ## Congressional Record
 
-**Last successful run — 2026-11-18 16:02 UTC**
+**Last successful run — 2026-11-19 16:10 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-18 16:02 UTC |
+| Last run attempted | 2026-11-19 16:10 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 1 |
-| Issue days held | 388 |
+| Issue days held | 389 |
 | Refs published | 2 |
 
 ## What this does not cover

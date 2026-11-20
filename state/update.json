@@ -1,7 +1,7 @@
 {
   "checked_since": "2026-11-18T12:38:59Z",
-  "last_outcome": "ok",
-  "last_run": "2026-11-19T14:06:01Z",
+  "last_outcome": "BILLSTATUS-119hconres93: HTTPStatusError: Client error '403 Forbidden' for url 'https://www.senate.gov/legislative/LIS/roll_call_votes/vote1192/vote_119_2_00269.xml'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+  "last_run": "2026-11-20T13:48:27Z",
   "last_success": "2026-11-19T14:06:01Z",
   "measures": {
     "119": [
