@@ -13,7 +13,7 @@ It owns **33 public repositories** under `github.com/junxit`:
 | Repository | Count | Holds |
 |---|---|---|
 | `us-congress-pipeline` | 1 | this ETL |
-| `us-congress-code` | 1 | the US Code, 383 release points, tagged |
+| `us-congress-code` | 1 | the US Code, 396 release points, tagged |
 | `us-congress-bills-{108..119}` | 12 | 160,190 branches, one per measure |
 | `us-congress-statutes` | 1 | 136 volumes, 102,234 session laws |
 | `us-congress-comps` | 1 | Statute Compilations, one commit per daily snapshot |
@@ -171,6 +171,14 @@ Never duplicate these anywhere — memory, notes, or prose. They are the source.
 | What needs a person right now? | `uv run uscongress attention`, or the **Needs a person** section on `STATUS.md` |
 | Can the loop still publish where it must? | the same check — it asks `git-receive-pack`, per repository |
 | What is missing from a corpus, and why? | `GAPS.md` on that repository's `main` |
+
+**Pull before you ask.** `update --check` and `attention` read `state/` from
+the working tree, and only the scheduled jobs commit it, so a clone that has not
+pulled answers for the day it last did. On 2026-11-20 a clone 13 heartbeat
+commits behind reported the loop STALE at five days and three release points
+unbuilt, when the last success was under a day old and all three had been
+published on 11-15. Run `git pull --ff-only` first, and `attention --check`
+locally: without it, `attention` rewrites the tracked `state/attention.json`.
 
 Phase state is deliberately in-repo rather than in anyone's head. A phase is
 marked `DONE` only when its repositories actually exist and are pushed — a
