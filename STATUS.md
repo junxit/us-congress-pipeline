@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-11-19 14:06 UTC**
+**Last successful update — 2026-11-21 13:13 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,33 +14,32 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-20 13:48 UTC |
-| Outcome | BILLSTATUS-119hconres93: HTTPStatusError: Client error '403 Forbidden' for url 'https://www.senate.gov/legislative/LIS/roll_call_votes/vote1192/vote_119_2_00269.xml'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403 |
+| Last run attempted | 2026-11-21 13:13 UTC |
+| Outcome | ok |
 | Window asked of govinfo | since 2026-11-19 13:06 UTC |
-| Measures govinfo reported modified | 390 |
+| Measures govinfo reported modified | 797 |
 | Branches rewritten | 57 |
-| Rebuilt to the commit already published | 217 |
-| Modified but still carrying no text | 115 |
+| Rebuilt to the commit already published | 611 |
+| Modified but still carrying no text | 129 |
 
 ## Measures updated on the last successful run
 
 | Congress | Branches | Measures |
 |---|---|---|
-| 119 | 74 | `hjres-222`, `hr-10136`, `hr-10226`, `hr-10382`, `hr-10985`, `hr-10992`, `hr-11000`, `hr-11007`, `hr-11038`, `hr-11039`, `hr-11040`, `hr-11041`, and 62 more |
+| 119 | 57 | `hr-10159`, `hr-10167`, `hr-11037`, `hr-11058`, `hr-11067`, `hr-11130`, `hr-1520`, `hr-2347`, `hr-4464`, `hr-4624`, `hr-6213`, `hres-1671`, and 45 more |
 
 ## Congressional Record
 
-**Last successful run — 2026-11-19 16:10 UTC**
+**Last successful run — 2026-11-20 15:49 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-19 16:10 UTC |
+| Last run attempted | 2026-11-20 15:49 UTC |
 | Outcome | ok |
 | Congress | 119 |
 | Issue days added | 1 |
-| Issue days held | 389 |
+| Issue days held | 390 |
 | Refs published | 2 |
 
 ## What this does not cover
