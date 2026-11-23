@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-11-22 13:02 UTC**
+**Last successful update — 2026-11-23 15:39 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,33 +14,37 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-22 13:02 UTC |
+| Last run attempted | 2026-11-23 15:39 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-11-21 12:13 UTC |
-| Measures govinfo reported modified | 140 |
-| Branches rewritten | 5 |
-| Rebuilt to the commit already published | 103 |
-| Modified but still carrying no text | 32 |
+| Window asked of govinfo | since 2026-11-22 12:02 UTC |
+| Measures govinfo reported modified | 4 |
+| Branches rewritten | 0 |
+| Rebuilt to the commit already published | 4 |
 
-## Measures updated on the last successful run
-
-| Congress | Branches | Measures |
-|---|---|---|
-| 119 | 5 | `hres-1674`, `s-2479`, `s-5735`, `s-5750`, `sres-966` |
+No branch changed. 4 measures were rebuilt from freshly
+fetched upstream records and came out as the commits already
+published, so there was nothing to write. That is the ordinary
+result of a day on which nothing moved, and is not the same as the
+job having failed — the date above would show that.
 
 ## Congressional Record
 
-**Last successful run — 2026-11-21 14:59 UTC**
+**Last successful run — 2026-11-22 14:57 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-21 14:59 UTC |
+| Last run attempted | 2026-11-22 14:57 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 1 |
+| Issue days added | 0 |
 | Issue days held | 391 |
-| Refs published | 2 |
+| Refs published | 0 |
+
+No issue day was added on the last successful run. Congress does not
+sit every day, and the Record is published only for the days it does,
+so an unchanged shard is the ordinary result of a recess rather than a
+sign the job failed — the date above would show that.
 
 ## What this does not cover
 
