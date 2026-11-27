@@ -1,6 +1,6 @@
 # Status
 
-**Last successful update — 2026-11-26 14:42 UTC**
+**Last successful update — 2026-11-27 14:39 UTC**
 
 This file is written by `uv run uscongress update`, which runs daily. It is
 here because the way a project like this dies is not with an error: a
@@ -14,32 +14,37 @@ If that date is more than 2 days old, the loop has stopped.
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-26 14:42 UTC |
+| Last run attempted | 2026-11-27 14:39 UTC |
 | Outcome | ok |
-| Window asked of govinfo | since 2026-11-25 14:16 UTC |
-| Measures govinfo reported modified | 176 |
-| Branches rewritten | 34 |
-| Rebuilt to the commit already published | 142 |
+| Window asked of govinfo | since 2026-11-26 13:42 UTC |
+| Measures govinfo reported modified | 1 |
+| Branches rewritten | 0 |
+| Rebuilt to the commit already published | 1 |
 
-## Measures updated on the last successful run
-
-| Congress | Branches | Measures |
-|---|---|---|
-| 119 | 34 | `hr-11057`, `hr-11084`, `hr-11085`, `hr-11102`, `hr-11104`, `hr-11105`, `hr-11107`, `hr-11108`, `hr-11109`, `hr-11110`, `hr-11111`, `hr-11112`, and 22 more |
+No branch changed. 1 measures were rebuilt from freshly
+fetched upstream records and came out as the commits already
+published, so there was nothing to write. That is the ordinary
+result of a day on which nothing moved, and is not the same as the
+job having failed — the date above would show that.
 
 ## Congressional Record
 
-**Last successful run — 2026-11-25 17:41 UTC**
+**Last successful run — 2026-11-26 17:25 UTC**
 
 | | |
 |---|---|
 | **Heartbeat** | current |
-| Last run attempted | 2026-11-25 17:41 UTC |
+| Last run attempted | 2026-11-26 17:25 UTC |
 | Outcome | ok |
 | Congress | 119 |
-| Issue days added | 1 |
+| Issue days added | 0 |
 | Issue days held | 392 |
-| Refs published | 2 |
+| Refs published | 0 |
+
+No issue day was added on the last successful run. Congress does not
+sit every day, and the Record is published only for the days it does,
+so an unchanged shard is the ordinary result of a recess rather than a
+sign the job failed — the date above would show that.
 
 ## What this does not cover
 
